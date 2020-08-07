@@ -47,5 +47,6 @@
 
 <core_rt:if test="${empty attributeNotFoundException}">
     <core_rt:set var="inReleaseDetailsContext" value="true" scope="request"/>
+    <core_rt:set var="isPackagePortletDisabled" value='<%=PortalConstants.IS_PACKAGE_PORTLET_DISABLED%>' />
     <%@include file="/html/components/includes/releases/detailOverview.jspf"%>
 </core_rt:if>

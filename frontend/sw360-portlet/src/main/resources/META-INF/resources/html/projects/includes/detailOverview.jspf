@@ -28,6 +28,7 @@
 <core_rt:set var = "updateProjectVulnerabilitiesURL" scope = "request" value = "updateProjectVulnerabilitiesURL"/>
 <core_rt:set var = "updateVulnerabilityRatings" scope = "request" value = "updateVulnerabilityRatings"/>
 <core_rt:set var="isSvmEnabled" value='<%=PortalConstants.IS_SVM_ENABLED%>' />
+<core_rt:set var="isPackagePortletDisabled" value='<%=PortalConstants.IS_PACKAGE_PORTLET_DISABLED%>' />
 <jsp:useBean id="isCrDisabledForProjectBU" type="java.lang.Boolean" scope="request"/>
 <div class="container" style="display: none;">
 	<div class="row">
@@ -36,14 +37,17 @@
 			<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Summary'}">active</core_rt:if>" href="#tab-Summary" data-toggle="list" role="tab"><liferay-ui:message key="summary" /></a>
 			<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Administration'}">active</core_rt:if>" href="#tab-Administration" data-toggle="list" role="tab"><liferay-ui:message key="administration" /></a>
 			<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-licenseClearing'}">active</core_rt:if>" href="#tab-licenseClearing" data-toggle="list" role="tab"><liferay-ui:message key="license.clearing" /></a>		
+			<core_rt:if test="${isPackagePortletDisabled eq false}">
+			<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-linkedPackages'}">active</core_rt:if>" href="#tab-linkedPackages" data-toggle="list" role="tab"><liferay-ui:message key="linked.packages" /></a>
+			</core_rt:if>
 			<core_rt:if test="${isProjectObligationsEnabled}">
 			<a id="obligationCountBadge" class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Obligations'}">active</core_rt:if>" href="#tab-Obligations" data-toggle="list" role="tab"><liferay-ui:message key="obligations" />
 			</a>
 			</core_rt:if>
-<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-ECC'}">active</core_rt:if>" href="#tab-ECC" data-toggle="list" role="tab"><liferay-ui:message key="ecc" /></a>
-<core_rt:if test="${isSvmEnabled == true}">
-<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-VulnerabilityTrackingsStatus'}">active</core_rt:if>" href="#tab-VulnerabilityTrackingsStatus" data-toggle="list" role="tab"><liferay-ui:message key="vulnerability.tracking.status" /></a>
-</core_rt:if>
+            <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-ECC'}">active</core_rt:if>" href="#tab-ECC" data-toggle="list" role="tab"><liferay-ui:message key="ecc" /></a>
+            <core_rt:if test="${isSvmEnabled == true}">
+            <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-VulnerabilityTrackingsStatus'}">active</core_rt:if>" href="#tab-VulnerabilityTrackingsStatus" data-toggle="list" role="tab"><liferay-ui:message key="vulnerability.tracking.status" /></a>
+            </core_rt:if>
 			<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Attachments'}">active</core_rt:if>" href="#tab-Attachments" data-toggle="list" role="tab"><liferay-ui:message key="attachments" /></a>
 			<core_rt:if test="${inProjectDetailsContext}">
 				<a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-attachmentUsages'}">active</core_rt:if>" href="#tab-attachmentUsages" data-toggle="list" role="tab"><liferay-ui:message key="attachment.usages" /></a>
@@ -85,9 +89,19 @@
 									<liferay-ui:message key="edit.project" />
 								</button>
 							</div>
-                                                        <div class="btn-group" role="group">
-                                                            <button type="button" class="btn btn-secondary" id="linkToProjectButton"><liferay-ui:message key="link.to.projects" /></button>
-                                                        </div>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-secondary" id="linkToProjectButton"><liferay-ui:message key="link.to.projects" /></button>
+                            </div>
+	                        <div class="btn-group" role="group">
+	                            <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+	                                <liferay-ui:message key="import.spdx.bom" />
+	                                <clay:icon symbol="caret-bottom" />
+	                            </button>
+	                            <div class="dropdown-menu" id="importSBom">
+	                                <!-- <a class="dropdown-item" href="#" data-type="spdx">SPDX</a> -->
+	                                <a class="dropdown-item" href="#" data-type="cycloneDx">CycloneDX</a>
+	                            </div>
+	                        </div>
 							 <div class="list-group-companion" data-belong-to="tab-licenseClearing">
 								<div class="nav nav-pills justify-content-center bg-light font-weight-bold d-inline-flex" id="pills-tab" role="tablist">
 									<a class="nav-item nav-link active" id="pills-tree-tab" data-toggle="pill" href="#pills-treeView" role="tab" aria-controls="pills-treeView" aria-selected="true">
@@ -226,6 +240,11 @@
 		                <div id="tab-Administration" class="tab-pane <core_rt:if test="${selectedTab == 'tab-Administration'}">active show</core_rt:if>">
 		                    <%@include file="/html/projects/includes/projects/administration.jspf" %>
 		                </div>
+		                <core_rt:if test="${isPackagePortletDisabled eq false}">
+                            <div id="tab-linkedPackages" class="tab-pane <core_rt:if test="${selectedTab == 'tab-linkedPackages'}">active show</core_rt:if>">
+                                <jsp:include page="/html/utils/includes/linkedPackages.jsp" />
+		                    </div>
+		                </core_rt:if>
 		                <div id="tab-licenseClearing" class="tab-pane <core_rt:if test="${selectedTab == 'tab-licenseClearing'}">active show</core_rt:if>"> 
 		                    <jsp:include page="/html/projects/includes/projects/clearingStatus.jsp" />
 		                </div>
@@ -303,6 +322,7 @@
 
 <%--for javascript library loading --%>
 <%@ include file="/html/utils/includes/requirejs.jspf" %>
+<%@ include file="/html/utils/includes/importBom.jspf" %>
 <script>
 	document.title = $("<span></span>").html("<sw360:ProjectName project="${project}"/> - " + document.title).text();
 

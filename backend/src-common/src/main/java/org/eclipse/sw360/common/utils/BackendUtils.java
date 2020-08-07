@@ -19,12 +19,14 @@ public class BackendUtils {
     protected static final Properties loadedProperties;
     public static final Boolean MAINLINE_STATE_ENABLED_FOR_USER;
     public static final Boolean IS_FORCE_UPDATE_ENABLED;
+    public static final boolean IS_PACKAGE_PORTLET_DISABLED;
 
     static {
         loadedProperties = CommonUtils.loadProperties(BackendUtils.class, PROPERTIES_FILE_PATH);
         MAINLINE_STATE_ENABLED_FOR_USER = Boolean.parseBoolean(loadedProperties.getProperty("mainline.state.enabled.for.user", "false"));
         IS_FORCE_UPDATE_ENABLED = Boolean.parseBoolean(
                 System.getProperty("RunRestForceUpdateTest", loadedProperties.getProperty("rest.force.update.enabled", "false")));
+        IS_PACKAGE_PORTLET_DISABLED = Boolean.parseBoolean(loadedProperties.getProperty("package.portlet.disabled", "true"));
     }
 
     protected BackendUtils() {

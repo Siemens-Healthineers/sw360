@@ -12,7 +12,7 @@
 <%--
     Description:             Import SPDX BOM to SW360
 
-    Required Buttons:        - <button type="button" class="btn btn-primary" data-action="import-spdx-bom">Import SPDX BOM</button>
+    Required Buttons:        - <button type="button" class="btn btn-primary" data-action="import-project-bom">Import SBOM</button>
 
     Required Imports:        - org.eclipse.sw360.portal.common.PortalConstants
 
@@ -39,16 +39,25 @@
 </portlet:resourceURL>
 
 <div class="dialogs">
-    <div id="spdxBomUpload" data-title="Upload SBOM" class="modal fade" tabindex="-1" role="dialog"
+    <div id="spdxBomUpload" data-title="Upload <span class='text-info spdxMsg'>SPDX</span> <span class='text-info cycloneDxMsg'>CycloneDX</span> SBOM" class="modal fade" tabindex="-1" role="dialog"
          data-portlet-namespace="<portlet:namespace/>"
          data-new-attachment-url="<%=newAttachmentAjaxURL%>"
          data-upload-attachment-part-url="<%=uploadPartAjaxURL%>"
          data-import-bom-url="<%=importBomAjaxURL%>" >
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable mw-100 w-50" role="document">
             <div class="modal-content">
                 <div class="modal-body container" id="spdxBomUploadUpload">
-                    <h2>Upload BOM document as ${documentType}</h2>
-                    <p>This currently only supports SPDX RDF/XML files with a uniq described top level node.</p>
+                    <h3>Upload the <span class="text-info spdxMsg">SPDX -> RDF/XML</span> <span class="text-info cycloneDxMsg">CycloneDX -> XML/JSON</span> SBOM document.</h3>
+                    <p class="spdxMsg">This currently only supports SPDX RDF/XML files with a unique described top level node.</p>
+                    <div class="cycloneDxMsg">
+                        <ul>
+                    <core_rt:if test="${not inProjectDetailsContext}">
+                            <li>Import will fail if, there is already an existing project with same name and version as component present in SBOM <span class="font-weight-bold text-monospace">metadata</span> tag.</li>
+                    </core_rt:if>
+                            <li><span class="font-weight-bold text-monospace">Components & Release</span> will not be created for those packages which does not contain <span class="text-info">VCS (Version Control System)</span> URL.</li>
+                            <li><span class="font-weight-bold text-monospace">Packages</span> will not be created if it does not contain <span class="text-info">name</span> or <span class="text-info">version</span> or <span class="text-info">package URL (purl)</span>.</li>
+                        </ul>
+                    </div>
                     <div class="lfr-dynamic-uploader">
                         <div class="lfr-upload-container">
                             <div id="fileupload-drop" class="upload-target">
@@ -64,6 +73,7 @@
                 <div class="modal-body container d-none" id="spdxBomUploadStatus"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-dismiss="modal">Close</button>
+                    <button id="sbom-upload" type=submit class="btn btn-primary" title="<liferay-ui:message key="upload" />"><liferay-ui:message key="upload" /></button>
                 </div>
             </div>
         </div>
@@ -71,22 +81,30 @@
 </div>
 
 <script>
-    require(['jquery', 'resumable', 'modules/dialog', 'modules/validation'], function($, Resumable, dialog, validation) {
-        $('.portlet-toolbar button[data-action="import-spdx-bom"]').on('click', function() {
+    require(['jquery', 'resumable', 'modules/dialog', 'modules/validation', 'modules/button'], function($, Resumable, dialog, validation, button) {
+        $('.portlet-toolbar #importSBom a.dropdown-item').on('click', function() {
             var dialogDivId = '#spdxBomUpload';
+            let r, uploadButton, statusDiv;
 
             //function open(selector, data, submitCallback, beforeShowFn, afterShowFn) {
             $dialog = dialog.open(dialogDivId,
                 {}, // data
                 function(submit, callback) {
                     // submitCallback
+                    r.upload();
+                    callback();
                 },
                 function() {
                     // beforeShowFn
 
                     var dialogDiv = $(dialogDivId);
                     var contentDiv = dialogDiv.find("#spdxBomUploadUpload");
-                    var statusDiv = dialogDiv.find("#spdxBomUploadStatus");
+                    contentDiv.show();
+                    statusDiv = dialogDiv.find("#spdxBomUploadStatus");
+                    if (!statusDiv.hasClass('d-none')) {
+                    	statusDiv.html("");
+                    	statusDiv.addClass('d-none');
+                    }
                     var data = dialogDiv.data();
                     var portletNamespace = data.portletNamespace;
 
@@ -94,6 +112,19 @@
                     urls.newAttachment = data.newAttachmentUrl;
                     urls.uploadAttachmentPart = data.uploadAttachmentPartUrl;
                     urls.importBom = data.importBomUrl;
+
+                    uploadButton = $("button#sbom-upload");
+                    uploadButton.hide();
+                    let buttonData = $(event.currentTarget).data();
+                    var bomType = buttonData.type.trim().toUpperCase();
+                    if (bomType == 'SPDX') {
+                        $("#spdxBomUpload .spdxMsg").show();
+                        $("#spdxBomUpload .cycloneDxMsg").hide();
+                    } else {
+                        $("#spdxBomUpload .spdxMsg").hide();
+                        $("#spdxBomUpload .cycloneDxMsg").show();
+                    }
+
                     function getAttachmentIdPromise(file) {
                         var data = {};
                         data[portletNamespace + "fileName"] = file.fileName || file.name;
@@ -109,6 +140,12 @@
                     function importBomFromAttachment(attachmentContentId) {
                         var data = {};
                         data[portletNamespace + "<%=PortalConstants.ATTACHMENT_CONTENT_ID%>"] = attachmentContentId;
+                        data[portletNamespace + "<%=PortalConstants.BOM_TYPE%>"] = bomType;
+                        data[portletNamespace + "<%=PortalConstants.PROJECT_ID%>"] = '${docid}';
+                        button.wait(uploadButton);
+                        $(dialogDivId).find("[data-dismiss='modal']").each(function(index, element) {
+                            $(this).attr('disabled', 'disabled');
+                        });
 
                         return $.ajax({
                             url: urls.importBom,
@@ -118,53 +155,169 @@
                         });
                     }
 
-                    var r = new Resumable({
+                    function getVersionedName(name, version) {
+                        if (version.length) {
+                        	return name + " (" + version + ")";
+                        } else {
+                        	return name;
+                        }
+                    }
+
+                    r = new Resumable({
                         target: urls.uploadAttachmentPart,
                         parameterNamespace: portletNamespace,
                         simultaneousUploads: 1,
                         generateUniqueIdentifier: getAttachmentIdPromise,
                         chunkRetryInterval: 2000,
                         maxChunkRetries: 3,
-                        fileType: ['rdf','json','spdx']
+                        fileType: ['rdf','spdx', 'xml', 'json']
                     });
 
                     r.assignBrowse($('#fileupload-browse')[0]);
                     r.assignDrop($('#fileupload-drop')[0]);
 
                     r.on('fileAdded', function (file) {
-                        console.log("fileAdded...");
                         contentDiv.hide();
                         statusDiv.removeClass('d-none');
-                        r.upload();
-                        statusDiv.html("<h2>Uploading " + file.fileName + " file</h2>");
+                        uploadButton.show();
+                        statusDiv.html("<h3>File <span class='text-info'>" + file.fileName + "</span> added successfully, Click on upload button.</h3>");
                     });
-                    r.on('fileProgress', function (file) {
-                        console.log("fileProgress...");
+                    r.on('uploadStart', function () {
+                        $(dialogDivId).find("[data-dismiss='modal']").each(function(index, element) {
+                            $(this).attr('disabled', 'disabled');
+                        });
+                        statusDiv.html("<h3>Uploading SBOM file...</h3>");
                     });
                     r.on('fileSuccess', function (file) {
-                        console.log("fileSuccess...");
-                        statusDiv.html("<h2>Importing ...</h2>");
+                    	var startTime = Date.now();
+                    	statusDiv.html("<h3>Upload successful, Importing of SBOM is in progress...</h3>");
                         var attachmentContentId = file.uniqueIdentifier;
                         importBomFromAttachment(attachmentContentId).then(function (data) {
-                            console.log("importSuccess...");
-                            statusDiv.html("<h2>Imported</h2>");
-                            if ('redirectUrl' in data) {
-                                statusDiv.append("<div>Created as <a href=\"" + data.redirectUrl + "\">" + data.message + "</a>, redirecting ...</div>");
-                                window.location.href = data.redirectUrl;
+                            button.finish(uploadButton);
+                            $(dialogDivId).find("[data-dismiss='modal']").each(function(index, element) {
+                                $(this).removeAttr('disabled');
+                            });
+                            if (bomType === 'SPDX') {
+                            	statusDiv.html("<h3>SBOM Imported successfully...</h3>");
+	                            if ('redirectUrl' in data) {
+	                                statusDiv.append("<div>Created project with id <a href=\"" + data.redirectUrl + "\">" + data.message + "</a>, redirecting to project details page...</div>");
+	                                window.location.href = data.redirectUrl;
+	                            } else {
+	                                statusDiv.append("<div>" + JSON.stringify(data) + "</div>");
+	                                contentDiv.show();
+	                            }
                             } else {
-                                statusDiv.append("<div>" + JSON.stringify(data) + "</div>");
-                                contentDiv.show();
+                                result = data.result;
+                                var endTime = Date.now();
+                                var timeTakenInSeconds = (endTime - startTime) / 1000;
+                                if (data.message && data.message.length) {
+                                    msg = $('<ul/>');
+                                    msg.append('<li>' + data.message + '</li>');
+                                    if (result !== 'SUCCESS') {
+                                        statusDiv.html("<h3>Failed to import SBOM: <span class='text-info'>" + file.fileName + "</span></h3>");
+                                        if (result == 'DUPLICATE') {
+                                            statusDiv.append("<div class='alert alert-warning'><b>" + result + "</b> <br>" + data.message + "<br><a href=\"" +
+                                                data.redirectUrl + "\" target='_blank'>" + data.projectName + "</a><br>Click the URL to open project details page.</div>");
+                                        } else {
+                                            statusDiv.append("<span class='alert alert-danger'> <b>" + result + '</b> <br>' + data.message + "</span>");
+                                        }
+                                    } else {
+                                        statusDiv.html("<h3>SBOM imported successfully...</h3>");
+                                        statusDiv.append("<span class='alert alert-success'>" + data.message + "</span>");
+                                    }
+                                }
+                                if (result === 'SUCCESS') {
+                                    statusDiv.html("<h3>SBOM imported successfully...</h3>");
+                                    if ('redirectUrl' in data) {
+                                        statusDiv.append("<div class='alert alert-info'>Created project with name <a href=\"" + data.redirectUrl + "\" target='_blank'>" + data.projectName +
+                                            "</a>, Click the URL to open project details page.<br> Time Taken for import: " + timeTakenInSeconds + " seconds </div>");
+                                        countInfo = $('<ul/>');
+                                        if (data.compCreationCount || data.compReuseCount) {
+                                            let total = Number(data.compCreationCount) + Number(data.compReuseCount);
+                                            countInfo.append('<li>Total Components: <b>' + total + '</b></li>');
+                                        	countInfo.append('<ul><li>Components created: <b>' + data.compCreationCount + '</b></li></ul>');
+                                            countInfo.append('<ul><li>Components reused: <b>' + data.compReuseCount + '</b></li></ul>');
+                                        }
+                                        if (data.relCreationCount || data.relReuseCount) {
+                                        let total = Number(data.relCreationCount) + Number(data.relReuseCount);
+                                            countInfo.append('<li>Total Releases: <b>' + total + '</b></li>');
+                                            countInfo.append('<ul><li>Releases created: <b>' + data.relCreationCount + '</b></li></ul>');
+                                            countInfo.append('<ul><li>Releases reused: <b>' + data.relReuseCount + '</b></li></ul>');
+                                        }
+                                        if (data.pkgCreationCount || data.pkgReuseCount) {
+                                            let total = Number(data.pkgCreationCount) + Number(data.pkgReuseCount);
+                                            countInfo.append('<li>Total Packages: <b>' + total + '</b></li>');
+                                            countInfo.append('<ul><li>Packages created: <b>' + data.pkgCreationCount + '</b></li></ul>');
+                                            countInfo.append('<ul><li>Packages reused: <b>' + data.pkgReuseCount + '</b></li></ul>');
+                                        }
+                                        statusDiv.append("<div class='alert alert-success'> " + countInfo[0].outerHTML + "</div>");
+                                    }
+                                }
+                                if (data.invalidComp && data.invalidComp.length) {
+                                    invalidCompList = $('<ul/>');
+                                    data.invalidComp.split('||').forEach(function(comp, index) {
+                                        invalidCompList.append('<li>' + comp + '</li>');
+                                    });
+                                    statusDiv.append("<span class='alert alert-info'>List of packages without VCS information: <b>" + $(invalidCompList).find('li').length + "</b> <small>(not linked to any release)</small>" + invalidCompList[0].outerHTML + "</span>")
+                                }
+                                if (data.invalidRel && data.invalidRel.length) {
+                                    invalidRelList = $('<ul/>');
+                                    data.invalidRel.split('||').forEach(function(comp, index) {
+                                        invalidRelList.append('<li>' + comp + '</li>');
+                                    });
+                                    statusDiv.append("<span class='alert alert-info'>List of components without veriosn information: <b>" + $(invalidRelList).find('li').length + "</b> <small>(not imported)</small>" + invalidRelList[0].outerHTML + "</span>")
+                                }
+                                if (data.invalidPkg && data.invalidPkg.length) {
+                                    invalidPkgsList = $('<ul/>');
+                                    data.invalidPkg.split('||').forEach(function(pkg, index) {
+                                        invalidPkgsList.append('<li>' + pkg + '</li>');
+                                    });
+                                    statusDiv.append("<span class='alert alert-danger'>List of invalid packages without purl or name or version: <b>" + $(invalidPkgsList).find('li').length + "</b> <small>(not imported)</small>" + invalidPkgsList[0].outerHTML + "</span>")
+                                }
+                                if (data.dupComp && data.dupComp.length) {
+                                    compList = $('<ul/>');
+                                    data.dupComp.split('||').forEach(function(comp, index) {
+                                        compList.append('<li>' + comp + '</li>');
+                                    });
+                                    statusDiv.append("<span class='alert alert-warning'><b>" + $(compList).find('li').length +
+                                            "</b> Components were not imported, because multiple duplicate components are found with exact same name:" + compList[0].outerHTML + "</span>")
+                                }
+                                if (data.dupRel && data.dupRel.length) {
+                                    relList = $('<ul/>');
+                                    data.dupRel.split('||').forEach(function(rel, index) {
+                                        relList.append('<li>' + rel + '</li>');
+                                    });
+                                    statusDiv.append("<span class='alert alert-warning'><b>" + $(relList).find('li').length + 
+                                            "</b> Releases were not imported, because multiple duplicate releases are found with exact same name & version:" + relList[0].outerHTML + "</span>")
+
+                                }
+                                if (data.dupPkg && data.dupPkg.length) {
+                                    pkgList = $('<ul/>');
+                                    data.dupPkg.split('||').forEach(function(pkg, index) {
+                                        pkgList.append('<li>' + pkg + '</li>');
+                                    });
+                                    statusDiv.append("<span class='alert alert-warning'><b>" + $(pkgList).find('li').length + 
+                                            "</b> Packages were not imported, because multiple duplicate packages are found with exact same name & version:" + pkgList[0].outerHTML + "</span>")
+                                }
                             }
-                        }).catch(function (err) {
-                            statusDiv.html("<h2>Failed :(</h2>");
-                            statusDiv.append("<div>" + JSON.stringify(err) + "</div>");
+                            uploadButton.hide();
+                        }).catch(function (error) {
+                            statusDiv.html("<h3><span class='text-danger'>Failed : </span> </h3>");
+                            statusDiv.append("<div>" + JSON.stringify(error) + "</div>");
+                            if (error.message) {
+                            	statusDiv.append("<div>" + error.message + "</div>");
+                            }
                             contentDiv.show();
                         });
                     });
                     r.on('fileError', function (file) {
                         console.log("fileError...");
-                        statusDiv.html("<h2>Failed</h2>");
+                        statusDiv.html("<h3><span class='text-danger'>Failed : </span> </h3>");
                         statusDiv.append("<div>with fileError</div>");
+                        uploadButton.hide();
+                        $(dialogDivId).find("[data-dismiss='modal']").each(function(index, element) {
+                            $(this).removeAttr('disabled');
+                        });
                     });
                 },
                 function() {

@@ -32,6 +32,7 @@ import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.LicenseService;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
@@ -288,6 +289,13 @@ public class SW360Utils {
             sb.append(" ").append(version);
         }
         return sb.toString();
+    }
+
+    public static String printName(Package pkg) {
+        if (pkg == null || isNullOrEmpty(pkg.getName())) {
+            return "New Package";
+        }
+        return getVersionedName(pkg.getName(), pkg.getVersion());
     }
 
     public static String printName(Project project) {

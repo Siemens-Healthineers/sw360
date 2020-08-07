@@ -35,6 +35,8 @@ import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoParsingResult
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoRequestStatus;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoService;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseNameWithText;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.portal.common.PortalConstants;
@@ -58,6 +60,7 @@ import static com.liferay.portal.kernel.json.JSONFactoryUtil.createJSONArray;
 import static com.liferay.portal.kernel.json.JSONFactoryUtil.createJSONObject;
 import static org.eclipse.sw360.datahandler.common.CommonUtils.nullToEmptyString;
 import static org.eclipse.sw360.datahandler.common.SW360Utils.printName;
+import static org.eclipse.sw360.portal.common.PortalConstants.PACKAGES;
 import static org.eclipse.sw360.portal.common.PortalConstants.PAGENAME;
 import static org.eclipse.sw360.portal.common.PortalConstants.RELEASE_ID;
 
@@ -309,6 +312,19 @@ public abstract class FossologyAwarePortlet extends LinkedReleasesAndProjectsAwa
         } catch (IOException e) {
             log.error("Problem rendering RequestStatus", e);
         }
+    }
+
+
+    protected void addPackagesToRequest(RenderRequest request, Set<String> packageIds) {
+        Set<Package> packages = new HashSet<>();
+        try {
+            PackageService.Iface packageClient = thriftClients.makePackageClient();
+            packages.addAll(packageClient.getPackageByIds(packageIds));
+
+        } catch (TException e) {
+            log.error("Could not get Packages from backend ", e);
+        }
+        request.setAttribute(PACKAGES, packages);
     }
 
     public static void addCustomErrorMessage(String errorMessage, String pageName, ActionRequest request,
