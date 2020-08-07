@@ -33,6 +33,7 @@ import org.eclipse.sw360.datahandler.thrift.SW360Exception;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.ComponentService;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
@@ -54,6 +55,8 @@ import org.eclipse.sw360.rest.resourceserver.moderationrequest.EmbeddedModeratio
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.ModerationRequestController;
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.Sw360ModerationRequestService;
 import org.eclipse.sw360.rest.resourceserver.obligation.ObligationController;
+import org.eclipse.sw360.rest.resourceserver.packages.PackageController;
+import org.eclipse.sw360.rest.resourceserver.packages.SW360PackageService;
 import org.eclipse.sw360.rest.resourceserver.project.EmbeddedProject;
 import org.eclipse.sw360.rest.resourceserver.project.ProjectController;
 import org.eclipse.sw360.rest.resourceserver.project.Sw360ProjectService;
@@ -315,6 +318,17 @@ public class RestControllerHelper<T> {
         }
     }
 
+    public void addEmbeddedPackages(
+            HalResource<Package> halResource,
+            Set<String> packages,
+            SW360PackageService sw360PackageService,
+            User user) throws TException {
+        for (String packageId : packages) {
+            final Package pkg = sw360PackageService.getPackageForUserById(packageId);
+            addEmbeddedPackage(halResource, pkg);
+        }
+    }
+
     public void addEmbeddedUser(HalResource halResource, User user, String relation) {
         User embeddedUser = convertToEmbeddedUser(user);
         EntityModel<User> embeddedUserResource = EntityModel.of(embeddedUser);
@@ -393,6 +407,24 @@ public class RestControllerHelper<T> {
         halResource.addEmbeddedResource("sw360:releases", halRelease);
     }
 
+    public void addEmbeddedSingleRelease(HalResource halResource, Release release) {
+        Release embeddedRelease = convertToEmbeddedRelease(release);
+        HalResource<Release> halRelease = new HalResource<>(embeddedRelease);
+        Link releaseLink = linkTo(ReleaseController.class).
+                slash("api/releases/" + release.getId()).withSelfRel();
+        halRelease.add(releaseLink);
+        halResource.addEmbeddedResource("sw360:release", halRelease);
+    }
+
+    public void addEmbeddedPackage(HalResource<Package> halResource, Package pkg) {
+        Package embeddedPackage = convertToEmbeddedPackage(pkg);
+        HalResource<Package> halPackage = new HalResource<>(embeddedPackage);
+        Link packageLink = linkTo(PackageController.class).
+                slash("api/packages/" + pkg.getId()).withSelfRel();
+        halPackage.add(packageLink);
+        halResource.addEmbeddedResource("sw360:packages", halPackage);
+    }
+
     public void addEmbeddedAttachments(
             HalResource halResource,
             Set<Attachment> attachments) {
@@ -448,6 +480,16 @@ public class RestControllerHelper<T> {
             }
         }
         return componentToUpdate;
+    }
+
+    public Package updatePackage(Package packageToUpdate, Package requestBodyPackage) {
+        for(Package._Fields field:Package._Fields.values()) {
+            Object fieldValue = requestBodyPackage.getFieldValue(field);
+            if(fieldValue != null) {
+                packageToUpdate.setFieldValue(field, fieldValue);
+            }
+        }
+        return packageToUpdate;
     }
 
     public Release updateRelease(Release releaseToUpdate, Release requestBodyRelease) {
@@ -553,6 +595,14 @@ public class RestControllerHelper<T> {
         embeddedRelease.setVersion(release.getVersion());
         embeddedRelease.setType(null);
         return embeddedRelease;
+    }
+
+    public Package convertToEmbeddedPackage(Package pkg) {
+        Package embeddedPackage = new Package();
+        embeddedPackage.setId(pkg.getId());
+        embeddedPackage.setName(pkg.getName());
+        embeddedPackage.setVersion(pkg.getVersion());
+        return embeddedPackage;
     }
 
     public Release convertToEmbeddedReleaseWithDet(Release release) {

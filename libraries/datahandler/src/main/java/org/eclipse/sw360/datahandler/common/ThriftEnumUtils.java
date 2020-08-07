@@ -21,6 +21,7 @@ import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationType;
 import org.eclipse.sw360.datahandler.thrift.moderation.DocumentType;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageManagerType;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.UserAccess;
 import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
@@ -359,6 +360,44 @@ public class ThriftEnumUtils {
             .put(UserAccess.READ_WRITE, "Read and Write")
             .build();
 
+    private static final ImmutableMap<PackageManagerType, String> MAP_PACKAGE_MANAGER_TYPE_STRING = ImmutableMap.<PackageManagerType, String>builder()
+            .put(PackageManagerType.ALPINE, "Alpine")
+            .put(PackageManagerType.ALPM, "ALPM")
+            .put(PackageManagerType.APK, "APK")
+            .put(PackageManagerType.BITBUCKET, "Bitbucket")
+            .put(PackageManagerType.CARGO, "Cargo")
+            .put(PackageManagerType.COCOAPODS, "Cocoapods")
+            .put(PackageManagerType.COMPOSER, "Composer")
+            .put(PackageManagerType.CONAN, "Conan")
+            .put(PackageManagerType.CONDA, "Conda")
+            .put(PackageManagerType.CPAN, "Cpan")
+            .put(PackageManagerType.CRAN, "Cran")
+            .put(PackageManagerType.DEB, "Deb")
+            .put(PackageManagerType.DOCKER, "Docker")
+            .put(PackageManagerType.DRUPAL, "Drupal")
+            .put(PackageManagerType.GEM, "Gem")
+            .put(PackageManagerType.GENERIC, "Generic")
+            .put(PackageManagerType.GITHUB, "GitHub")
+            .put(PackageManagerType.GITLAB, "GitLab")
+            .put(PackageManagerType.GOLANG, "GoLang")
+            .put(PackageManagerType.GRADLE, "Gradle")
+            .put(PackageManagerType.HACKAGE, "Hackage")
+            .put(PackageManagerType.HEX, "Hex")
+            .put(PackageManagerType.HUGGINGFACE, "HuggingFace")
+            .put(PackageManagerType.MAVEN, "Maven")
+            .put(PackageManagerType.MLFLOW, "MLflow")
+            .put(PackageManagerType.NPM, "Npm")
+            .put(PackageManagerType.NUGET, "NuGet")
+            .put(PackageManagerType.OCI, "Oci")
+            .put(PackageManagerType.PUB, "Pub")
+            .put(PackageManagerType.PYPI, "PyPi")
+            .put(PackageManagerType.RPM, "Rpm")
+            .put(PackageManagerType.SWID, "Swid")
+            .put(PackageManagerType.SWIFT, "swift")
+            .put(PackageManagerType.YARN, "Yarn")
+            .put(PackageManagerType.YOCTO, "Yocto")
+            .build();
+
     public static final ImmutableMap<Class<? extends TEnum>, Map<? extends TEnum, String>>
             MAP_ENUMTYPE_MAP = ImmutableMap.<Class<? extends TEnum>, Map<? extends TEnum, String>>builder()
             .put(ComponentType.class, MAP_COMPONENT_TYPE_STRING)
@@ -395,6 +434,7 @@ public class ThriftEnumUtils {
             .put(ObligationType.class, MAP_OBLIGATION_TYPE_STRING)
             .put(ClearingRequestPriority.class, MAP_CLEARING_REQUEST_PRIORITY_STRING)
             .put(UserAccess.class, MAP_USER_ACCESS_STRING)
+            .put(PackageManagerType.class, MAP_PACKAGE_MANAGER_TYPE_STRING)
             .build();
 
     public static String enumToString(TEnum value) {
@@ -406,13 +446,21 @@ public class ThriftEnumUtils {
         return out;
     }
 
-     public static  <T extends Enum<T>> T  stringToEnum(String in, Class<T> clazz){
-         for (T t : clazz.getEnumConstants()) {
-             if(t.name().equals(in)) return t;
-         }
+    public static  <T extends Enum<T>> T  stringToEnum(String in, Class<T> clazz){
+        for (T t : clazz.getEnumConstants()) {
+            if(t.name().equals(in)) return t;
+        }
 
-         return null;
-     }
+        return null;
+    }
+
+    public static  <T extends Enum<T>> T  stringIgnoreCaseToEnum(String in, Class<T> clazz){
+        for (T t : clazz.getEnumConstants()) {
+            if(t.name().equalsIgnoreCase(in)) return t;
+        }
+        return null;
+    }
+
     public static  <T extends Enum<T>> T  enumByString(String in, Class<T> clazz){
         Map<? extends TEnum, String> map = MAP_ENUMTYPE_MAP.get(clazz);
         for (T t : clazz.getEnumConstants()) {

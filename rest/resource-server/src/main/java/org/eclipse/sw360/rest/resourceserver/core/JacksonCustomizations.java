@@ -30,6 +30,7 @@ import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.ClearingRequest;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectProjectRelationship;
@@ -63,6 +64,7 @@ public class JacksonCustomizations {
             setMixInAnnotation(Project.class, Sw360Module.ProjectMixin.class);
             setMixInAnnotation(User.class, Sw360Module.UserMixin.class);
             setMixInAnnotation(Component.class, Sw360Module.ComponentMixin.class);
+            setMixInAnnotation(Package.class, Sw360Module.PackageMixin.class);
             setMixInAnnotation(Release.class, Sw360Module.ReleaseMixin.class);
             setMixInAnnotation(ReleaseLink.class, Sw360Module.ReleaseLinkMixin.class);
             setMixInAnnotation(ClearingReport.class, Sw360Module.ClearingReportMixin.class);
@@ -101,6 +103,7 @@ public class JacksonCustomizations {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         static abstract class MultiStatusMixin extends MultiStatus {
+            @Override
             @JsonProperty("status")
             abstract public int getStatusCode();
         }
@@ -199,7 +202,11 @@ public class JacksonCustomizations {
                 "setModifiedOn",
                 "modifiedOn",
                 "setModifiedBy",
-                "modifiedBy"
+                "modifiedBy",
+                "packageIdsSize",
+                "setPackageIds",
+                "packageIdsIterator",
+                "packageIds"
         })
         static abstract class ProjectMixin extends Project {
 
@@ -402,6 +409,39 @@ public class JacksonCustomizations {
         }
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonIgnoreProperties(value = {
+                "id",
+                "revision",
+                "type",
+                "licenseIdsSize",
+                "licenseIdsIterator",
+                "createdBy",
+                "setId",
+                "setRevision",
+                "setType",
+                "setName",
+                "setDescription",
+                "setCreatedOn",
+                "setCreatedBy",
+                "setModifiedOn",
+                "setModifiedBy",
+                "setHash",
+                "setVersion",
+                "setVendor",
+                "setVendorId",
+                "setReleaseId",
+                "setPurl",
+                "setLicenseIds",
+                "setHomepageUrl",
+                "setVcs",
+                "setPackageManagerType",
+                "releaseId",
+                "setRelease"
+        })
+        static abstract class PackageMixin extends Package {
+        }
+
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonIgnoreProperties({
                 "id",
                 "revision",
@@ -477,7 +517,10 @@ public class JacksonCustomizations {
                 "modifiedOn",
                 "setModifiedBy",
                 "modifiedBy",
-                "setComponentType"
+                "setComponentType",
+                "packageIdsSize",
+                "setPackageIds",
+                "packageIdsIterator"
         })
         static abstract class ReleaseMixin extends Release {
             @Override
