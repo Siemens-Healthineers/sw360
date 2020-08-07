@@ -87,6 +87,7 @@
                 <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Summary'}">active</core_rt:if>" href="#tab-Summary" data-toggle="list" role="tab"><liferay-ui:message key="summary" /></a>
                 <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Administration'}">active</core_rt:if>" href="#tab-Administration" data-toggle="list" role="tab"><liferay-ui:message key="administration" /></a>
                 <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-linkedProjects'}">active</core_rt:if>" href="#tab-linkedProjects" data-toggle="list" role="tab"><liferay-ui:message key="linked.releases.and.projects" /></a>
+                <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-linkedPackages'}">active</core_rt:if>" href="#tab-linkedPackages" data-toggle="list" role="tab"><liferay-ui:message key="linked.packages" /></a>
                 <core_rt:if test="${not addMode}" >
                     <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Attachments'}">active</core_rt:if>" href="#tab-Attachments" data-toggle="list" role="tab"><liferay-ui:message key="attachments" /></a>
                     <core_rt:if test="${isProjectObligationsEnabled}">
@@ -144,6 +145,7 @@
                         data-comment-parameter-name="<%=PortalConstants.MODERATION_REQUEST_COMMENT%>"
                         data-linked-projects="${project.linkedProjectsSize}"
                         data-linked-releases="${project.releaseIdToUsageSize}"
+                        data-linked-packagees="${project.packageIdsSize}"
                         data-attachments="${project.attachmentsSize}"
                     >
                         <div class="tab-content">
@@ -167,6 +169,9 @@
                             <div id="tab-linkedProjects" class="tab-pane <core_rt:if test="${selectedTab == 'tab-linkedProjects'}">active show</core_rt:if>">
                                 <%@include file="/html/projects/includes/linkedProjectsEdit.jspf" %>
                                 <%@include file="/html/utils/includes/linkedReleasesEdit.jspf" %>
+                            </div>
+                            <div id="tab-linkedPackages" class="tab-pane <core_rt:if test="${selectedTab == 'tab-linkedPackages'}">active show</core_rt:if>">
+                                <%@include file="/html/utils/includes/editLinkedPackages.jspf" %>
                             </div>
                             <core_rt:if test="${not addMode}" >
                                 <div id="tab-Attachments" class="tab-pane <core_rt:if test="${selectedTab == 'tab-Attachments'}">active show</core_rt:if>">
@@ -209,6 +214,7 @@
                     <ul>
                         <li data-hide="hasNoLinkedProjects"><span data-name="linkedProjects"></span> <liferay-ui:message key="linked.projects" /></li>
                         <li data-hide="hasNoLinkedReleases"><span data-name="linkedReleases"></span> <liferay-ui:message key="linked.releases" /></li>
+                        <li data-hide="hasNoLinkedPackages"><span data-name="linkedPackages"></span> <liferay-ui:message key="linked.packages" /></li>
                         <li data-hide="hasNoAttachments"><span data-name="attachments"></span> <liferay-ui:message key="attachments" /></li>
                     </ul>
                 </div>
@@ -233,6 +239,7 @@
 
 <jsp:include page="/html/projects/includes/searchProjects.jsp" />
 <jsp:include page="/html/utils/includes/searchReleases.jsp" />
+<jsp:include page="/html/utils/includes/searchPackages.jsp" />
 <jsp:include page="/html/utils/includes/searchAndSelectUsers.jsp" />
 <jsp:include page="/html/utils/includes/searchUsers.jsp" />
 <%@include file="/html/components/includes/vendors/searchVendor.jspf" %>
@@ -350,6 +357,7 @@ require(['jquery', 'modules/autocomplete', 'modules/dialog', 'modules/listgroup'
             data = $('#projectEditForm').data(),
             linkedProjectsSize = data.linkedProjects,
             linkedReleasesSize = data.linkedReleases,
+            linkedPackagesSize = data.linkedPackages,
             attachmentsSize = data.attachments;
 
         function deleteProjectInternal() {
@@ -362,10 +370,12 @@ require(['jquery', 'modules/autocomplete', 'modules/dialog', 'modules/listgroup'
             name: name,
             linkedProjects: linkedProjectsSize,
             linkedReleases: linkedReleasesSize,
+            linkedPackages: linkedPackagesSize,
             attachments: attachmentsSize,
-            hasNoDependencies: linkedProjectsSize == 0 && linkedReleasesSize == 0 && attachmentsSize == 0,
+            hasNoDependencies: linkedProjectsSize == 0 && linkedReleasesSize == 0 && attachmentsSize == 0 && linkedPackagesSize == 0,
             hasNoLinkedProjects: linkedProjectsSize == 0,
             hasNoLinkedReleases: linkedReleasesSize == 0,
+            hasNoLinkedPackages: linkedPackagesSize == 0,
             hasNoAttachments: attachmentsSize == 0
         }, function(submit, callback) {
             deleteProjectInternal();

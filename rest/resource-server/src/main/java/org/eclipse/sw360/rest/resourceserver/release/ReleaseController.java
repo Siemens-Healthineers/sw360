@@ -505,6 +505,51 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = RELEASES_URL + "/{id}/link/packages", method = RequestMethod.PATCH)
+    public ResponseEntity<?> linkPackages(
+            @PathVariable("id") String id,
+            @RequestBody Set<String> packagesInRequestBody) throws URISyntaxException, TException {
+        RequestStatus linkPackageStatus = linkOrUnlinkPackages(id, packagesInRequestBody, true);
+        if (linkPackageStatus == RequestStatus.SENT_TO_MODERATOR) {
+            return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = RELEASES_URL + "/{id}/unlink/packages", method = RequestMethod.PATCH)
+    public ResponseEntity<?> unlinkPackages(
+            @PathVariable("id") String id,
+            @RequestBody Set<String> packagesInRequestBody) throws URISyntaxException, TException {
+        RequestStatus unlinkPackageStatus = linkOrUnlinkPackages(id, packagesInRequestBody, false);
+        if (unlinkPackageStatus == RequestStatus.SENT_TO_MODERATOR) {
+            return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    private RequestStatus linkOrUnlinkPackages(String id, Set<String> packagesInRequestBody, boolean link)
+            throws URISyntaxException, TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Release release = releaseService.getReleaseForUserById(id, sw360User);
+        Set<String> packageIds = new HashSet<>();
+        packageIds = release.getPackageIds();
+
+        if (link) {
+            for (String pkg : packagesInRequestBody) {
+                packageIds.add(pkg);
+            }
+        } else {
+            for (String pkg : packagesInRequestBody) {
+                packageIds.remove(pkg);
+            }
+        }
+
+        release.setPackageIds(packageIds);
+        return releaseService.updateRelease(release, sw360User);
+    }
+
     @Override
     public RepositoryLinksResource process(RepositoryLinksResource resource) {
         resource.add(linkTo(ReleaseController.class).slash("api" + RELEASES_URL).withRel("releases"));

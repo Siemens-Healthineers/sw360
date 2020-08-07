@@ -100,6 +100,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private static final Pattern PLAUSIBLE_GID_REGEXP = Pattern.compile("^[zZ].{7}$");
     private final RelationsUsageRepository relUsageRepository;
     private final ReleaseRepository releaseRepository;
+    private final PackageRepository packageRepository;
     private final VendorRepository vendorRepository;
     private DatabaseHandlerUtil dbHandlerUtil;
     private final MailUtil mailUtil = new MailUtil();
@@ -166,6 +167,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         relUsageRepository = new RelationsUsageRepository(db);
         vendorRepository = new VendorRepository(db);
         releaseRepository = new ReleaseRepository(db, vendorRepository);
+        packageRepository = new PackageRepository(db);
 
         // Create the moderator
         this.moderator = moderator;
@@ -518,6 +520,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             isValidDependentIds = DatabaseHandlerUtil.isAllIdInSetExists(Sets.newHashSet(project.getVendorId()),
                     vendorRepository);
         }
+
+        if (project.isSetPackageIds()) {
+            Set<String> packageIds = project.getPackageIds();
+            isValidDependentIds = DatabaseHandlerUtil.isAllIdInSetExists(packageIds, packageRepository);
+        }
         return isValidDependentIds;
     }
 
@@ -788,6 +795,18 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     public boolean checkIfInUse(String projectId) {
         final Set<Project> usingProjects = repository.searchByLinkingProjectId(projectId);
        return !usingProjects.isEmpty();
+    }
+
+    public Set<Project> searchByPackageId(String id, User user) {
+        return repository.searchByPackageId(id, user);
+    }
+
+    public Set<Project> searchByPackageIds(Set<String> ids, User user) {
+        return repository.searchByPackageIds(ids, user);
+    }
+
+    public int getProjectCountByPackageId(String packageId) {
+        return repository.getCountByPackageId(packageId);
     }
 
     private void removeProjectAndCleanUp(Project project, User user) throws SW360Exception {
@@ -1096,7 +1115,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             ReleaseClearingStatusData releaseClearingStatusData = new ReleaseClearingStatusData(release)
                     .setProjectNames(joinStrings(projectNames))
                     .setMainlineStates(joinStrings(mainlineStates))
-                    .setComponentType(componentsById.get(release.getComponentId()).getComponentType()); 
+                    .setComponentType(componentsById.get(release.getComponentId()).getComponentType());
 
             boolean isAccessible = componentDatabaseHandler.isReleaseActionAllowed(release, user, RequestedAction.READ);
             releaseClearingStatusData.setAccessible(isAccessible);
@@ -1778,7 +1797,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             if (releaseOrigin.containsKey(releaseId))
                 return;
             Release rel = componentDatabaseHandler.getRelease(releaseId, user);
-            
+
             if (!isInaccessibleLinkMasked || componentDatabaseHandler.isReleaseActionAllowed(rel, user, RequestedAction.READ)) {
                 Map<String, ReleaseRelationship> releaseIdToRelationship = rel.getReleaseIdToRelationship();
                 releaseOrigin.put(releaseId, SW360Utils.printName(rel));
@@ -1808,7 +1827,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             if (releaseOrigin.containsKey(releaseId))
                 return;
             Release rel = componentDatabaseHandler.getRelease(releaseId, user);
-            
+
             if (!isInaccessibleLinkMasked || componentDatabaseHandler.isReleaseActionAllowed(rel, user, RequestedAction.READ)) {
                 Map<String, ReleaseRelationship> subReleaseIdToRelationship = rel.getReleaseIdToRelationship();
                 releaseOrigin.put(releaseId, SW360Utils.printName(rel));
@@ -1870,7 +1889,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         clearingStatusList.add(row);
         return row;
     }
-    
+
     private Map<String, String> createInaccessibleReleaseCSRow(List<Map<String, String>> clearingStatusList) throws SW360Exception {
         Map<String, String> row = new HashMap<>();
         row.put("id", "");

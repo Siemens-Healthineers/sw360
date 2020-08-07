@@ -11,6 +11,7 @@ package org.eclipse.sw360.portal.portlets.components;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
+import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.common.SW360Utils;
 import org.eclipse.sw360.datahandler.thrift.*;
 import org.eclipse.sw360.datahandler.thrift.components.*;
@@ -24,6 +25,8 @@ import org.eclipse.sw360.datahandler.thrift.vulnerabilities.ReleaseVulnerability
 import org.eclipse.sw360.portal.common.PortalConstants;
 import org.eclipse.sw360.portal.common.PortletUtils;
 import org.eclipse.sw360.portal.users.UserCacheHolder;
+
+import com.google.common.collect.Sets;
 
 import javax.portlet.PortletRequest;
 import javax.portlet.ResourceRequest;
@@ -85,6 +88,9 @@ public abstract class ComponentPortletUtils {
                 case ADDITIONAL_DATA:
                     release.setAdditionalData(PortletUtils.getAdditionalDataMapFromRequest(request));
                     break;
+                case PACKAGE_IDS:
+                    updatePackageIds(request, release);
+                    break;
                 default:
                     setFieldValue(request, release, field);
             }
@@ -98,6 +104,16 @@ public abstract class ComponentPortletUtils {
         }
 
         return clearingInformation;
+    }
+
+    private static void updatePackageIds(PortletRequest request, Release release) {
+        release.unsetPackageIds();
+        String[] ids = request.getParameterValues(PortalConstants.PACKAGE_IDS);
+        if (ids != null && ids.length > 0) {
+            for (int k = 0; k < ids.length; ++k) {
+                release.addToPackageIds(ids[k]);
+            }
+        }
     }
 
     private static EccInformation getEccInformationFromRequest(PortletRequest request) {

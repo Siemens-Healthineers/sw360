@@ -43,6 +43,7 @@
         <module>src-wsimport</module>
         <module>src-changelogs</module>
         <module>src-health</module>
+        <module>src-packages</module>
     </modules>
 
     <dependencies>

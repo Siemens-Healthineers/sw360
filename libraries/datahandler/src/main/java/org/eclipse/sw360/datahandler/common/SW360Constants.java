@@ -19,7 +19,6 @@ import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
 import org.eclipse.sw360.datahandler.thrift.projects.ClearingRequest;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
-import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
 
 import java.util.*;
 import java.util.function.Function;
@@ -74,6 +73,7 @@ public class SW360Constants {
     public static final String TYPE_OBLIGATIONELEMENT = "obligationElement";
     public static final String TYPE_OBLIGATIONNODE = "obligationNode";
     public static final String TYPE_DOCUMENT = "document";
+    public static final String TYPE_PACKAGE = "package";
 
     public static final String SVM_COMPONENT_ID;
     public static final String SVM_MONITORINGLIST_ID;
@@ -97,6 +97,7 @@ public class SW360Constants {
                     .put(TYPE_COMPONENT, "name")
                     .put(TYPE_RELEASE, "name version")
                     .put(TYPE_PROJECT, "name version")
+                    .put(TYPE_PACKAGE, "name version")
                     .build();
 
     public static final Collection<AttachmentType> LICENSE_INFO_ATTACHMENT_TYPES = Arrays.asList(AttachmentType.COMPONENT_LICENSE_INFO_XML, AttachmentType.COMPONENT_LICENSE_INFO_COMBINED);

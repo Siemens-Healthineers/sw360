@@ -470,6 +470,30 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = PROJECTS_URL + "/{id}/link/packages", method = RequestMethod.PATCH)
+    public ResponseEntity<?> linkPackages(
+            @PathVariable("id") String id,
+            @RequestBody Set<String> packagesInRequestBody) throws URISyntaxException, TException {
+        RequestStatus linkPackageStatus = linkOrUnlinkPackages(id, packagesInRequestBody, true);
+        if (linkPackageStatus == RequestStatus.SENT_TO_MODERATOR) {
+            return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = PROJECTS_URL + "/{id}/unlink/packages", method = RequestMethod.PATCH)
+    public ResponseEntity<?> patchPackages(
+            @PathVariable("id") String id,
+            @RequestBody Set<String> packagesInRequestBody) throws URISyntaxException, TException {
+        RequestStatus patchPackageStatus = linkOrUnlinkPackages(id, packagesInRequestBody, false);
+        if (patchPackageStatus == RequestStatus.SENT_TO_MODERATOR) {
+            return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
     @RequestMapping(value = PROJECTS_URL + "/{id}/releases", method = RequestMethod.GET)
     public ResponseEntity<CollectionModel<EntityModel<Release>>> getProjectReleases(
             Pageable pageable,
@@ -1119,6 +1143,27 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
                     "Request body should be List of valid release id or map of release id to usage");
         }
         project.setReleaseIdToUsage(releaseIdToUsage);
+        return projectService.updateProject(project, sw360User);
+    }
+
+    private RequestStatus linkOrUnlinkPackages(String id, Set<String> packagesInRequestBody, boolean link)
+            throws URISyntaxException, TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Project project = projectService.getProjectForUserById(id, sw360User);
+        Set<String> packageIds = new HashSet<>();
+        packageIds = project.getPackageIds();
+
+        if (link) {
+            for (String pkg : packagesInRequestBody) {
+                packageIds.add(pkg);
+            }
+        } else {
+            for (String pkg : packagesInRequestBody) {
+                packageIds.remove(pkg);
+            }
+        }
+
+        project.setPackageIds(packageIds);
         return projectService.updateProject(project, sw360User);
     }
 

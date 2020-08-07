@@ -46,6 +46,7 @@ import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationType;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationService;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -204,6 +205,8 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             serveRemoveProject(request, response);
         } else if (PortalConstants.VIEW_LINKED_RELEASES.equals(action)) {
             serveLinkedReleases(request, response);
+        } else if (PortalConstants.VIEW_LINKED_PACKAGES.equals(action)) {
+            serveLinkedPackages(request, response);
         } else if (PortalConstants.UPDATE_VULNERABILITIES_PROJECT.equals(action)) {
             updateVulnerabilitiesProject(request, response);
         } else if (PortalConstants.UPDATE_VULNERABILITY_RATINGS.equals(action)) {
@@ -430,13 +433,22 @@ public class ProjectPortlet extends FossologyAwarePortlet {
     }
 
     private void importBom(ResourceRequest request, ResourceResponse response) {
-        ProjectService.Iface projectClient = thriftClients.makeProjectClient();
         User user = UserCacheHolder.getUserFromRequest(request);
         String attachmentContentId = request.getParameter(ATTACHMENT_CONTENT_ID);
+        String bomtype = request.getParameter(BOM_TYPE);
+        final RequestSummary requestSummary;
 
         try {
-            final RequestSummary requestSummary = projectClient.importBomFromAttachmentContent(user, attachmentContentId);
+            boolean isSPDX = "SPDX".equals(bomtype);
+            if (isSPDX) {
+                ProjectService.Iface projectClient = thriftClients.makeProjectClient();
+                requestSummary = projectClient.importBomFromAttachmentContent(user, attachmentContentId);
+            } else {
+                PackageService.Iface packageClient = thriftClients.makePackageClient();
+                requestSummary = packageClient.importCycloneDxFromAttachmentContent(user, attachmentContentId);
+            }
 
+            boolean isFailure = RequestStatus.FAILURE.equals(requestSummary.getRequestStatus());
             String portletId = (String) request.getAttribute(WebKeys.PORTLET_ID);
             ThemeDisplay tD = (ThemeDisplay) request.getAttribute(WebKeys.THEME_DISPLAY);
             long plid = tD.getPlid();
@@ -444,12 +456,30 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             LiferayPortletURL projectUrl = PortletURLFactoryUtil.create(request, portletId, plid,
                     PortletRequest.RENDER_PHASE);
             projectUrl.setParameter(PortalConstants.PAGENAME, PortalConstants.PAGENAME_DETAIL);
-            projectUrl.setParameter(PortalConstants.PROJECT_ID, requestSummary.getMessage());
-
 
             JSONObject jsonObject = JSONFactoryUtil.createJSONObject();
-            jsonObject.put("redirectUrl", projectUrl.toString());
 
+            if (isSPDX) {
+                projectUrl.setParameter(PortalConstants.PROJECT_ID, requestSummary.getMessage());
+                jsonObject.put("redirectUrl", projectUrl.toString());
+            } else {
+                try {
+                    if (CommonUtils.isNotNullEmptyOrWhitespace(requestSummary.getMessage())) {
+                        jsonObject = JSONFactoryUtil.createJSONObject(requestSummary.getMessage());
+                        requestSummary.unsetMessage();
+                    }
+                    if (!isFailure) {
+                        projectUrl.setParameter(PortalConstants.PROJECT_ID, jsonObject.getString("projectId"));
+                        jsonObject.put("redirectUrl", projectUrl.toString());
+                    }
+                } catch (JSONException e) {
+                    log.error("JSON Exception occured, maybe the 'RequestSummary' message is not in JSON form: "
+                            + e.getMessage());
+                }
+            }
+            if (isFailure) {
+                attachmentPortletUtils.deleteAttachments(Sets.newHashSet(attachmentContentId));
+            }
             renderRequestSummary(request, response, requestSummary, jsonObject);
         } catch (TException e) {
             log.error("Failed to import BOM.", e);
@@ -1625,6 +1655,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 }
                 request.setAttribute(PortalConstants.TOTAL_VULNERABILITY_COUNT, total_vuls.size());
                 putDirectlyLinkedReleasesInRequest(request, project);
+                //putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
                 Set<Project> usingProjects = client.searchLinkingProjects(id, user);
                 request.setAttribute(USING_PROJECTS, usingProjects);
                 int allUsingProjectCount = client.getCountByProjectId(id);
@@ -1650,6 +1681,9 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                         new String(project.getBusinessUnit().toLowerCase().getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1))
                         && Objects.isNull(project.getClearingRequestId())) {
                     request.setAttribute(IS_CLEARING_REQUEST_DISABLED_FOR_PROJECT_BU, true);
+                }
+                if (project.getPackageIdsSize() > 0) {
+                    addPackagesToRequest(request, project.getPackageIds());
                 }
                 request.setAttribute(CRITICAL_CR_COUNT, criticalCount);
                 request.setAttribute(LIST_VULNERABILITY_WITH_VIEW_SIZE_FRIENDLY_URL,
@@ -2302,6 +2336,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     putDirectlyLinkedProjectsInRequest(request, project, user);
                 }
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+                putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
             } catch (TException e) {
                 log.error("Could not fetch linked projects or linked releases in projects view.", e);
                 return;
@@ -2328,6 +2363,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 }
                 request.setAttribute(PROJECT_LIST, projectlink);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+                putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
             } catch(TException e) {
                 log.error("Could not put empty linked projects or linked releases in projects view.", e);
             }
@@ -2359,6 +2395,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 request.setAttribute(PROJECT, newProject);
                 putDirectlyLinkedProjectsInRequest(request, newProject, user);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, newProject, user);
+                putDirectlyLinkedPackagesInRequest(request, newProject.getPackageIds());
                 newProject.unsetId();
                 request.setAttribute(USING_PROJECTS, Collections.emptySet());
                 request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
@@ -2372,7 +2409,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 PortletUtils.setCustomFieldsEdit(request, user, project);
                 putDirectlyLinkedProjectsInRequest(request, project, user);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
-
+                putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
                 request.setAttribute(USING_PROJECTS, Collections.emptySet());
                 request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
             }
@@ -2575,6 +2612,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         request.setAttribute(IS_ERROR_IN_UPDATE_OR_CREATE, true);
         putDirectlyLinkedProjectsInRequest(request, project, user);
         putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+        putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
     }
 
     @UsedAsLiferayAction
@@ -3086,6 +3124,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             jsonObject.put("lProjSize", String.valueOf(project.getLinkedProjectsSize()));
             jsonObject.put("lRelsSize", String.valueOf(project.getReleaseIdToUsageSize()));
             jsonObject.put("attsSize", String.valueOf(project.getAttachmentsSize()));
+            jsonObject.put("lPkgSize", String.valueOf(project.getPackageIdsSize()));
             if (isNotEmpty && groupsWithCrDisabled.contains(project.getBusinessUnit().toLowerCase()) && Objects.isNull(project.getClearingRequestId())) {
                 jsonObject.put("isCrDisabledForProjectBU", true);
             }

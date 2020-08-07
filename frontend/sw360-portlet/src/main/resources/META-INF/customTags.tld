@@ -803,6 +803,17 @@
         </attribute>
     </tag>
     <tag>
+        <name>PackageName</name>
+        <tag-class>org.eclipse.sw360.portal.tags.PackageName</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>pkg</name>
+            <required>true</required>
+            <type>org.eclipse.sw360.datahandler.thrift.packages.Package</type>
+            <rtexprvalue>true</rtexprvalue>
+        </attribute>
+    </tag>
+    <tag>
         <name>DisplayReleaseLink</name>
         <tag-class>org.eclipse.sw360.portal.tags.links.DisplayLinkToRelease</tag-class>
         <body-content>JSP</body-content>

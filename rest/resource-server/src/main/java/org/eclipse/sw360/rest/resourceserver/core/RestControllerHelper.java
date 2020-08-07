@@ -14,6 +14,7 @@ import org.eclipse.sw360.datahandler.common.SW360Utils;
 import org.eclipse.sw360.datahandler.resourcelists.*;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
@@ -430,6 +431,16 @@ public class RestControllerHelper<T> {
             }
         }
         return componentToUpdate;
+    }
+
+    public Package updatePackage(Package packageToUpdate, Package requestBodyPackage) {
+        for(Package._Fields field:Package._Fields.values()) {
+            Object fieldValue = requestBodyPackage.getFieldValue(field);
+            if(fieldValue != null) {
+                packageToUpdate.setFieldValue(field, fieldValue);
+            }
+        }
+        return packageToUpdate;
     }
 
     public Release updateRelease(Release releaseToUpdate, Release requestBodyRelease) {

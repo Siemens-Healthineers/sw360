@@ -95,6 +95,7 @@ import org.eclipse.sw360.datahandler.thrift.components.EccInformation;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.components.Repository;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.ObligationStatusInfo;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectProjectRelationship;
@@ -365,6 +366,13 @@ public class DatabaseHandlerUtil {
                 if (fieldValueObj instanceof String) {
                     eccInformation.setFieldValue(eccInformationField, fieldValueObj.toString().trim());
                 }
+            } else if (obj instanceof Package) {
+                Package._Fields pkgField = (Package._Fields) strField;
+                Package pkg = (Package) obj;
+                Object fieldValueObj = pkg.getFieldValue(pkgField);
+                if (fieldValueObj instanceof String) {
+                    pkg.setFieldValue(pkgField, fieldValueObj.toString().trim());
+                }
             }
         });
     }
@@ -386,9 +394,9 @@ public class DatabaseHandlerUtil {
             changeLog.setDocumentType(newProjVer.getType());
             changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
         } else if (newDocVersion instanceof ObligationList) {
-            ObligationList newProjVer = (ObligationList) newDocVersion;
-            changeLog.setDocumentId(newProjVer.getId());
-            changeLog.setDocumentType(newProjVer.getType());
+            ObligationList newOblListVer = (ObligationList) newDocVersion;
+            changeLog.setDocumentId(newOblListVer.getId());
+            changeLog.setDocumentType(newOblListVer.getType());
             changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
         } else if (newDocVersion instanceof AttachmentContent) {
             AttachmentContent newAttachmentContentVer = (AttachmentContent) newDocVersion;
@@ -398,24 +406,29 @@ public class DatabaseHandlerUtil {
             info.put(AttachmentContent._Fields.FILENAME.name(), newAttachmentContentVer.getFilename());
             info.put(AttachmentContent._Fields.CONTENT_TYPE.name(), newAttachmentContentVer.getContentType());
         } else if (newDocVersion instanceof Component) {
-            Component newProjVer = (Component) newDocVersion;
-            changeLog.setDocumentId(newProjVer.getId());
-            changeLog.setDocumentType(newProjVer.getType());
+            Component newCompVer = (Component) newDocVersion;
+            changeLog.setDocumentId(newCompVer.getId());
+            changeLog.setDocumentType(newCompVer.getType());
             changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
         } else if (newDocVersion instanceof Release) {
-            Release newProjVer = (Release) newDocVersion;
-            changeLog.setDocumentId(newProjVer.getId());
-            changeLog.setDocumentType(newProjVer.getType());
+            Release newRelVer = (Release) newDocVersion;
+            changeLog.setDocumentId(newRelVer.getId());
+            changeLog.setDocumentType(newRelVer.getType());
             changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
         } else if (newDocVersion instanceof ModerationRequest) {
-            ModerationRequest newProjVer = (ModerationRequest) newDocVersion;
-            changeLog.setDocumentId(newProjVer.getId());
-            changeLog.setDocumentType(newProjVer.getType());
+            ModerationRequest newModReqVer = (ModerationRequest) newDocVersion;
+            changeLog.setDocumentId(newModReqVer.getId());
+            changeLog.setDocumentType(newModReqVer.getType());
             changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
         } else if (newDocVersion instanceof Obligation) {
-            Obligation newProjVer = (Obligation) newDocVersion;
-            changeLog.setDocumentId(newProjVer.getId());
-            changeLog.setDocumentType(newProjVer.getType());
+            Obligation newOblVer = (Obligation) newDocVersion;
+            changeLog.setDocumentId(newOblVer.getId());
+            changeLog.setDocumentType(newOblVer.getType());
+            changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
+        } else if (newDocVersion instanceof Package) {
+            Package newPkgVer = (Package) newDocVersion;
+            changeLog.setDocumentId(newPkgVer.getId());
+            changeLog.setDocumentType(newPkgVer.getType());
             changeLog.setDbName(DatabaseSettings.COUCH_DB_DATABASE);
         }
 
@@ -600,6 +613,8 @@ public class DatabaseHandlerUtil {
             fields = ModerationRequest._Fields.values();
         } else if (neworDeletedVersion instanceof Obligation) {
             fields = Obligation._Fields.values();
+        } else if (neworDeletedVersion instanceof Package) {
+            fields = Package._Fields.values();
         } else {
             return;
         }
@@ -626,6 +641,8 @@ public class DatabaseHandlerUtil {
             fields = ModerationRequest._Fields.values();
         } else if (newVersion instanceof Obligation) {
             fields = Obligation._Fields.values();
+        } else if (newVersion instanceof Package) {
+            fields = Package._Fields.values();
         } else {
             return;
         }

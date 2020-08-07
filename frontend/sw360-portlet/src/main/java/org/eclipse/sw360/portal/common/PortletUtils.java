@@ -33,6 +33,8 @@ import org.eclipse.sw360.datahandler.thrift.cvesearch.UpdateType;
 import org.eclipse.sw360.datahandler.thrift.cvesearch.VulnerabilityUpdateStatus;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationType;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageManagerType;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectClearingState;
@@ -150,6 +152,10 @@ public class PortletUtils {
         return  ObligationType.findByValue(parseInt(enumNumber));
     }
 
+    public static PackageManagerType getPackageManagerTypeFromString(String enumNumber) {
+        return  PackageManagerType.findByValue(parseInt(enumNumber));
+    }
+
     public static <U extends TFieldIdEnum, T extends TBase<T, U>> void setFieldValue(PortletRequest request, T instance, U field, FieldMetaData fieldMetaData, String prefix) {
 
         String value = request.getParameter(prefix + field.toString());
@@ -205,6 +211,8 @@ public class PortletUtils {
             return getObligationLevelFromString(value);
         else if (field == Obligation._Fields.OBLIGATION_TYPE)
             return getObligationTypeFromString(value);
+        else if (field == Package._Fields.PACKAGE_MANAGER_TYPE)
+            return getPackageManagerTypeFromString(value);
         else {
             LOGGER.error("Missing case in enumFromString, unknown field was " + field.toString());
             return null;
