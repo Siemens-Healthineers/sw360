@@ -120,6 +120,7 @@ public class ReleaseSummary extends DocumentSummary<Release> {
         copyField(document, copy, _Fields.ATTACHMENTS);
         copyField(document, copy, _Fields.MAIN_LICENSE_IDS);
         copyField(document, copy, _Fields.ECC_INFORMATION);
+        copyField(document, copy, _Fields.PACKAGE_IDS);
     }
 
 }

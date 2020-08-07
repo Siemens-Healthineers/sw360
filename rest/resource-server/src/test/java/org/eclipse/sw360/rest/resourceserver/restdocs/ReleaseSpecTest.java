@@ -51,6 +51,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.restdocs.mockmvc.RestDocumentationResultHandler;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -179,6 +180,10 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         releaseExternalIds.put("mainline-id-component", "1432");
         releaseExternalIds.put("ws-component-id", "[\"2365\",\"5487923\"]");
 
+        Set<String> linkedPackages = new HashSet<>();
+        linkedPackages.add("1234875");
+        linkedPackages.add("9998654");
+
         release.setId(releaseId);
         owner.setReleaseId(release.getId());
         release.setName("Spring Core 4.3.4");
@@ -203,6 +208,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         release.setOtherLicenseIds(new HashSet<>(Arrays.asList("MIT", "BSD-3-Clause")));
         release.setOperatingSystems(ImmutableSet.of("Windows", "Linux"));
         release.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Java SE", ".NET")));
+        release.setPackageIds(linkedPackages);
         releaseList.add(release);
 
         Release release2 = new Release();
@@ -445,6 +451,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:releases.[]additionalData").description("A place to store additional data used by external tools").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]languages").description("The language of the component"),
                                 subsectionWithPath("_embedded.sw360:releases.[]contributors").description("An array of all project contributors with email").optional(),
+                                subsectionWithPath("_embedded.sw360:releases.[]packageIds").description("Ids of the linked packages").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]mainLicenseIds").description("An array of all main licenses").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]otherLicenseIds").description("An array of all other licenses associated with the release").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]operatingSystems").description("The OS on which the release operates"),
@@ -539,6 +546,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 fieldWithPath("releaseDate").description("The date of this release"),
                                 fieldWithPath("createdOn").description("The creation date of the internal sw360 release"),
                                 fieldWithPath("componentType").description("The componentType of the release, possible values are " + Arrays.asList(ComponentType.values())),
+                                fieldWithPath("packageIds").description("Ids of the linked packages"),
                                 fieldWithPath("mainlineState").description("the mainline state of the release, possible values are: " + Arrays.asList(MainlineState.values())),
                                 fieldWithPath("sourceCodeDownloadurl").description("the source code download url of the release"),
                                 fieldWithPath("binaryDownloadurl").description("the binary download url of the release"),
@@ -805,6 +813,31 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                 .andExpect(status().isCreated());
     }
 
+    @Test
+    public void should_document_link_packages() throws Exception {
+        MockHttpServletRequestBuilder requestBuilder = patch("/api/releases/" + release.getId() + "/link/packages");
+        link_unlink_packages(requestBuilder);
+    }
+
+    @Test
+    public void should_document_unlink_packages() throws Exception {
+        MockHttpServletRequestBuilder requestBuilder = patch("/api/releases/" + release.getId() + "/unlink/packages");
+        link_unlink_packages(requestBuilder);
+    }
+
+    private void link_unlink_packages(MockHttpServletRequestBuilder requestBuilder) throws Exception {
+        Set<String> packageIds = new HashSet<>();
+
+        packageIds.add("9876746589");
+        packageIds.add("4444444467");
+        packageIds.add("5555555576");
+
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        this.mockMvc.perform(requestBuilder.contentType(MediaTypes.HAL_JSON)
+                .content(this.objectMapper.writeValueAsString(packageIds))
+                .header("Authorization", "Bearer " + accessToken)).andExpect(status().isCreated());
+    }
+
     private RestDocumentationResultHandler documentReleaseProperties() {
         return this.documentationHandler.document(
                 links(
@@ -822,6 +855,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                         fieldWithPath("releaseDate").description("The date of this release"),
                         fieldWithPath("componentType").description("The componentType of the release, possible values are " + Arrays.asList(ComponentType.values())),
                         fieldWithPath("createdOn").description("The creation date of the internal sw360 release"),
+                        fieldWithPath("packageIds").description("Ids of the linked packages"),
                         fieldWithPath("mainlineState").description("the mainline state of the release, possible values are: " + Arrays.asList(MainlineState.values())),
                         fieldWithPath("sourceCodeDownloadurl").description("the source code download url of the release"),
                         fieldWithPath("binaryDownloadurl").description("the binary download url of the release"),
@@ -838,7 +872,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                 )
         );
     }
-    
+
     @Test
     public void should_document_get_release_vulnerabilities() throws Exception {
         String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);

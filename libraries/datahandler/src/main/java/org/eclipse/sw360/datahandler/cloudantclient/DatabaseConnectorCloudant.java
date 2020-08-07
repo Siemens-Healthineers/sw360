@@ -100,6 +100,21 @@ public class DatabaseConnectorCloudant {
         }
     }
 
+    public Response updatewithResponse(Object document) {
+        Response resp = null;
+        if (document != null) {
+            resp = database.update(document);
+            if (TBase.class.isAssignableFrom(document.getClass())) {
+                TBase tbase = (TBase) document;
+                TFieldIdEnum id = tbase.fieldForId(1);
+                TFieldIdEnum rev = tbase.fieldForId(2);
+                tbase.setFieldValue(id, resp.getId());
+                tbase.setFieldValue(rev, resp.getRev());
+            }
+        }
+        return resp;
+    }
+
     public DatabaseInstanceCloudant getInstance() {
         return instance;
     }

@@ -46,7 +46,6 @@ import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentService;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentUsage;
-import org.eclipse.sw360.datahandler.thrift.attachments.CheckStatus;
 import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.cvesearch.CveSearchService;
 import org.eclipse.sw360.datahandler.thrift.cvesearch.VulnerabilityUpdateStatus;
@@ -108,7 +107,6 @@ import static org.eclipse.sw360.datahandler.common.WrappedException.wrapExceptio
 import static org.eclipse.sw360.datahandler.common.WrappedException.wrapTException;
 import static org.eclipse.sw360.portal.common.PortalConstants.*;
 import static org.eclipse.sw360.portal.common.PortletUtils.getVerificationState;
-import static org.eclipse.sw360.portal.common.PortletUtils.setDepartmentSearchAttribute;
 
 import org.apache.thrift.transport.TTransportException;
 import org.apache.thrift.protocol.TType;
@@ -222,6 +220,8 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             serveUnsubscribeRelease(request, response);
         } else if (PortalConstants.VIEW_LINKED_RELEASES.equals(action)) {
             serveLinkedReleases(request, response);
+        } else if (PortalConstants.VIEW_LINKED_PACKAGES.equals(action)) {
+            serveLinkedPackages(request, response);
         } else if (PortalConstants.PROJECT_SEARCH.equals(action)) {
             serveProjectSearch(request, response);
         } else if (PortalConstants.UPDATE_VULNERABILITIES_RELEASE.equals(action)){
@@ -262,6 +262,8 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             writeJSON(request, response, dataForChangeLogs);
         } else if (PortalConstants.EVALUATE_CLI_ATTACHMENTS.equals(action)) {
             evaluateCLIAttachments(request, response);
+        } else if (PortalConstants.DELETE_PACKAGE.equals(action)) {
+            serveDeletePackage(request, response);
         }
     }
 
@@ -287,7 +289,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
                 pageData.setDisplayStart(displayStart);
                 pageData.setRowsPerPage(rowsPerPage);
                 displayStart = displayStart + rowsPerPage;
-                pageDtToProjects = getFilteredComponentList(request, pageData);
+                pageDtToProjects = getFilteredComponentList(request, pageData, null);
                 projects.addAll(pageDtToProjects.entrySet().iterator().next().getValue());
                 total = total - rowsPerPage;
             }
@@ -579,7 +581,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
                 pageData.setDisplayStart(displayStart);
                 pageData.setRowsPerPage(rowsPerPage);
                 displayStart = displayStart + rowsPerPage;
-                pageDtToProjects = getFilteredComponentList(request, pageData);
+                pageDtToProjects = getFilteredComponentList(request, pageData, null);
                 projects.addAll(pageDtToProjects.entrySet().iterator().next().getValue());
                 total = total - rowsPerPage;
             }
@@ -1018,6 +1020,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
                 setAttachmentsInRequest(request, release);
 
                 putDirectlyLinkedReleaseRelationsWithAccessibilityInRequest(request, release, user);
+                putDirectlyLinkedPackagesInRequest(request, release.getPackageIds());
                 Map<RequestedAction, Boolean> permissions = release.getPermissions();
                 DocumentState documentState = release.getDocumentState();
                 setUsingDocs(request, releaseId, user, client);
@@ -1058,6 +1061,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
                     release.setVendor(component.getDefaultVendor());
                     request.setAttribute(RELEASE, release);
                     putDirectlyLinkedReleaseRelationsWithAccessibilityInRequest(request, release, user);
+                    putDirectlyLinkedPackagesInRequest(request, release.getPackageIds());
                     setAttachmentsInRequest(request, release);
                     setUsingDocs(request, null, user, client);
                     SessionMessages.add(request, "request_processed", LanguageUtil.get(resourceBundle,"new.license"));
@@ -1242,6 +1246,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             request.setAttribute(RELEASE_LIST, Collections.emptyList());
             request.setAttribute(TOTAL_INACCESSIBLE_ROWS, 0);
             setUsingDocs(request, null, user, client);
+            putDirectlyLinkedPackagesInRequest(request, Collections.emptySet());
             release.unsetExternalIds();
             request.setAttribute(RELEASE, release);
             request.setAttribute(PortalConstants.ATTACHMENTS, Collections.emptySet());
@@ -1816,6 +1821,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
 
                 setUsingDocs(request, releaseId, user, client);
                 putDirectlyLinkedReleaseRelationsWithAccessibilityInRequest(request, release, user);
+                //putDirectlyLinkedPackagesInRequest(request, release.getPackageIds());
 
                 if (IS_COMPONENT_VISIBILITY_RESTRICTION_ENABLED) {
                     request.setAttribute(IS_USER_ALLOWED_TO_MERGE, PermissionUtils.isUserAtLeast(UserGroup.ADMIN, user));
@@ -1836,6 +1842,10 @@ public class ComponentPortlet extends FossologyAwarePortlet {
                         || PermissionUtils.isUserAtLeastDesiredRoleInSecondaryGroup(UserGroup.SECURITY_ADMIN, allSecRoles);
                 putVulnerabilitiesInRequestRelease(request, releaseId, user, isVulEditable);
                 request.setAttribute(VULNERABILITY_VERIFICATION_EDITABLE, isVulEditable);
+
+                if (release.getPackageIdsSize() > 0) {
+                    addPackagesToRequest(request, release.getPackageIds());
+                }
             }
 
             component = client.getAccessibleComponentById(id, user);
@@ -2190,27 +2200,6 @@ public class ComponentPortlet extends FossologyAwarePortlet {
         return filterMap;
     }
 
-    private List<Component> getFilteredComponentList(PortletRequest request) {
-        Map<String, Set<String>> filterMap = getComponentFilterMap(request);
-        List<Component> componentList;
-        int limit = -1;
-
-        try {
-            final User user = UserCacheHolder.getUserFromRequest(request);
-            ComponentService.Iface componentClient = thriftClients.makeComponentClient();
-            if (filterMap.isEmpty()) {
-                componentList = componentClient.getAccessibleRecentComponentsSummary(limit, user);
-            } else {
-                componentList = componentClient.refineSearchAccessibleComponents(null, filterMap, user);
-            }
-        } catch (TException e) {
-            log.error("Could not search components in backend ", e);
-            componentList = Collections.emptyList();
-        }
-
-        return componentList;
-    }
-
     //! Actions
     @UsedAsLiferayAction
     public void updateComponent(ActionRequest request, ActionResponse response) throws PortletException, IOException {
@@ -2434,6 +2423,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
         request.setAttribute(RELEASE, release);
         setAttachmentsInRequest(request, release);
         putDirectlyLinkedReleaseRelationsInRequest(request, release);
+        putDirectlyLinkedPackagesInRequest(request, release.getPackageIds());
         request.setAttribute(USING_PROJECTS, Collections.emptySet());
         request.setAttribute(USING_COMPONENTS, Collections.emptySet());
         request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
@@ -2569,9 +2559,8 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             sortParam = paginationParameters.getSortingColumn().get();
         }
         pageData.setSortColumnNumber(sortParam);
-
-        Map<PaginationData, List<Component>> pageDataComponentList = getFilteredComponentList(request, pageData);
         Map<String, Set<String>> filterMap = getComponentFilterMap(request);
+        Map<PaginationData, List<Component>> pageDataComponentList = getFilteredComponentList(request, pageData, filterMap);
         JSONArray jsonComponents = getComponentData(pageDataComponentList.values().iterator().next(), paginationParameters, filterMap);
         JSONObject jsonResult = createJSONObject();
         jsonResult.put(DATATABLE_RECORDS_TOTAL, pageDataComponentList.keySet().iterator().next().getTotalRowCount());
@@ -2586,10 +2575,12 @@ public class ComponentPortlet extends FossologyAwarePortlet {
         }
     }
 
-    private Map<PaginationData, List<Component>> getFilteredComponentList(PortletRequest request, PaginationData pageData) {
-        Map<String, Set<String>> filterMap = getComponentFilterMap(request);
+    private Map<PaginationData, List<Component>> getFilteredComponentList(PortletRequest request, PaginationData pageData, Map<String, Set<String>> filterMap) {
         List<Component> componentList;
         Map<PaginationData, List<Component>> pageDataComponents = Maps.newHashMap();
+        if (filterMap == null) {
+            filterMap = getComponentFilterMap(request);
+        }
 
         try {
             final User user = UserCacheHolder.getUserFromRequest(request);

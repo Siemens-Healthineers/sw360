@@ -26,6 +26,7 @@ import org.eclipse.sw360.datahandler.cloudantclient.DatabaseConnectorCloudant;
 import org.eclipse.sw360.datahandler.common.DatabaseSettings;
 import org.eclipse.sw360.datahandler.couchdb.DatabaseConnector;
 import org.eclipse.sw360.datahandler.permissions.ProjectPermissions;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.ektorp.http.HttpClient;
@@ -240,7 +241,7 @@ public class LuceneAwareDatabaseConnector extends LuceneAwareCouchDbConnector {
     /**
      * Search the database for a given string and types
      */
-    public <T> List<T> searchViewWithRestrictions(Class<T> type,LuceneSearchView luceneSearchView, String text, final Map<String , Set<String > > subQueryRestrictions) {
+    public <T> List<T> searchViewWithRestrictions(Class<T> type, LuceneSearchView luceneSearchView, String text, final Map<String , Set<String>> subQueryRestrictions) {
         List <String> subQueries = new ArrayList<>();
         for (Map.Entry<String, Set<String>> restriction : subQueryRestrictions.entrySet()) {
 
@@ -258,6 +259,9 @@ public class LuceneAwareDatabaseConnector extends LuceneAwareCouchDbConnector {
         }
 
         String query  = AND.join(subQueries);
+        if (type == Package.class && subQueryRestrictions.keySet().contains("orphan")) {
+            query = "(packageManagerType:*)!(releaseId:*)" + query;
+        }
         return searchView(type, luceneSearchView, query);
     }
 
@@ -266,6 +270,12 @@ public class LuceneAwareDatabaseConnector extends LuceneAwareCouchDbConnector {
         List<Project> projectList = searchViewWithRestrictions(Project.class, luceneSearchView, text,
                 subQueryRestrictions);
         return projectList.stream().filter(ProjectPermissions.isVisible(user)).collect(Collectors.toList());
+    }
+
+    public List<Package> searchPackagesViewWithRestrictionsAndFilter(LuceneSearchView luceneSearchView, String text,
+            final Map<String, Set<String>> subQueryRestrictions, User user) {
+        List<Package> packageList = searchViewWithRestrictions(Package.class, luceneSearchView, text, subQueryRestrictions);
+        return packageList;
     }
 
     private static String formatSubquery(Set<String> filterSet, final String fieldName) {

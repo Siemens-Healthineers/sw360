@@ -44,6 +44,8 @@ import org.eclipse.sw360.datahandler.thrift.changelogs.Operation;
 import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationService;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
@@ -72,6 +74,7 @@ import java.net.MalformedURLException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.*;
 
@@ -116,6 +119,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private final VendorRepository vendorRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final PackageRepository packageRepository;
     private DatabaseHandlerUtil dbHandlerUtil;
 
     private final AttachmentConnector attachmentConnector;
@@ -160,6 +164,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         componentRepository = new ComponentRepository(db, releaseRepository, vendorRepository);
         projectRepository = new ProjectRepository(db);
         userRepository = new UserRepository(db);
+        packageRepository = new PackageRepository(db);
 
         // Create the moderator
         this.moderator = moderator;
@@ -484,7 +489,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         if(isDuplicate(release)) {
             final AddDocumentRequestSummary addDocumentRequestSummary = new AddDocumentRequestSummary()
                     .setRequestStatus(AddDocumentRequestStatus.DUPLICATE);
-            List<Release> duplicates = releaseRepository.searchByNameAndVersion(release.getName(), release.getVersion());
+            List<Release> duplicates = releaseRepository.searchByNameAndVersion(release.getName(), release.getVersion(), true);
             if (duplicates.size() == 1) {
                 duplicates.stream()
                         .map(Release::getId)
@@ -493,7 +498,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             return addDocumentRequestSummary;
         }
 
-        if (!isDependenciesExistsInRelease(release)) {
+        if (!isDependenciesExistsInRelease(release)
+                || verifyLinkedPackages(Collections.emptySet(), CommonUtils.nullToEmptySet(release.getPackageIds()), "", user)) {
             return new AddDocumentRequestSummary()
                     .setRequestStatus(AddDocumentRequestStatus.INVALID_INPUT);
         }
@@ -538,7 +544,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         updateReleaseDependentFieldsForComponent(component, release);
         updateModifiedFields(component, user.getEmail());
         componentRepository.update(component);
-
+        // update linked packages
+        updateLinkedPackages(Collections.emptySet(), CommonUtils.nullToEmptySet(release.getPackageIds()), id, user);
         sendMailNotificationsForNewRelease(release, user.getEmail());
         dbHandlerUtil.addChangeLogs(release, null, user.getEmail(), Operation.CREATE, attachmentConnector,
                 Lists.newArrayList(), null, null);
@@ -569,7 +576,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         if (isNullEmptyOrWhitespace(releaseName)) {
             return false;
         }
-        List<Release> duplicates = releaseRepository.searchByNameAndVersion(releaseName, releaseVersion);
+        List<Release> duplicates = releaseRepository.searchByNameAndVersion(releaseName, releaseVersion, true);
         return duplicates.size()>0;
     }
 
@@ -729,6 +736,11 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         if (isValidDependentIds && release.isSetVendorId()) {
             String vendorId = release.getVendorId();
             isValidDependentIds = DatabaseHandlerUtil.isAllIdInSetExists(Sets.newHashSet(vendorId), vendorRepository);
+        }
+
+        if (isValidDependentIds && release.isSetPackageIds()) {
+            Set<String> pacakgeIds = release.getPackageIds();
+            isValidDependentIds = DatabaseHandlerUtil.isAllIdInSetExists(pacakgeIds, packageRepository);
         }
         return isValidDependentIds;
     }
@@ -1057,7 +1069,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             return RequestStatus.DUPLICATE_ATTACHMENT;
         } else if (changeWouldResultInDuplicate(actual, release)) {
             return RequestStatus.DUPLICATE;
-        }  else if (!isDependenciesExistsInRelease(release)) {
+        } else if (!isDependenciesExistsInRelease(release)
+                || verifyLinkedPackages(CommonUtils.nullToEmptySet(actual.getPackageIds()), CommonUtils.nullToEmptySet(release.getPackageIds()), release.getId(), user)) {
             return RequestStatus.INVALID_INPUT;
         } else {
             DocumentPermissions<Release> permissions = makePermission(actual, user);
@@ -1103,6 +1116,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
                 // clean up attachments in database
                 attachmentConnector.deleteAttachmentDifference(nullToEmptySet(actual.getAttachments()),
                         nullToEmptySet(release.getAttachments()));
+                // update linked packages
+                updateLinkedPackages(CommonUtils.nullToEmptySet(actual.getPackageIds()), CommonUtils.nullToEmptySet(release.getPackageIds()), release.getId(), user);
                 sendMailNotificationsForReleaseUpdate(release, user.getEmail());
                 dbHandlerUtil.addChangeLogs(release, actual, user.getEmail(), Operation.UPDATE,
                         attachmentConnector, referenceDocLogList, null, null);
@@ -1316,7 +1331,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return RepositoryUtils.doBulk(prepareReleases(releases), user, releaseRepository);
     }
 
-    public RequestStatus updateReleaseFromAdditionsAndDeletions(Release releaseAdditions, Release releaseDeletions, User user){
+    public RequestStatus updateReleaseFromAdditionsAndDeletions(Release releaseAdditions, Release releaseDeletions, User user) {
 
         try {
             Release release = getRelease(releaseAdditions.getId(), user);
@@ -1336,6 +1351,74 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         componentRepository.update(component);
 
         return component;
+    }
+
+    /**
+     * return false if verification is successful
+     * return true if verification is failed
+     * verify existence of newly linked packageIds
+     * verify all newly linked packages are orphan packages
+     **/
+    private boolean verifyLinkedPackages(Set<String> currentPackageIds, Set<String> updatedPackageIds, String releaseId, User user) throws SW360Exception {
+        Set<String> addedPacakgeIds = Sets.difference(updatedPackageIds, currentPackageIds);
+        PackageService.Iface packageClient = new ThriftClients().makePackageClient();
+        if (CommonUtils.isNotEmpty(addedPacakgeIds)) {
+            try {
+                long addedCount = addedPacakgeIds.size();
+                List<Package> addedPackages = packageClient.getPackageByIds(addedPacakgeIds);
+                Predicate<Package> orphanReleaseFilter = pkg -> CommonUtils.isNullEmptyOrWhitespace(pkg.getReleaseId());
+                Predicate<Package> linkedReleaseFilter = pkg -> releaseId.equals(pkg.getReleaseId());
+                long orphanCount = addedPackages.stream().filter(orphanReleaseFilter).count();
+                long linkedCount = addedPackages.stream().filter(linkedReleaseFilter).count();
+                if (CommonUtils.isNotNullEmptyOrWhitespace(releaseId) && addedCount != orphanCount) {
+                    return addedCount != linkedCount;
+                } else {
+                    return addedCount != orphanCount;
+                }
+            } catch (TException e) {
+                log.error(String.format("An error occured while updating linked packages of release: %s", releaseId), e.getCause());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void updateLinkedPackages(Set<String> currentPackageIds, Set<String> updatedPackageIds, String releaseId, User user) throws SW360Exception {
+        Set<String> removedPacakgeIds = Sets.difference(currentPackageIds, updatedPackageIds);
+        Set<String> addedPacakgeIds = Sets.difference(updatedPackageIds, currentPackageIds);
+        PackageService.Iface packageClient = new ThriftClients().makePackageClient();
+        try {
+            if (CommonUtils.isNotEmpty(removedPacakgeIds)) {
+                List<Package> removedPackages = packageRepository.get(removedPacakgeIds);
+                for (Package pkg : removedPackages) {
+                    String relId = pkg.getReleaseId();
+                    // update the package,if it contains linked release Id
+                    if (CommonUtils.isNotNullEmptyOrWhitespace(relId) && releaseId.equals(relId)) {
+                        pkg.unsetReleaseId();
+                        RequestStatus status = packageClient.updatePackage(pkg, user);
+                        log.info(String.format("Unlinked package <%s> from release <%s>, Unlinking status: <%s>", pkg.getId(), releaseId, status.name()));
+                    }
+                }
+            }
+            if (CommonUtils.isNotEmpty(addedPacakgeIds)) {
+                List<Package> addedPackages = packageClient.getPackageByIds(addedPacakgeIds);
+                for (Package pkg : addedPackages) {
+                    String relId = pkg.getReleaseId();
+                    // update only orphan packages
+                    if (CommonUtils.isNullEmptyOrWhitespace(relId)) {
+                        pkg.setReleaseId(releaseId);
+                        RequestStatus status = packageClient.updatePackage(pkg, user);
+                        log.info(String.format("Linked package <%s> to release <%s>, Linking status: <%s>", pkg.getId(), releaseId, status.name()));
+                    } else if (!relId.equals(releaseId)) {
+                        log.warn(String.format("Linked-ReleasId <%s> in Package <%s>, and Linked-PackageId <%s> in Release <%s> association is incorrect",
+                                relId, pkg.getId(), pkg.getId(), releaseId));
+                    }
+                }
+            }
+        } catch (TException e) {
+            log.error(String.format("An error occured while updating linked packages of release: %s", releaseId), e.getCause());
+            throw new SW360Exception(e.getMessage());
+        }
     }
 
     public void recomputeReleaseDependentFields(Component component, String skipThisReleaseId) {
@@ -1767,7 +1850,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         Release release = releaseRepository.get(id);
         assertNotNull(release);
 
-        if (checkIfInUse(id)) return RequestStatus.IN_USE;
+        if (release.getPackageIdsSize() > 0 || checkIfInUse(id)) return RequestStatus.IN_USE;
 
         if (makePermission(release, user).isActionAllowed(RequestedAction.DELETE) || forceDelete) {
             Component componentBefore = componentRepository.get(release.getComponentId());
@@ -2188,7 +2271,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     public List<Component> searchComponentByNameForExport(String name, boolean caseSensitive) {
-        return componentRepository.searchByNameForExport(name, caseSensitive);
+        return componentRepository.searchComponentByName(name, caseSensitive);
     }
 
     public Set<Component> getUsingComponents(String releaseId) {

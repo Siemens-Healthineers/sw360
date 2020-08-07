@@ -25,11 +25,14 @@ import com.liferay.portal.kernel.servlet.SessionMessages;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.ResourceBundleUtil;
 
+import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.thrift.*;
 import org.eclipse.sw360.datahandler.thrift.components.ComponentService;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.LicenseService;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.users.UserService;
@@ -62,10 +65,12 @@ import java.util.zip.ZipOutputStream;
 import javax.portlet.*;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.eclipse.sw360.portal.common.PortalConstants.PACKAGE_LIST;
 
 
 abstract public class Sw360Portlet extends MVCPortlet {
     private static final int MAX_LENGTH_USERS_IN_DISPLAY = 100;
+    private static final int MAX_LENGTH_PACKAGES_TO_DISPLAY = 100;
 
     protected static final Logger log = LogManager.getLogger(Sw360Portlet.class);
     protected final ThriftClients thriftClients;
@@ -326,7 +331,7 @@ abstract public class Sw360Portlet extends MVCPortlet {
             if (type.equals("License")) {
                 setSW360SessionError(request, ErrorMessages.LICENSE_USED_BY_RELEASE);
             } else {
-                setSW360SessionError(request, ErrorMessages.DOCUMENT_USED_BY_PROJECT_OR_RELEASE);
+                setSW360SessionError(request, ErrorMessages.DOCUMENT_USED_BY_PROJECT_OR_RELEASE_OR_PACKAGE);
             }
             break;
         case FAILED_SANITY_CHECK:
@@ -335,6 +340,8 @@ abstract public class Sw360Portlet extends MVCPortlet {
         case CLOSED_UPDATE_NOT_ALLOWED:
             setSW360SessionError(request, ErrorMessages.CLOSED_UPDATE_NOT_ALLOWED);
             break;
+        case INVALID_INPUT:
+            setSW360SessionError(request, ErrorMessages.INVALID_LINKED_DOCUMENT);
         case DUPLICATE:
         case DUPLICATE_ATTACHMENT:
         case NAMINGERROR:
@@ -410,6 +417,105 @@ abstract public class Sw360Portlet extends MVCPortlet {
         List<Release> searchResult = serveReleaseListBySearchText(searchText, user);
         request.setAttribute(PortalConstants.RELEASE_SEARCH, searchResult);
         include("/html/utils/ajax/searchReleasesAjax.jsp", request, response, PortletRequest.RESOURCE_PHASE);
+    }
+
+
+    protected void serveLinkedPackages(ResourceRequest request, ResourceResponse response) throws IOException, PortletException {
+        String what = request.getParameter(PortalConstants.WHAT);
+
+        if (PortalConstants.ADD_LINKED_PACKAGES.equals(what)) {
+            String[] where = request.getParameterValues(PortalConstants.WHERE_ARRAY);
+            serveNewTableRowLinkedPackage(request, response, where);
+        } else if (PortalConstants.PACKAGE_SEARCH.equals(what)) {
+            String where = request.getParameter(PortalConstants.WHERE);
+            servePackageSearchResults(request, response, where);
+        }
+    }
+
+    protected void serveDeletePackage(ResourceRequest request, ResourceResponse response) throws IOException {
+        final User user = UserCacheHolder.getUserFromRequest(request);
+        RequestStatus requestStatus = deletePackage(request, user, log);
+        serveRequestStatus(request, response, requestStatus, "Problem removing package", log);
+    }
+
+    protected static RequestStatus deletePackage(PortletRequest request, User user, Logger log) {
+        String packageId = request.getParameter(PortalConstants.PACKAGE_ID);
+        if (packageId != null) {
+            try {
+                PackageService.Iface client = new ThriftClients().makePackageClient();
+                return client.deletePackage(packageId, user);
+            } catch (TException e) {
+                log.error(String.format("Error removing package %s from DB", packageId), e);
+            }
+        }
+        return RequestStatus.FAILURE;
+    }
+
+    protected void serveNewTableRowLinkedPackage(ResourceRequest request, ResourceResponse response, String[] linkedIds) throws IOException, PortletException {
+        List<Package> linkedPackages = new ArrayList<>();
+        try {
+            if (linkedIds != null && CommonUtils.isNotNullEmptyOrWhitespace(linkedIds[0])) {
+                PackageService.Iface client = thriftClients.makePackageClient();
+                linkedPackages.addAll(client.getPackageByIds(new HashSet<>(Arrays.asList(linkedIds))));
+            }
+        } catch (TException e) {
+            log.error("Error getting packages!", e);
+            throw new PortletException("cannot get packages " + Arrays.toString(linkedIds), e);
+        }
+
+        request.setAttribute(PACKAGE_LIST, linkedPackages);
+
+        include("/html/utils/ajax/linkedPackagesAjax.jsp", request, response, PortletRequest.RESOURCE_PHASE);
+    }
+
+    protected void servePackageSearchResults(ResourceRequest request, ResourceResponse response, String searchText) throws IOException, PortletException {
+        servePackageSearch(request, response, searchText);
+    }
+
+    protected void servePackageSearch(ResourceRequest request, ResourceResponse response, String searchText) throws IOException, PortletException {
+        final User user = UserCacheHolder.getUserFromRequest(request);
+        String portletName = CommonUtils.nullToEmptyString((String) request.getAttribute("PORTLET_ID"));
+        List<Package> searchResult = new ArrayList<>();
+        if (portletName.endsWith("components")) {
+            searchResult = servePackageListBySearchTextForRelease(searchText, user);
+        } else {
+            searchResult = servePackageListBySearchTextForProject(searchText, user);
+        }
+        request.setAttribute(PortalConstants.IS_SEARCH_TRUNCATED, false);
+        if (searchResult.size() > MAX_LENGTH_PACKAGES_TO_DISPLAY) {
+            searchResult.subList(0, MAX_LENGTH_PACKAGES_TO_DISPLAY);
+            request.setAttribute(PortalConstants.IS_SEARCH_TRUNCATED, true);
+        }
+        request.setAttribute(PortalConstants.PACKAGE_SEARCH, searchResult);
+        include("/html/utils/ajax/searchPackagesAjax.jsp", request, response, PortletRequest.RESOURCE_PHASE);
+    }
+
+    private List<Package> servePackageListBySearchTextForProject(String searchText, User user) {
+        try {
+            PackageService.Iface packageClient = thriftClients.makePackageClient();
+            if (isNullOrEmpty(searchText)) {
+                return packageClient.getAllPackages();
+            } else {
+                return packageClient.searchPackages(searchText, user);
+            }
+        } catch (TException e) {
+            log.error("Error searching linked packages for projects", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Package> servePackageListBySearchTextForRelease(String searchText, User user) {
+        try {
+            PackageService.Iface packageClient = thriftClients.makePackageClient();
+            if (isNullOrEmpty(searchText)) {
+                return packageClient.getAllOrphanPackages();
+            } else {
+                return packageClient.searchOrphanPackages(searchText, user);
+            }
+        } catch (TException e) {
+            log.error("Error searching linked packages for release", e);
+            return Collections.emptyList();
+        }
     }
 
     protected List<Release> serveReleaseListBySearchText(String searchText, User user) {

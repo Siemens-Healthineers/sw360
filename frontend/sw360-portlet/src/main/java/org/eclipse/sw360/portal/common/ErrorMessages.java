@@ -34,7 +34,7 @@ public class ErrorMessages {
     public static final String ERROR_GETTING_LICENSE = "No license details found in the database for given license id.";
     public static final String ERROR_GETTING_RELEASE = "Error fetching release from backend.";
     public static final String LICENSE_USED_BY_RELEASE =  "Request could not be processed, as license is used by at least one release!";
-    public static final String DOCUMENT_USED_BY_PROJECT_OR_RELEASE = "Document could not be processed, as it is used by other Projects or Releases!";
+    public static final String DOCUMENT_USED_BY_PROJECT_OR_RELEASE_OR_PACKAGE = "Document could not be processed, as it is used by other Projects or Releases or Packages!";
     public static final String DOCUMENT_NOT_PROCESSED_SUCCESSFULLY = "Document could not be processed.";
     public static final String FIRST_NAME_CANNOT_BE_EMPTY= "First name cannot be empty.";
     public static final String LAST_NAME_CANNOT_BE_EMPTY = "Last name cannot be empty.";
@@ -65,7 +65,11 @@ public class ErrorMessages {
     public static final String OBLIGATION_NOT_UPDATED = "Obligation could not be updated.";
     public static final String VENDOR_DUPLICATE = "A vendor with the same name already exists.";
     public static final String ERROR_VENDOR = "Error: Invalid vendor Name or Url.";
-
+    public static final String PACKAGE_NOT_ADDED = "Package could not be added.";
+    public static final String PACKAGE_DUPLICATE = "A package with the same name and version already exists.";
+    public static final String PACKAGE_NAME_VERSION_ERROR = "Name and version of package cannot contain only space characters.";
+    public static final String INVALID_PURL_OR_LINKED_DOCUMENT = "Invalid Package URL or linked Release id passed in input.";
+    public static final String INVALID_LINKED_DOCUMENT = "Invalid linked document id passed in input";
 
     public static final String ERROR_VULNERABILITY_USED_BY_RELEASE = "Can not remove vulnerability because it is used by releases";
     public static final String ERROR_VULNERABILITY_DELETE = "Error when delete vulnerability";
@@ -86,7 +90,7 @@ public class ErrorMessages {
             .add(RELEASE_NAME_VERSION_ERROR)
             .add(DUPLICATE_ATTACHMENT)
             .add(LICENSE_USED_BY_RELEASE)
-            .add(DOCUMENT_USED_BY_PROJECT_OR_RELEASE)
+            .add(DOCUMENT_USED_BY_PROJECT_OR_RELEASE_OR_PACKAGE)
             .add(DOCUMENT_NOT_PROCESSED_SUCCESSFULLY)
             .add(DEFAULT_ERROR_MESSAGE)
             .add(FIRST_NAME_CANNOT_BE_EMPTY)
@@ -127,6 +131,11 @@ public class ErrorMessages {
             .add(ERROR_UPDATE_VULNERABILITY)
             .add(VENDOR_DUPLICATE)
             .add(ERROR_VENDOR)
+            .add(PACKAGE_NOT_ADDED)
+            .add(PACKAGE_DUPLICATE)
+            .add(PACKAGE_NAME_VERSION_ERROR)
+            .add(INVALID_PURL_OR_LINKED_DOCUMENT)
+            .add(INVALID_LINKED_DOCUMENT)
             .build();
 
     private ErrorMessages() {

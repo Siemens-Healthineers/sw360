@@ -17,6 +17,7 @@ import org.eclipse.sw360.datahandler.common.DatabaseSettings;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
@@ -165,6 +166,8 @@ public class PermissionUtils {
             return (DocumentPermissions<T>) new SpdxDocumentCreationInfoPermissions((DocumentCreationInformation) document, user);
         } else if (document instanceof PackageInformation) {
             return (DocumentPermissions<T>) new SpdxPackageInfoPermissions((PackageInformation) document, user);
+        } else if (document instanceof Package) {
+            return (DocumentPermissions<T>) new PackagePermissions((Package) document, user);
         } else {
             throw new IllegalArgumentException("Invalid input type!");
         }

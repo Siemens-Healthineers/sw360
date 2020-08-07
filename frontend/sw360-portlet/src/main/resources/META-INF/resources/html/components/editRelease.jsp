@@ -77,6 +77,7 @@
                         <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-SPDX'}">active</core_rt:if>" href="#tab-SPDX" data-toggle="list" role="tab"><liferay-ui:message key="spdx.document" /></a>
                     </core_rt:if>
                     <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-linkedReleases'}">active</core_rt:if>" href="#tab-linkedReleases" data-toggle="list" role="tab"><liferay-ui:message key="linked.releases" /></a>
+                    <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-linkedPackages'}">active</core_rt:if>" href="#tab-linkedPackages" data-toggle="list" role="tab"><liferay-ui:message key="linked.packages" /></a>
                     <core_rt:if test="${not addMode}" >
                         <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-ClearingDetails'}">active</core_rt:if>" href="#tab-ClearingDetails" data-toggle="list" role="tab"><liferay-ui:message key="clearing.details" /></a>
                         <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-ECCDetails'}">active</core_rt:if>" href="#tab-ECCDetails" data-toggle="list" role="tab"><liferay-ui:message key="ecc.details" /></a>
@@ -102,7 +103,7 @@
                             <core_rt:if test="${not addMode}" >
                                 <div class="btn-group" role="group">
                                     <button id="deleteReleaseButton" type="button" class="btn btn-danger"
-                                        <core_rt:if test="${usingComponents.size()>0 or usingProjects.size()>0}"> disabled="disabled" title="<liferay-ui:message key="deletion.is.disabled.as.the.release.is.used" />" </core_rt:if>
+                                        <core_rt:if test="${usingComponents.size()>0 or usingProjects.size()>0 or release.getPackageIdsSize()>0}"> disabled="disabled" title="<liferay-ui:message key="deletion.is.disabled.as.the.release.is.used" />" </core_rt:if>
                                     ><liferay-ui:message key="delete.release" /></button>
                                 </div>
                             </core_rt:if>
@@ -140,6 +141,9 @@
                                 </div>
                                 <div id="tab-linkedReleases" class="tab-pane <core_rt:if test="${selectedTab == 'tab-linkedReleases'}">active show</core_rt:if>" >
                                     <%@include file="/html/utils/includes/editLinkedReleases.jspf" %>
+                                </div>
+                                <div id="tab-linkedPackages" class="tab-pane <core_rt:if test="${selectedTab == 'tab-linkedPackages'}">active show</core_rt:if>" >
+                                    <jsp:include page="/html/utils/includes/editLinkedPackages.jsp" />
                                 </div>
                                 <div id="tab-ClearingDetails" class="tab-pane <core_rt:if test="${selectedTab == 'tab-ClearingDetails'}">active show</core_rt:if>" >
                                     <%@include file="/html/components/includes/releases/editReleaseClearingInformation.jspf" %>
@@ -217,6 +221,7 @@
     <%@include file="/html/components/includes/vendors/searchVendor.jspf" %>
     <core_rt:set var="enableSearchForReleasesFromLinkedProjects" value="${false}" scope="request"/>
     <jsp:include page="/html/utils/includes/searchReleases.jsp" />
+    <jsp:include page="/html/utils/includes/searchPackages.jsp" />
 </core_rt:if>
 
 <script>
