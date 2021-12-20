@@ -900,14 +900,15 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             StringUtils.isBlank(projectVersion) ? "" : "-" + projectVersion, timestamp,
             outputFormatInfo.getFileExtension());
 
-        String fileName = "";
+        String fileNameWithOrg = "";
         if (CommonUtils.isNotNullEmptyOrWhitespace(template) && CommonUtils.isNotNullEmptyOrWhitespace(REPORT_FILENAME_MAPPING)) {
             Map<String, String> orgToTemplate = Arrays.stream(REPORT_FILENAME_MAPPING.split(","))
                     .collect(Collectors.toMap(k -> k.split(":")[0], v -> v.split(":")[1]));
-            fileName = orgToTemplate.get(template);
+            // fileName = orgToTemplate.get(template);
+            fileNameWithOrg = orgToTemplate.get(template) + "::" + template;
         }
 
-        final LicenseInfoFile licenseInfoFile = licenseInfoService.getLicenseInfoFile(sw360Project, sw360User, outputGeneratorClassNameWithVariant, selectedReleaseAndAttachmentIds, excludedLicensesPerAttachments, externalIds, fileName);
+        final LicenseInfoFile licenseInfoFile = licenseInfoService.getLicenseInfoFile(sw360Project, sw360User, outputGeneratorClassNameWithVariant, selectedReleaseAndAttachmentIds, excludedLicensesPerAttachments, externalIds, fileNameWithOrg);
         byte[] byteContent = licenseInfoFile.bufferForGeneratedOutput().array();
         response.setContentType(outputFormatInfo.getMimeType());
         response.setHeader("Content-Disposition", String.format("attachment; filename=\"%s\"", filename));
