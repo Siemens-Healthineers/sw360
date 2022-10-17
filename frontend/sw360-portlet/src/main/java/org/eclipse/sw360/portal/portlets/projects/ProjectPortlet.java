@@ -2245,7 +2245,8 @@ public class ProjectPortlet extends FossologyAwarePortlet {
 
         User user = UserCacheHolder.getUserFromRequest(request);
         String id = request.getParameter(PROJECT_ID);
-        Project project;
+        id = CommonUtils.isNullEmptyOrWhitespace(id) && Objects.nonNull(request.getAttribute(PROJECT_ID)) ? request.getAttribute(PROJECT_ID).toString(): id;
+        Project project = (Project) request.getAttribute(PROJECT);
         Set<Project> usingProjects;
         int allUsingProjectCount = 0;
         request.setAttribute(IS_USER_AT_LEAST_CLEARING_ADMIN, PermissionUtils.isUserAtLeast(UserGroup.CLEARING_ADMIN, user));
@@ -2257,7 +2258,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
 
             try {
                 ProjectService.Iface client = thriftClients.makeProjectClient();
-                project = client.getProjectByIdForEdit(id, user);
+                project = project == null ? client.getProjectByIdForEdit(id, user) : project;
                 setDefaultRequestAttributes(request, project.getBusinessUnit());
                 Map<String, String> sortedAdditionalData = getSortedMap(project.getAdditionalData(), true);
                 project.setAdditionalData(sortedAdditionalData);
@@ -2294,21 +2295,21 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             if(request.getAttribute(PROJECT) == null) {
                 project = new Project();
                 project.setBusinessUnit(user.getDepartment());
-                request.setAttribute(PROJECT, project);
-                setDefaultRequestAttributes(request, user.getDepartment());
-                PortletUtils.setCustomFieldsEdit(request, user, project);
-                setAttachmentsInRequest(request, project);
-                try {
-                    putDirectlyLinkedProjectsInRequest(request, project, user);
-                    putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
-                } catch(TException e) {
-                    log.error("Could not put empty linked projects or linked releases in projects view.", e);
-                }
-                request.setAttribute(USING_PROJECTS, Collections.emptySet());
-                request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
-
-                SessionMessages.add(request, "request_processed", LanguageUtil.get(resourceBundle,"new.project"));
             }
+            request.setAttribute(PROJECT, project);
+            setDefaultRequestAttributes(request, user.getDepartment());
+            PortletUtils.setCustomFieldsEdit(request, user, project);
+            setAttachmentsInRequest(request, project);
+            try {
+                putDirectlyLinkedProjectsInRequest(request, project, user);
+                putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+            } catch(TException e) {
+                log.error("Could not put empty linked projects or linked releases in projects view.", e);
+            }
+            request.setAttribute(USING_PROJECTS, Collections.emptySet());
+            request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
+
+            SessionMessages.add(request, "request_processed", LanguageUtil.get(resourceBundle,"new.project"));
         }
 
     }
@@ -2390,6 +2391,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     updateLinkedObligations(request, project, user, client);
                 }
                 if (RequestStatus.DUPLICATE.equals(requestStatus) || RequestStatus.NAMINGERROR.equals(requestStatus)) {
+                    request.setAttribute(PROJECT_ID, id);
                     if(RequestStatus.DUPLICATE.equals(requestStatus))
                         setSW360SessionError(request, ErrorMessages.PROJECT_DUPLICATE);
                     else if (RequestStatus.NAMINGERROR.equals(requestStatus))
