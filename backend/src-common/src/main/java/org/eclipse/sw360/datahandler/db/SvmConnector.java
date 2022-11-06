@@ -117,8 +117,8 @@ public class SvmConnector {
     static {
         Properties props = CommonUtils.loadProperties(SvmConnector.class, PROPERTIES_FILE_PATH);
 
-        MONITORING_LIST_API_URL  = props.getProperty("svm.sw360.api.url", "https://svm.cert.siemens.com/portal/api/custom/sw360/applications.json");
-        COMPONENT_MAPPINGS_API_URL  = props.getProperty("svm.sw360.componentmappings.api.url", "https://svm.cert.siemens.com/portal/api/v1/public/sw360/component_mappings.json");
+        MONITORING_LIST_API_URL  = props.getProperty("svm.sw360.api.url", "https://svm.cert.siemens.com/portal/api/custom/sw360_shs/applications.json");
+        COMPONENT_MAPPINGS_API_URL  = props.getProperty("svm.sw360.componentmappings.api.url", "https://svm.cert.siemens.com/portal/api/v1/public/sw360_shs/component_mappings.json");
         KEY_STORE_FILENAME  = props.getProperty("svm.sw360.certificate.filename", "not-configured");
         KEY_STORE_PASSPHRASE = props.getProperty("svm.sw360.certificate.passphrase", "").toCharArray();
         JAVA_KEYSTORE_PASSWORD = props.getProperty("svm.sw360.jks.password", "changeit").toCharArray();
