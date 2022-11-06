@@ -20,10 +20,6 @@
 
     <artifactId>src-common</artifactId>
 
-    <properties>
-	<liferay.version>6.2.2</liferay.version>
-    </properties>
-
     <build>
         <plugins>
             <plugin>
@@ -43,8 +39,8 @@
     <dependencies>
         <dependency>
             <groupId>com.liferay.portal</groupId>
-            <artifactId>portal-service</artifactId>
-            <version>${liferay.version}</version>
+            <artifactId>com.liferay.portal.kernel</artifactId>
+            <version>${liferay.portal.kernel.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
