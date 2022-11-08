@@ -61,7 +61,7 @@
 		<div id="heading" class="container">
 			<div class="row">
 				<div class="col-3">
-					<a class="${logo_css_class}" href="${site_default_url}" title="<@liferay.language_format arguments="${site_name}" key="go-to-x" />">
+					<a class="${logo_css_class}" href="/web/guest" title="<@liferay.language_format arguments="${site_name}" key="go-to-x" />">
 						<img alt="${logo_description}" height="56" src="${site_logo}" />
 					</a>
 				</div>
@@ -121,10 +121,8 @@
 			<a href="http://www.github.com/eclipse/sw360" rel="external" target="_blank">SW360</a> |
 			<a href="/resource/mkdocs/index.html" rel="external" target="_blank">SW360 Docs</a> |
 			<a href="/resource/docs/api-guide.html" rel="external" target="_blank">REST API Docs</a> |
-                        <a href="https://wiki.siemens.com/display/en/SW360+RESTful+API" rel="external" target="_blank">REST API Access</a> |
-                        <a href="https://github.com/eclipse/sw360/issues" rel="external" target="_blank">Public Issue Tracker</a> |
-                        <a href="https://code.siemens.com/SHS/shs-sw-360-portal/issues" rel="external" target="_blank">Healthineers Issue Tracker</a> |
-                        <a href="https://wiki.siemens.com/pages/viewpage.action?pageId=61346243" rel="external" target="_blank">Siemens Wiki</a>
+			<a href="https://code.siemens.com/SHS/shs-sw-360-portal/issues" rel="external" target="_blank">Healthineers Issue Tracker</a> |
+			<a href="https://teams.microsoft.com/l/team/19%3aUjBY3R8YTaI3Wik7-LKOA6Zpzk-j1ZIreeQ9Aa0MNQE1%40thread.tacv2/conversations?groupId=eec48a5b-4288-4f46-8c62-4f108410a641&tenantId=5dbf1add-202a-4b8d-815b-bf0fb024e033" rel="external" target="_blank">SHS SW360 User Group – MS Teams</a>
 		</div>
 		<div class="build-info text-muted">
 			<#if sw360_build_info??>
