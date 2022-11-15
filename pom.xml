@@ -43,6 +43,7 @@
         <module>frontend</module>
         <module>rest</module>
         <module>clients</module>
+        <module>utils</module>
     </modules>
 
     <properties>
@@ -92,7 +93,9 @@
         <guava.version>31.1-jre</guava.version>
         <hamcrest.version>1.3</hamcrest.version>
         <jakarta-xml-bind.version>2.3.2</jakarta-xml-bind.version>
-        <jackson.version>2.13.3</jackson.version>
+        <jackson.core.version>2.13.4</jackson.core.version>
+        <jackson.databind.version>2.13.4.2</jackson.databind.version>
+        <jackson.annotations.version>2.13.4</jackson.annotations.version>
         <javax-annotation.version>1.3.2</javax-annotation.version>
         <jcraft.version>0.1.54</jcraft.version>
         <jgiven.version>0.17.0</jgiven.version>
@@ -134,14 +137,16 @@
         <wiremock.version>2.26.0</wiremock.version>
 
         <!--  User must provide below property configuration based on his/her liferay deployment environment -->
-        <base.deploy.dir />
+        <base.deploy.dir>
+            ${session.executionRootDirectory}/deploy
+        </base.deploy.dir>
 
         <!--
             This is were the liferay OSGi modules go to on upload:
                 - frontend/*
                 - libraries/*
         -->
-        <liferay.deploy.dir>${base.deploy.dir}/liferay</liferay.deploy.dir>
+        <liferay.deploy.dir>${base.deploy.dir}/tomcat</liferay.deploy.dir>
         <!--
             This is were the backend services go to on upload:
                 - backend/svc/*
@@ -152,6 +157,8 @@
                 - rest/*
         -->
         <rest.deploy.dir>${base.deploy.dir}/tomcat</rest.deploy.dir>
+        <!-- JAR dependencies from maven-->
+        <jars.deploy.dir>${base.deploy.dir}/jars</jars.deploy.dir>
 
         <!-- some mem optimization here -->
         <argLine>-Dcatalina.home=${project.build.directory}/home -Xms128m -Xmx256m -XX:MaxPermSize=512m</argLine>
@@ -272,7 +279,7 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
-                <artifactId>commons-collection4</artifactId>
+                <artifactId>commons-collections4</artifactId>
                 <version>${commons-collection4.version}</version>
             </dependency>
             <dependency>
@@ -305,17 +312,17 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.databind.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.core.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-annotations</artifactId>
-                <version>${jackson.version}</version>
+                <version>${jackson.annotations.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
@@ -651,7 +658,6 @@
                     <format>html</format>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
