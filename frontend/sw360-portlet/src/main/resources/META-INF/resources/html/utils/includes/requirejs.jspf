@@ -14,7 +14,7 @@
 
     requirejs.config({
         baseUrl: contextPath + "/js",
-        waitSeconds: 60,
+        waitSeconds: 90,
         paths: {
 		"jquery-ui":              				[ contextPath + "/webjars/jquery-ui/jquery-ui.min" ],
             "jquery-treetable":       				[ contextPath + "/webjars/jquery-treetable/jquery.treetable" ],

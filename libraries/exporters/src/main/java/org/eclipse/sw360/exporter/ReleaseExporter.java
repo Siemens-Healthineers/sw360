@@ -36,7 +36,7 @@ public class ReleaseExporter extends ExcelExporter<Release, ReleaseHelper> {
         nameToDisplayName.put(Release._Fields.CPEID.getFieldName(), "CPE ID");
         nameToDisplayName.put(Release._Fields.COMPONENT_ID.getFieldName(), "component ID");
         nameToDisplayName.put(Release._Fields.RELEASE_DATE.getFieldName(), "release date");
-        nameToDisplayName.put(Release._Fields.EXTERNAL_IDS.getFieldName(), "external IDs");
+        nameToDisplayName.put(Release._Fields.EXTERNAL_IDS.getFieldName(), "release: external IDs (SVM-ID)");
         nameToDisplayName.put(Release._Fields.CREATED_ON.getFieldName(), "created on");
         nameToDisplayName.put(Release._Fields.CREATED_BY.getFieldName(), "created by");
         nameToDisplayName.put(Release._Fields.MAINLINE_STATE.getFieldName(), "mainline state");
@@ -46,6 +46,7 @@ public class ReleaseExporter extends ExcelExporter<Release, ReleaseHelper> {
         nameToDisplayName.put(Release._Fields.ECC_INFORMATION.getFieldName(), "ECC information");
         nameToDisplayName.put(Release._Fields.COTS_DETAILS.getFieldName(), "COTS details");
         nameToDisplayName.put(Release._Fields.MAIN_LICENSE_IDS.getFieldName(), "main license IDs");
+        nameToDisplayName.put(Release._Fields.OTHER_LICENSE_IDS.getFieldName(), "other license IDs");
         nameToDisplayName.put(Release._Fields.SOURCE_CODE_DOWNLOADURL.getFieldName(), "Source Code Downloadurl");
         nameToDisplayName.put(Release._Fields.BINARY_DOWNLOADURL.getFieldName(), "Binary Downloadurl");
         nameToDisplayName.put(Release._Fields.RELEASE_ID_TO_RELATIONSHIP.getFieldName(), "releases with relationship");
@@ -63,9 +64,12 @@ public class ReleaseExporter extends ExcelExporter<Release, ReleaseHelper> {
             .add(COMPONENT_ID)
             .add(NAME)
             .add(VERSION)
+            .add(MAIN_LICENSE_IDS)
+            .add(OTHER_LICENSE_IDS)
             .add(CLEARING_STATE)
             .add(ECC_INFORMATION)
             .add(VENDOR)
+            .add(EXTERNAL_IDS)
             .build();
 
    public static final List<EccInformation._Fields> ECC_IGNORE_FIELDS = ImmutableList.<EccInformation._Fields>builder()
