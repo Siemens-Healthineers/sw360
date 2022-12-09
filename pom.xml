@@ -87,6 +87,7 @@
         <dom4j.version>2.1.3</dom4j.version>
         <ektorp.version>1.5.0</ektorp.version>
         <ektorplucene.version>0.2.0</ektorplucene.version>
+        <failureaccess.version>1.0.1</failureaccess.version>
         <findbugs-annotations.version>1.3.9-1</findbugs-annotations.version>
         <glassfish-jaxb.version>2.3.2</glassfish-jaxb.version>
         <gson.version>2.8.9</gson.version>
@@ -135,6 +136,9 @@
         <spring-restdocs-asciidoctor.version>2.0.6.RELEASE</spring-restdocs-asciidoctor.version>
         <thrift.version>0.16.0</thrift.version>
         <wiremock.version>2.26.0</wiremock.version>
+        <org.spdx.tools.java.version>1.1.0</org.spdx.tools.java.version>
+        <com.googlecode.json-simple.version>1.1.1</com.googlecode.json-simple.version>
+
 
         <!--  User must provide below property configuration based on his/her liferay deployment environment -->
         <base.deploy.dir>
@@ -242,7 +246,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>failureaccess</artifactId>
-                <version>1.0.1</version>
+                <version>${failureaccess.version}</version>
             </dependency>
             <dependency>
                 <groupId>commons-cli</groupId>
@@ -341,27 +345,14 @@
             </dependency>
             <dependency>
                 <groupId>org.spdx</groupId>
-                <artifactId>spdx-tools</artifactId>
-                <version>2.2.3</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.apache.commons</groupId>
-                        <artifactId>commons-lang3</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>log4j</groupId>
-                        <artifactId>log4j</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-log4j12</artifactId>
-                    </exclusion>
-                </exclusions>
+                <artifactId>tools-java</artifactId>
+                <version>${org.spdx.tools.java.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.spdx</groupId>
-                <artifactId>tools-java</artifactId>
-                <version>1.0.4</version>
+                <groupId>com.googlecode.json-simple</groupId>
+                <artifactId>json-simple</artifactId>
+                <version>${com.googlecode.json-simple.version}</version>
+                <scope>compile</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.velocity</groupId>

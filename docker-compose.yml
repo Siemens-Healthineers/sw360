@@ -10,7 +10,7 @@ version: '3.8'
 
 services:
   sw360:
-    image: 'eclipse/sw360:latest'
+    image: 'ghcr.io/eclipse/sw360/sw360:latest'
     restart: unless-stopped
     container_name: sw360
     depends_on:
@@ -23,8 +23,6 @@ services:
     tty: true
     volumes:
       - etc:/etc/sw360
-      - webapps:/app/sw360/tomcat/webapps
-      - document_library:/app/sw360/data/document_library
       - ./config:/app/sw360/config
 
   postgresdb:
@@ -42,6 +40,11 @@ services:
       options:
         max-size: 10m
         max-file: "2"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready --dbname $$POSTGRES_DB --username $$POSTGRES_USER" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   couchdb:
     image: couchdb
@@ -51,16 +54,19 @@ services:
       - COUCHDB_PASSWORD=password
       - COUCHDB_CREATE_DATABASE=yes
     ports:
-      - 5984:5984
+      - "5984:5984"
     volumes:
       - couchdb:/opt/couchdb/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail -s http://localhost:5984/_up" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres: null
   couchdb: null
   etc: null
-  webapps: null
-  document_library: null
 
 networks:
   default:

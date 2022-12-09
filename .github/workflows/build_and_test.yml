@@ -13,10 +13,10 @@
 name: SW360
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - "**.md"
 
 env:
   COUCHDB_USER: admin
