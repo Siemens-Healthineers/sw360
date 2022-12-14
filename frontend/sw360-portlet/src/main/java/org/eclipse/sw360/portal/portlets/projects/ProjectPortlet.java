@@ -2663,15 +2663,20 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         final LicenseInfoService.Iface licenseClient = thriftClients.makeLicenseInfoClient();
 
         for (Release release : releases) {
-            List<Attachment> filteredAttachments = SW360Utils.getApprovedClxAttachmentForRelease(release);
+            List<Attachment> approvedCliAttachments = SW360Utils.getApprovedClxAttachmentForRelease(release);
+            // In case there are no approved CLI in release,
+            // Check if it contains only one non-approved CLI, if yes, add it to the list.
+            if (approvedCliAttachments.isEmpty()) {
+                approvedCliAttachments = SW360Utils.getClxAttachmentForRelease(release);
+            }
             final String releaseId = release.getId();
 
             if (releaseIdToAcceptedCLI.containsKey(releaseId)) {
                 excludedReleases.add(release);
             }
 
-            if (filteredAttachments.size() == 1) {
-                final Attachment filteredAttachment = filteredAttachments.get(0);
+            if (approvedCliAttachments.size() == 1) {
+                final Attachment filteredAttachment = approvedCliAttachments.get(0);
                 final String attachmentContentId = filteredAttachment.getAttachmentContentId();
 
                 if (releaseIdToAcceptedCLI.containsKey(releaseId) && releaseIdToAcceptedCLI.get(releaseId).equals(attachmentContentId)) {
@@ -2806,12 +2811,17 @@ public class ProjectPortlet extends FossologyAwarePortlet {
 
             for (String releaseId : releaseIds) {
                 Release release = componentClient.getReleaseById(releaseId, user);
-                List<Attachment> filteredAttachments = SW360Utils.getApprovedClxAttachmentForRelease(release);
+                List<Attachment> approvedCliAttachments = SW360Utils.getApprovedClxAttachmentForRelease(release);
+                // In case there are no approved CLI in release,
+                // Check if it contains only one non-approved CLI, if yes, add it to the list.
+                if (approvedCliAttachments.isEmpty()) {
+                    approvedCliAttachments = SW360Utils.getClxAttachmentForRelease(release);
+                }
                 Set<String> mainLicenses = release.getMainLicenseIds() == null ? new HashSet<String>() : release.getMainLicenseIds();
                 Set<String> otherLicenses = release.getOtherLicenseIds() == null ? new HashSet<String>() : release.getOtherLicenseIds();
 
-                if (filteredAttachments.size() == 1) {
-                    final Attachment attachment = filteredAttachments.get(0);
+                if (approvedCliAttachments.size() == 1) {
+                    final Attachment attachment = approvedCliAttachments.get(0);
                     final String attachmentName = attachment.getFilename();
                     oneCLI.add(release);
                     List<LicenseInfoParsingResult> licenseInfoResult = licenseInfoClient.getLicenseInfoForAttachment(release,
@@ -2840,10 +2850,8 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     }
                 } else {
                     jsonResult.put(SW360Constants.STATUS, SW360Constants.FAILURE);
-                    if (filteredAttachments.size() > 1) {
+                    if (approvedCliAttachments.size() > 1) {
                         multipleCLI.add(release);
-                    } else {
-                        noCLI.add(release);
                     }
                 }
                 release.setMainLicenseIds(mainLicenses);
@@ -2852,7 +2860,6 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             }
             jsonResult.put("one", oneCLI);
             jsonResult.put("mul", multipleCLI);
-            jsonResult.put("nil", noCLI);
         } catch (Exception e) {
             log.error(String.format("Error while adding license info to linked releases for project: %s ", projectId), e);
         }
