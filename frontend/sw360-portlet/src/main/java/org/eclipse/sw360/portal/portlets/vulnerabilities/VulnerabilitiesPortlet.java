@@ -204,9 +204,14 @@ public class VulnerabilitiesPortlet extends Sw360Portlet {
             Set<String> ids = relations.stream()
                     .map(ReleaseVulnerabilityRelation::getReleaseId)
                     .collect(Collectors.toSet());
-            ComponentService.Iface client = thriftClients.makeComponentClient();
-            return client.getReleasesById(ids, user);
+
+            try {
+                ComponentService.Iface client = thriftClients.makeComponentClient();
+                return client.getReleasesById(ids, user);
+            } catch (TException e) {
+                log.error("Error fetching releases from backend!", e);
+            }
         }
-        return Collections.emptyList();
+        return ImmutableList.of();
     }
 }
