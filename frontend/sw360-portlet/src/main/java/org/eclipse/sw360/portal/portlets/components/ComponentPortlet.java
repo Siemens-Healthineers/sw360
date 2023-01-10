@@ -1079,8 +1079,6 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             String emailFromRequest = LifeRayUserSession.getEmailFromRequest(request);
 
             Release release = PortletUtils.cloneRelease(emailFromRequest, client.getAccessibleReleaseById(releaseId, user));
-            Map<String, String> sortedAdditionalData = getSortedMap(release.getAdditionalData(), true);
-            release.setAdditionalData(sortedAdditionalData);
 
             PortletUtils.setCustomFieldsEdit(request, user, release);
 
