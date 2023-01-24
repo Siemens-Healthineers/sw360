@@ -8,6 +8,13 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
+.table-commonRules {
+   th {
+       font-size: 18px;
+       cursor: pointer;
+   }
+}
+
 table.table.label-value-table {
 	border: 1px solid;
 
