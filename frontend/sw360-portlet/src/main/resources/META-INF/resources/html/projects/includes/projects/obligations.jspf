@@ -39,6 +39,47 @@
 <div class="tab-content">
 <!-- Obligation View -->
 <div class="tab-pane fade show active" id="licObl" role="tabpanel" aria-labelledby="licObl-tab">
+<div class="dialogs">
+    <div id="commonRulesModal" class="modal" tabindex="-1" role="dialog" aria-modal="true" style="display:none;">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-info mw-100 w-50 modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Common Rules for OSS &amp; COTS</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                </div>
+                <div class="modal-body">
+                    <table id="table_detail" class="table table-bordered aligned-top table-commonRules">
+                        <tbody>
+                            <tr>
+                                <th><div class="d-inline"><clay:icon id="plusOSS" symbol="caret-bottom"/></div>
+                                    <div class="d-inline"><clay:icon style="display: none;" id="minusOSS" symbol="caret-top"/></div> 
+                                    Open-Source Software (OSS)
+                                </th>          
+                            </tr>
+                            <tr id="hidden_row1" style="display:none;">
+                                <td> ${commonRulesOSS} </td>
+                            </tr>
+                            <tr>
+                                <th><div class="d-inline"><clay:icon id="plusCOTS" symbol="caret-bottom"/></div>
+                                    <div class="d-inline"><clay:icon style="display: none;" id="minusCOTS" symbol="caret-top"/></div>  
+                                    Commercial-Off-The-Shelf (COTS)
+                                    
+                                </th>
+                            </tr>
+                            <tr id="hidden_row2" style="display:none;">
+                                <td> ${commonRulesCOTS} </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="btn-group pb-2" role="group">
+    <button type="button" class="btn btn-info btn-sm rounded-pill" id="commonRules" title="<liferay-ui:message key="click.here.to.read.the.common.rules.for.OSS.and.COTS" />">
+        <liferay-ui:message key="common.rules.oss.&.cots" /> <clay:icon symbol="info-circle" /></button>
+</div>
 <div id="obligation-view">
     <table id="obligationsDetailTable" class="table table-bordered" >
         <colgroup>
@@ -175,7 +216,7 @@
 </div>
 
 <script>
-require(['jquery', 'bridges/datatables', 'utils/render'], function ($, datatables, render) {
+require(['jquery', 'modules/dialog', 'bridges/datatables', 'utils/render'], function ($, dialog, datatables, render) {
     var obligationJSON = [],
         projectObligationJSON = [],
         compObligationJSON = [],
@@ -291,7 +332,20 @@ require(['jquery', 'bridges/datatables', 'utils/render'], function ($, datatable
         "order": [[1, 'asc']],
         "initComplete": datatables.showPageContainer
     }, [1, 2, 3, 4, 5, 6, 7], [0, 7]);
-
+    
+    $('#licObl #commonRules').on('click',function(){
+    	let $dialog = dialog.open('#commonRulesModal');
+    });
+    
+    $('#commonRulesModal #table_detail tr').on('click',function(e){
+        var rowId = e.currentTarget.nextElementSibling.id;
+        var plusIconId = e.currentTarget.children[0].children[0].firstChild.id;
+        var minusIconId = e.currentTarget.children[0].children[1].firstChild.id;
+        $('#' + rowId).toggle();
+        $('#' + plusIconId).toggle();
+        $('#' + minusIconId).toggle();
+    });
+    
     function renderReleaseLink(rNames, type, row) {
         if (row.rIds && row.rIds.length > 0) {
             var releaseLinks = [],

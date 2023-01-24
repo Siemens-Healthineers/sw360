@@ -76,11 +76,13 @@ public class PortletUtils {
 
     private static final Logger LOGGER = LogManager.getLogger(PortletUtils.class);
     private static final String TEMPLATE_FILE = "/welcomePageGuideline.html";
+    private static final String COMMON_RULES_OSS = "/commonRulesOSS.html";
+    private static final String COMMON_RULES_COTS = "/commonRulesCOTS.html";
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static ChangeLogsPortletUtils changeLogsPortletUtils = null;
     private static String EXTERNALID_BLOCKLIST_CLONING_RELEASE;
     private static final String PROPERTIES_FILE_PATH = "/sw360.properties";
-    
+
     static {
         CommonUtils.loadProperties(PortletUtils.class, PROPERTIES_FILE_PATH);
         Properties props = CommonUtils.loadProperties(PortletUtils.class, PROPERTIES_FILE_PATH);
@@ -563,6 +565,20 @@ public class PortletUtils {
         request.setAttribute("welcomePageGuideLine", welcomePageGuideLine);
     }
 
+    public static void setCommonRulesOSS(ResourceRequest request) {
+        String commonRulesOSS = new String(
+                    CommonUtils.loadResource(PortletUtils.class, COMMON_RULES_OSS).orElse(new byte[0]));
+
+        request.setAttribute("commonRulesOSS", commonRulesOSS);
+    }
+
+    public static void setCommonRulesCOTS(ResourceRequest request) {
+        String commonRulesCOTS = new String(
+                    CommonUtils.loadResource(PortletUtils.class, COMMON_RULES_COTS).orElse(new byte[0]));
+
+        request.setAttribute("commonRulesCOTS", commonRulesCOTS);
+    }
+
     public static void getBaBlSelection(RenderRequest request, User user) {
         Map<String, CustomField> customFieldMap = CustomFieldHelper.getCustomFields(request, user, CustomFieldPageIdentifier.PROJECT);
         if (CommonUtils.isNullOrEmptyMap(customFieldMap)) {
@@ -653,13 +669,13 @@ public class PortletUtils {
 
     public static void setDepartmentSearchAttribute(ResourceRequest request, ResourceResponse response) {
         final User user = UserCacheHolder.getUserFromRequest(request);
-        
+
         List<String> secondaryDepartmentList = new ArrayList<String>();
         Map<String, Set<UserGroup>> secondaryRoleMap = user.getSecondaryDepartmentsAndRoles();
         if (!CommonUtils.isNullOrEmptyMap(secondaryRoleMap)) {
             secondaryDepartmentList.addAll(secondaryRoleMap.keySet());
         }
-        
+
         request.setAttribute("primaryDepartment", user.getDepartment());
         request.setAttribute("secondaryDepartmentList", nullToEmptyList(secondaryDepartmentList));
     }
