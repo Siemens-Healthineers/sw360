@@ -165,15 +165,15 @@ public class ComponentDatabaseHandlerTest {
     @Test
     public void testUpdateReleasesWithSvmTrackingFeedback() throws Exception {
         when(svmConnector.fetchComponentMappings())
-                .thenReturn(ImmutableMap.of("R1A", ImmutableMap.of(SW360Constants.SIEMENS_SVM_COMPONENT_ID_KEY, 123),
-                        "R2B", ImmutableMap.of(SW360Constants.SIEMENS_SVM_COMPONENT_ID_KEY, 456)));
+                .thenReturn(ImmutableMap.of("R1A", ImmutableMap.of(SW360Constants.SVM_COMPONENT_ID_KEY, 123),
+                        "R2B", ImmutableMap.of(SW360Constants.SVM_COMPONENT_ID_KEY, 456)));
         RequestStatus requestStatus = handler.updateReleasesWithSvmTrackingFeedback();
 
         assertThat(requestStatus, is(RequestStatus.SUCCESS));
         Release r1A = handler.getRelease("R1A", user1);
-        assertThat(r1A.getExternalIds().get(SW360Constants.SIEMENS_SVM_COMPONENT_ID), is("123"));
+        assertThat(r1A.getExternalIds().get(SW360Constants.SVM_COMPONENT_ID), is("123"));
         Release r2B = handler.getRelease("R2B", user1);
-        assertThat(r2B.getExternalIds().get(SW360Constants.SIEMENS_SVM_COMPONENT_ID), is("456"));
+        assertThat(r2B.getExternalIds().get(SW360Constants.SVM_COMPONENT_ID), is("456"));
     }
 
     @Test

@@ -106,7 +106,7 @@ public class ReleaseRepository extends SummaryAwareRepository<Release> {
     private static final String RELEASES_BY_SVM_ID_RELEASE_VIEW =
             "function(doc) {" +
                     "  if (doc.type == 'release' && doc.externalIds) {" +
-                    "    var svmId = doc.externalIds['" + SW360Constants.SIEMENS_SVM_COMPONENT_ID + "'];" +
+                    "    var svmId = doc.externalIds['" + SW360Constants.SVM_COMPONENT_ID + "'];" +
                     "    if (svmId != null) {" +
                     "      emit(svmId, doc._id);" +
                     "    }" +

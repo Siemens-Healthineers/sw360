@@ -199,6 +199,10 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
             }
         }
 
+        if (project.getVendor() != null && project.getVendorId() == null) {
+            project.setVendorId(project.getVendor().getId());
+        }
+
         RequestStatus requestStatus = sw360ProjectClient.updateProject(project, sw360User);
         if (requestStatus == RequestStatus.NAMINGERROR) {
             throw new HttpMessageNotReadableException("Project name field cannot be empty or contain only whitespace character");
@@ -304,9 +308,8 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
     }
 
     public ProjectService.Iface getThriftProjectClient() throws TTransportException {
-        THttpClient thriftClient = new THttpClient(thriftServerUrl + "/projects/thrift");
-        TProtocol protocol = new TCompactProtocol(thriftClient);
-        return new ProjectService.Client(protocol);
+        ProjectService.Iface projectClient = new ThriftClients().makeProjectClient();
+        return projectClient;
     }
 
     public Function<ProjectLink, ProjectLink> filterAndSortAttachments(Collection<AttachmentType> attachmentTypes) {
