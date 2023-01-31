@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.eclipse.sw360.datahandler.cloudantclient.DatabaseConnectorCloudant;
 import org.eclipse.sw360.datahandler.cloudantclient.DatabaseRepositoryCloudantClient;
@@ -48,8 +47,6 @@ public class VendorRepository extends DatabaseRepositoryCloudantClient<Vendor> {
                     "}";
 
     private static final String ALL = "function(doc) { if (doc.type == 'vendor') emit(null, doc._id) }";
-
-    private static final String BY_FULL_NAME = "function(doc) { if (doc.type == 'vendor' && doc.fullname != null) emit(doc.fullname.toLowerCase(), doc._id) }";
 
     public VendorRepository(DatabaseConnectorCloudant db) {
         super(db, Vendor.class);
@@ -87,10 +84,11 @@ public class VendorRepository extends DatabaseRepositoryCloudantClient<Vendor> {
             project.unsetVendorId();
         }
     }
-    
+
     public void fillVendor(Release release) {
         fillVendor(release, null);
     }
+
     public void fillVendor(Release release, Map<String, Vendor> vendorCache) {
         if (release.isSetVendorId()) {
             final String vendorId = release.getVendorId();

@@ -350,6 +350,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     public Release getRelease(String id, User user) throws SW360Exception {
         return getRelease(id, user, null);
     }
+
     public Release getRelease(String id, User user, Map<String, Vendor> vendorCache) throws SW360Exception {
         Release release = releaseRepository.get(id);
 
@@ -2440,29 +2441,29 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
                 Map<String, Object> releaseSVMData = componentMappings.get(r.getId());
                 if (!CommonUtils.isNullOrEmptyMap(releaseSVMData)) {
                     Release originalReleaseData = r.deepCopy();
-                    Object svmComponentId = releaseSVMData.get(SW360Constants.SIEMENS_SVM_COMPONENT_ID_KEY);
-                    Object shortStatus = releaseSVMData.get(SW360Constants.SIEMENS_SVM_SHORT_STATUS_KEY);
+                    Object svmComponentId = releaseSVMData.get(SW360Constants.SVM_COMPONENT_ID_KEY);
+                    Object shortStatus = releaseSVMData.get(SW360Constants.SVM_SHORT_STATUS_KEY);
                     boolean isChanged = false;
                     if (svmComponentId != null) {
-                        String previousValue = externalIds.get(SW360Constants.SIEMENS_SVM_COMPONENT_ID);
+                        String previousValue = externalIds.get(SW360Constants.SVM_COMPONENT_ID);
                         if (previousValue == null || !previousValue.equals(svmComponentId.toString())) {
-                            externalIds.put(SW360Constants.SIEMENS_SVM_COMPONENT_ID, svmComponentId.toString());
+                            externalIds.put(SW360Constants.SVM_COMPONENT_ID, svmComponentId.toString());
                             r.setExternalIds(externalIds);
                             isChanged = true;
                         }
                     }
 
                     if (shortStatus != null && CommonUtils.isNotNullEmptyOrWhitespace(shortStatus.toString())) {
-                        String previousValue = additionalData.get(SW360Constants.SIEMENS_SVM_SHORT_STATUS);
+                        String previousValue = additionalData.get(SW360Constants.SVM_SHORT_STATUS);
                         if (previousValue == null || !previousValue.equals(shortStatus.toString())) {
-                            additionalData.put(SW360Constants.SIEMENS_SVM_SHORT_STATUS, shortStatus.toString());
+                            additionalData.put(SW360Constants.SVM_SHORT_STATUS, shortStatus.toString());
                             r.setAdditionalData(additionalData);
                             isChanged = true;
                         }
                     }
 
                     if (isChanged) {
-                        dbHandlerUtil.addChangeLogs(r, originalReleaseData, SW360Constants.SIEMENS_SVM_SCHEDULER_EMAIL,
+                        dbHandlerUtil.addChangeLogs(r, originalReleaseData, SW360Constants.SVM_SCHEDULER_EMAIL,
                                 Operation.UPDATE, attachmentConnector, Lists.newArrayList(), null, null);
                     }
                 }

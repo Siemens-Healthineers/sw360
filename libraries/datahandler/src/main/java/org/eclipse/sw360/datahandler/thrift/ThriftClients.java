@@ -41,6 +41,7 @@ import org.eclipse.sw360.datahandler.thrift.schedule.ScheduleService;
 import org.eclipse.sw360.datahandler.thrift.search.SearchService;
 import org.eclipse.sw360.datahandler.thrift.users.UserService;
 import org.eclipse.sw360.datahandler.thrift.vendors.VendorService;
+import org.eclipse.sw360.datahandler.thrift.vmcomponents.VMComponentService;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityService;
 
 import java.net.MalformedURLException;
