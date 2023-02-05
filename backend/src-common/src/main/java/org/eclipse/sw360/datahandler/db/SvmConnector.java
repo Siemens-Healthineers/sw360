@@ -1,13 +1,7 @@
 /*
- * Copyright Siemens AG, 2018. Part of the SW360 Portal Project.
- *
- * SPDX-License-Identifier: EPL-1.0
- *
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
- */
+SPDX-FileCopyrightText: © 2022 Siemens AG
+SPDX-License-Identifier: EPL-2.0
+*/
 
 package org.eclipse.sw360.datahandler.db;
 
@@ -32,6 +26,7 @@ import javax.net.ssl.SSLContext;
 import java.io.*;
 import java.security.*;
 import java.security.cert.CertificateException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +49,9 @@ public class SvmConnector {
     private static final Logger log = Logger.getLogger(SvmConnector.class);
 
     public void sendProjectExportForMonitoringLists(String jsonString) throws IOException, SW360Exception {
+        if(CommonUtils.isNullEmptyOrWhitespace(MONITORING_LIST_API_URL)) {
+            return;
+        }
         try (CloseableHttpClient httpClient = HttpClients
                 .custom()
                 .setSSLSocketFactory(createSslSocketFactoryForSVM())
@@ -117,8 +115,8 @@ public class SvmConnector {
     static {
         Properties props = CommonUtils.loadProperties(SvmConnector.class, PROPERTIES_FILE_PATH);
 
-        MONITORING_LIST_API_URL  = props.getProperty("svm.sw360.api.url", "https://svm.cert.siemens.com/portal/api/custom/sw360_shs/applications.json");
-        COMPONENT_MAPPINGS_API_URL  = props.getProperty("svm.sw360.componentmappings.api.url", "https://svm.cert.siemens.com/portal/api/v1/public/sw360_shs/component_mappings.json");
+        MONITORING_LIST_API_URL  = props.getProperty("svm.sw360.api.url", "");
+        COMPONENT_MAPPINGS_API_URL  = props.getProperty("svm.sw360.componentmappings.api.url", "");
         KEY_STORE_FILENAME  = props.getProperty("svm.sw360.certificate.filename", "not-configured");
         KEY_STORE_PASSPHRASE = props.getProperty("svm.sw360.certificate.passphrase", "").toCharArray();
         JAVA_KEYSTORE_PASSWORD = props.getProperty("svm.sw360.jks.password", "changeit").toCharArray();
@@ -126,6 +124,9 @@ public class SvmConnector {
 
 
     public Map<String, Map<String, Object>> fetchComponentMappings() throws SW360Exception, IOException {
+        if(CommonUtils.isNullEmptyOrWhitespace(COMPONENT_MAPPINGS_API_URL)) {
+            return Collections.emptyMap();
+        }
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpGet httpGet = new HttpGet(COMPONENT_MAPPINGS_API_URL);
             try (CloseableHttpResponse httpResponse = httpClient.execute(httpGet)) {

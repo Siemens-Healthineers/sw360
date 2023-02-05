@@ -1,24 +1,11 @@
 /*
- * Copyright Siemens AG, 2016-2018. Part of the SW360 Portal Project.
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License Version 2.0 as published by the
- * Free Software Foundation with classpath exception.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU General Public License version 2.0 for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program (please see the COPYING file); if not, write to the Free
- * Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- */
+SPDX-FileCopyrightText: © 2022 Siemens AG
+SPDX-License-Identifier: EPL-2.0
+*/
 include "sw360.thrift"
 include "users.thrift"
 
-namespace java com.siemens.sw360.datahandler.thrift.vmcomponents
+namespace java org.eclipse.sw360.datahandler.thrift.vmcomponents
 namespace php sw360.thrift.vmcomponents
 
 typedef sw360.RequestSummary RequestSummary
@@ -154,10 +141,8 @@ service VMComponentService {
     list<VMMatch> getAllMatches(1: User user);
 
     // Trigger for vulnerability monitoring
-    RequestSummary synchronizeComponents(/*1: User user*/);
-    RequestSummary triggerReverseMatch(/*1: User user*/);
-//    RequestSummary scheduleSync(1: User user);
-//    RequestSummary unscheduleSync(1: User user);
+    RequestSummary synchronizeComponents();
+    RequestSummary triggerReverseMatch();
     RequestSummary acceptMatch(1: User user, 2: string matchId);
     RequestSummary declineMatch(1: User user, 2: string matchId);
 }

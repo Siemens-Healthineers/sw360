@@ -76,12 +76,16 @@
             <thead>
                 <tr>
                     <th style="width:36%; cursor: pointer" class="sort">
+                        <div id="expandAllWarning" class="alert alert-warning alert-dismissible mb-0 p-2" style="display:none">
+                            <button type="button" class="close pb-3" data-dismiss="alert">×</button>
+                             <liferay-ui:message key="all.the.levels.are.expanded" />
+                        </div>
                         <div class="row px-2">
                             <liferay-ui:message key="name" />
                             <svg class="lexicon-icon lexicon-icon-caret-double-l mt-1"><use href="/o/org.eclipse.sw360.liferay-theme/images/clay/icons.svg#caret-double-l"/></svg>
                             <core_rt:if test="${projectList.size() > 1 or (projectList.size() == 1 and not empty projectList.get(0).linkedReleases)}">
                             <div id="toggle" class="d-none">
-                                (<a href="#" id="expandAll" class="text-primary"><liferay-ui:message key="expand.all" /> </a>|
+                                (<a href="#" id="expandAll" class="text-primary"><liferay-ui:message key="expand.next.level" /> </a>|
                                 <a href="#" id="collapseAll" class="text-primary"> <liferay-ui:message key="collapse.all" /></a>)
                             </div>
                             </core_rt:if>
@@ -272,10 +276,24 @@ AUI().use('liferay-portlet-url', function () {
             search_table($(this).val().trim());
         });
 
-        $('a[href="#"]').click(function(e) {
+        $('#LinkedProjectsInfo a[href="#"]').click(function(e) {
             e.preventDefault();
+
+            if (e.target.id == "collapseAll") {
+                $('#LinkedProjectsInfo #expandAllWarning').hide();
+            }
+
+            if (e.target.id == "expandAll" && !$('#LinkedProjectsInfo tr').hasClass('branch collapsed')) {
+                $('#LinkedProjectsInfo #expandAllWarning').show();
+            }
+
             $('#LinkedProjectsInfo').treetable(e.target.id);
             return false;
+        });
+
+        $('#expandAllWarning').on('close.bs.alert', function (event) {
+            event.preventDefault();
+            $(this).hide();
         });
 
         function removeFilterBySelector(selector) {
@@ -883,33 +901,23 @@ AUI().use('liferay-portlet-url', function () {
                         if (response && response.status) {
                             oneList = $('<ul/>');
                             multipleList = $('<ul/>');
-                            nilList = $('<ul/>');
                             if (response.one.length) {
                                 response.one.forEach(function(rel, index) {
                                     let url = makeReleaseViewUrl(rel.id),
-                                        viewUrl = $("<a/>").attr({href: url, target: "_blank"}).css("word-break", "break-word").text(rel.name + rel.version);
+                                        viewUrl = $("<a/>").attr({href: url, target: "_blank"}).css("word-break", "break-word").text(rel.name + " (" + rel.version + ")");
                                     oneList.append('<li>' + viewUrl[0].outerHTML + '</li>');
                                 });
                             }
                             if (response.mul.length) {
                                 response.mul.forEach(function(rel, index) {
                                     let url = makeReleaseViewUrl(rel.id),
-                                        viewUrl = $("<a/>").attr({href: url, target: "_blank"}).css("word-break", "break-word").text(rel.name + rel.version);
+                                        viewUrl = $("<a/>").attr({href: url, target: "_blank"}).css("word-break", "break-word").text(rel.name + " (" + rel.version + ")");
                                     multipleList.append('<li>' + viewUrl[0].outerHTML + '</li>');
                                 });
                             }
-                            if (response.nil.length) {
-                                response.nil.forEach(function(rel, index) {
-                                    let url = makeReleaseViewUrl(rel.id),
-                                        viewUrl = $("<a/>").attr({href: url, target: "_blank"}).css("word-break", "break-word").text(rel.name + rel.version);
-                                    nilList.append('<li>' + viewUrl[0].outerHTML + '</li>');
-                                });
-                            }
+
                             if ($(multipleList).find('li').length) {
-                                $dialog.warning('<liferay-ui:message key="multiple.approved.cli.are.found.in.the.release" />: <b>' + $(multipleList).find('li').length + '</b>' + multipleList[0].outerHTML);
-                            }
-                            if ($(nilList).find('li').length) {
-                                $dialog.warning('<liferay-ui:message key="approved.cli.not.found.in.the.release" />: <b>' + $(nilList).find('li').length + '</b>' + nilList[0].outerHTML);
+                                $dialog.warning('<liferay-ui:message key="multiple.cli.are.found.in.the.release" />: <b>' + $(multipleList).find('li').length + '</b>' + multipleList[0].outerHTML);
                             }
                             if ($(oneList).find('li').length) {
                                 $dialog.success('<liferay-ui:message key="success.please.reload.page.to.see.the.changes" />: <b>' + $(oneList).find('li').length + '</b>');

@@ -12,7 +12,6 @@
  */
 package org.eclipse.sw360.datahandler.thrift;
 
-import com.siemens.sw360.datahandler.thrift.vmcomponents.VMComponentService;
 import org.apache.http.HttpHost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -41,6 +40,7 @@ import org.eclipse.sw360.datahandler.thrift.schedule.ScheduleService;
 import org.eclipse.sw360.datahandler.thrift.search.SearchService;
 import org.eclipse.sw360.datahandler.thrift.users.UserService;
 import org.eclipse.sw360.datahandler.thrift.vendors.VendorService;
+import org.eclipse.sw360.datahandler.thrift.vmcomponents.VMComponentService;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityService;
 
 import java.net.MalformedURLException;

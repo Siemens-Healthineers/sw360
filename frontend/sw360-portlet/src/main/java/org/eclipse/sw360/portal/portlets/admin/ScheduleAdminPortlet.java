@@ -146,7 +146,7 @@ public class ScheduleAdminPortlet extends Sw360Portlet {
     public void triggerSvmSync(ActionRequest request, ActionResponse response) throws PortletException, IOException {
         try {
             RequestStatus requestStatus = new ThriftClients().makeVMClient().synchronizeComponents().getRequestStatus();
-            setSessionMessage(request, requestStatus, "Task", "perform");
+            setSessionMessage(request, requestStatus, "Task", "performe");
         } catch (TException e) {
             log.error(e);
         }
@@ -166,7 +166,7 @@ public class ScheduleAdminPortlet extends Sw360Portlet {
     public void triggerSvmMatch(ActionRequest request, ActionResponse response) throws PortletException, IOException {
         try {
             RequestStatus requestStatus = new ThriftClients().makeVMClient().triggerReverseMatch().getRequestStatus();
-            setSessionMessage(request, requestStatus, "Task", "perform");
+            setSessionMessage(request, requestStatus, "Task", "performe");
         } catch (TException e) {
             log.error(e);
         }
@@ -190,7 +190,7 @@ public class ScheduleAdminPortlet extends Sw360Portlet {
     public void triggerSvmListUpdate(ActionRequest request, ActionResponse response) throws PortletException, IOException {
         try {
             RequestStatus requestStatus = new ThriftClients().makeProjectClient().exportForMonitoringList();
-            setSessionMessage(request, requestStatus, "Task", "perform");
+            setSessionMessage(request, requestStatus, "Task", "performe");
         } catch (TException e) {
             log.error("Error while trigger svm monitoring list update.", e);
         }
@@ -219,7 +219,7 @@ public class ScheduleAdminPortlet extends Sw360Portlet {
     public void triggerTrackingFeedback(ActionRequest request, ActionResponse response) throws PortletException, IOException {
         try {
             RequestStatus requestStatus = new ThriftClients().makeComponentClient().updateReleasesWithSvmTrackingFeedback();
-            setSessionMessage(request, requestStatus, "Task", "perform");
+            setSessionMessage(request, requestStatus, "Task", "performe");
         } catch (TException e) {
             log.error(e);
         }
@@ -302,7 +302,7 @@ public class ScheduleAdminPortlet extends Sw360Portlet {
     public void triggerDeleteAttachment(ActionRequest request, ActionResponse response) throws PortletException, IOException {
         try {
             RequestStatus requestStatus = new ThriftClients().makeAttachmentClient().deleteOldAttachmentFromFileSystem();
-            setSessionMessage(request, requestStatus, "Task", "perform");
+            setSessionMessage(request, requestStatus, "Task", "performe");
         } catch (TException e) {
             log.error("Unable to Manually trigger the  delete attachment service. ", e);
             e.printStackTrace();
@@ -313,7 +313,7 @@ public class ScheduleAdminPortlet extends Sw360Portlet {
     public void triggerCveSearch(ActionRequest request, ActionResponse response) throws PortletException, IOException {
         try {
             RequestStatus requestStatus = new ThriftClients().makeCvesearchClient().update();
-            setSessionMessage(request, requestStatus, "Task", "perform");
+            setSessionMessage(request, requestStatus, "Task", "performe");
         } catch (TException e) {
             log.error("Unable to Manually trigger the  CVE search service. ", e);
             e.printStackTrace();
