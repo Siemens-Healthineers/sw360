@@ -35,13 +35,17 @@
         <thead>
         <tr>
             <th colspan="8" class="headlabel">
+                <div id="expandAllWarning" class="alert alert-warning alert-dismissible mb-1 w-25 p-2" style="display:none">
+                            <button type="button" class="close pb-3" data-dismiss="alert">×</button>
+                             <liferay-ui:message key="all.the.levels.are.expanded" />
+                        </div>
                 <div class="row m-0">
                 <core_rt:if test="${projectList.size() > 1 or (projectList.size() == 1 and not empty projectList.get(0).linkedReleases)}">
                     <div class="pr-2">
                         <liferay-ui:message key="linked.releases.and.projects" />
                     </div>
                     <div>
-                        (<a href="#" id="expandAll" class="text-primary"><liferay-ui:message key="expand.all" /> </a>|
+                        (<a href="#" id="expandAll" class="text-primary"><liferay-ui:message key="expand.next.level" /> </a>|
                         <a href="#" id="collapseAll" class="text-primary"> <liferay-ui:message key="collapse.all" /></a>)
                     </div>
                     <div class="col form-group m-0">
@@ -93,7 +97,7 @@
 
         Liferay.on('allPortletsReady', function() {
             var config = $('#AttachmentUsagesInfo').data();
-
+            var count =0;
             ajaxTreeTable.setup('AttachmentUsagesInfo', config.loadNodeUrl, function(table, node) {
                 var data = {};
                 data[config.portletNamespace + config.parentBranchKey] = node.id;
@@ -108,8 +112,17 @@
                 // belong to the node, but in our case we load couple levels at a time
                 table.treetable("collapseNode", node.id);
                 table.treetable("expandNode", node.id);
+                var val = Object.values($(table).get(0));
+                var len = val[1].treetable.roots.length;
                 attachCheckboxEventHandlers();
                 attachClickHandlerForLicInfo();
+                if ($('#AttachmentUsagesInfo .expanded:visible').length == Object.keys(node.tree).length
+                        && !($('#AttachmentUsagesInfo tr').hasClass('collapsed'))) {
+                        $('#AttachmentUsagesInfo #expandAllWarning').show();
+                }
+                else {
+                    $('#AttachmentUsagesInfo #expandAllWarning').hide();
+                }
             });
             attachCheckboxEventHandlers();
             attachClickHandlerForLicInfo();
@@ -147,8 +160,18 @@
 
         $('#AttachmentUsagesInfo a[href="#"]').click(function(e) {
             e.preventDefault();
+            
             $('#AttachmentUsagesInfo').treetable(e.target.id);
+            
+            if (e.target.id == "collapseAll") {
+                $('#AttachmentUsagesInfo #expandAllWarning').hide();
+            }
             return false;
+        });
+        
+        $('#AttachmentUsagesInfo #expandAllWarning').on('close.bs.alert', function (event) {
+            event.preventDefault();
+            $(this).hide();
         });
 
         $('#releaseFilter').on('change', function(e) {

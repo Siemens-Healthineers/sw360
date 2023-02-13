@@ -278,16 +278,12 @@ AUI().use('liferay-portlet-url', function () {
 
         $('#LinkedProjectsInfo a[href="#"]').click(function(e) {
             e.preventDefault();
-
+            
+            $('#LinkedProjectsInfo').treetable(e.target.id);
+            
             if (e.target.id == "collapseAll") {
                 $('#LinkedProjectsInfo #expandAllWarning').hide();
             }
-
-            if (e.target.id == "expandAll" && !$('#LinkedProjectsInfo tr').hasClass('branch collapsed')) {
-                $('#LinkedProjectsInfo #expandAllWarning').show();
-            }
-
-            $('#LinkedProjectsInfo').treetable(e.target.id);
             return false;
         });
 
