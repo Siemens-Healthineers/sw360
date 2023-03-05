@@ -1104,7 +1104,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
 
     private void exportExcelWithEmail(ResourceRequest request, ResourceResponse response) {
         final User user = UserCacheHolder.getUserFromRequest(request);
-        final String projectId = request.getParameter(Project._Fields.ID.toString());
+        final String projectId = request.getParameter(PROJECT_ID);
         ResourceBundle resourceBundle = ResourceBundleUtil.getBundle("content.Language", request.getLocale(), getClass());
         String token = null;
 
@@ -1498,7 +1498,8 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         final User user = UserCacheHolder.getUserFromRequest(request);
         Map<String, Set<String>> filterMap = loadFilterMapFromRequest(request);
         loadAndStoreStickyProjectGroup(request, user, filterMap);
-        String id = request.getParameter(Project._Fields.ID.toString());
+        String id = request.getParameter(Project._Fields.ID.toString()) == null ? request.getParameter(PROJECT_ID)
+                : request.getParameter(Project._Fields.ID.toString());
         return findProjectsByFiltersOrId(filterMap, id, user, pageData);
     }
 
@@ -1611,6 +1612,17 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 Collection<ProjectLink> links = allSubProjectLinks.stream().collect(
                         Collectors.toMap(ProjectLink::getId, Function.identity(), (oldValue, newValue) -> oldValue)).values();
                 request.setAttribute(ALL_SUB_PROJECT_LINK, links);
+                List<String> projIds = links.stream().map(proj->proj.id).collect(Collectors.toList());
+                VulnerabilityService.Iface vulClient = thriftClients.makeVulnerabilityClient();
+                List<VulnerabilityDTO> total_vuls = new ArrayList<VulnerabilityDTO>();
+                for (int pos = 0; pos < projIds.size(); pos++) {
+                    List<VulnerabilityDTO> vuls = vulClient.getVulnerabilitiesByProjectIdWithoutIncorrect(projIds.get(pos), user);
+                    Project proj = client.getProjectById(projIds.get(pos), user);
+                    if (proj.enableVulnerabilitiesDisplay) {
+                        total_vuls.addAll(vuls);
+                    }
+                }
+                request.setAttribute(PortalConstants.TOTAL_VULNERABILITY_COUNT, total_vuls.size());
                 putDirectlyLinkedReleasesInRequest(request, project);
                 Set<Project> usingProjects = client.searchLinkingProjects(id, user);
                 request.setAttribute(USING_PROJECTS, usingProjects);
@@ -2242,6 +2254,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
 
         User user = UserCacheHolder.getUserFromRequest(request);
         String id = request.getParameter(PROJECT_ID);
+        boolean isUpdateOrCreateProjectFailed = false;
         id = CommonUtils.isNullEmptyOrWhitespace(id) && Objects.nonNull(request.getAttribute(PROJECT_ID)) ? request.getAttribute(PROJECT_ID).toString(): id;
         Project project = (Project) request.getAttribute(PROJECT);
         Set<Project> usingProjects;
@@ -2251,12 +2264,16 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         List<Organization> organizations = UserUtils.getOrganizations(request);
         request.setAttribute(ORGANIZATIONS, organizations);
         request.setAttribute(SVM_MONITORINGLIST_ID, SW360Constants.SVM_MONITORINGLIST_ID);
+        ProjectService.Iface client = thriftClients.makeProjectClient();
+        List<ProjectLink> projectlink = new ArrayList<>();
 
         if (id != null) {
-
             try {
-                ProjectService.Iface client = thriftClients.makeProjectClient();
-                project = project == null ? client.getProjectByIdForEdit(id, user) : project;
+                if (project == null) {
+                    project = client.getProjectByIdForEdit(id, user);
+                } else {
+                    isUpdateOrCreateProjectFailed = true;
+                }
                 setDefaultRequestAttributes(request, project.getBusinessUnit());
                 Map<String, String> sortedAdditionalData = getSortedMap(project.getAdditionalData(), true);
                 project.setAdditionalData(sortedAdditionalData);
@@ -2276,7 +2293,12 @@ public class ProjectPortlet extends FossologyAwarePortlet {
 
             setAttachmentsInRequest(request, project);
             try {
-                putDirectlyLinkedProjectsInRequest(request, project, user);
+                if (isUpdateOrCreateProjectFailed && project.isSetLinkedProjects()) {
+                    projectlink = client.getLinkedProjects(project.getLinkedProjects(), false, user);
+                    request.setAttribute(PROJECT_LIST, projectlink);
+                } else {
+                    putDirectlyLinkedProjectsInRequest(request, project, user);
+                }
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
             } catch (TException e) {
                 log.error("Could not fetch linked projects or linked releases in projects view.", e);
@@ -2299,7 +2321,10 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             PortletUtils.setCustomFieldsEdit(request, user, project);
             setAttachmentsInRequest(request, project);
             try {
-                putDirectlyLinkedProjectsInRequest(request, project, user);
+                if (project.isSetLinkedProjects()) {
+                    projectlink = client.getLinkedProjects(project.getLinkedProjects(), false, user);
+                }
+                request.setAttribute(PROJECT_LIST, projectlink);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
             } catch(TException e) {
                 log.error("Could not put empty linked projects or linked releases in projects view.", e);
@@ -2380,6 +2405,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     FossologyAwarePortlet.addCustomErrorMessage(CYCLIC_LINKED_PROJECT + cyclicLinkedProjectPath,
                             PAGENAME_EDIT, request, response);
                     response.setRenderParameter(PROJECT_ID, id);
+                    prepareRequestForEditAfterDuplicateError(request, project, user);
                     return;
                 }
                 requestStatus = client.updateProject(project, user);
@@ -2541,6 +2567,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         setAttachmentsInRequest(request, project);
         request.setAttribute(USING_PROJECTS, Collections.emptySet());
         request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
+        request.setAttribute(IS_ERROR_IN_UPDATE_OR_CREATE, true);
         putDirectlyLinkedProjectsInRequest(request, project, user);
         putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
     }
