@@ -390,8 +390,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     ///////////////////////////////
     // UPDATE INDIVIDUAL OBJECTS //
     ///////////////////////////////
-
     public RequestStatus updateProject(Project project, User user) throws SW360Exception {
+        return updateProject(project, user, false);
+    }
+
+    public RequestStatus updateProject(Project project, User user, boolean forceUpdate) throws SW360Exception {
         removeLeadingTrailingWhitespace(project);
         String name = project.getName();
         if (name == null || name.isEmpty()) {
@@ -415,7 +418,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             return RequestStatus.FAILED_SANITY_CHECK;
         } else if (!isDependenciesExists(project, user)) {
             return RequestStatus.INVALID_INPUT;
-        } else if (isWriteActionAllowedOnProject(actual, user)) {
+        } else if (isWriteActionAllowedOnProject(actual, user) || forceUpdate) {
             copyImmutableFields(project,actual);
             setRequestedDateAndTrimComment(project, actual, user);
             project.setAttachments( getAllAttachmentsToKeep(toSource(actual), actual.getAttachments(), project.getAttachments()) );
@@ -751,8 +754,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     ///////////////////////////////
     // DELETE INDIVIDUAL OBJECTS //
     ///////////////////////////////
-
     public RequestStatus deleteProject(String id, User user) throws SW360Exception {
+        return deleteProject(id, user, false);
+    }
+
+    public RequestStatus deleteProject(String id, User user, boolean forceDelete) throws SW360Exception {
         Project project = repository.get(id);
         assertNotNull(project);
 
@@ -761,7 +767,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         }
 
         // Remove the project if the user is allowed to do it by himself
-        if (makePermission(project, user).isActionAllowed(RequestedAction.DELETE)) {
+        if (makePermission(project, user).isActionAllowed(RequestedAction.DELETE) || forceDelete) {
             removeProjectAndCleanUp(project, user);
             dbHandlerUtil.addChangeLogs(null, project, user.getEmail(), Operation.DELETE, attachmentConnector,
                     Lists.newArrayList(), null, null);

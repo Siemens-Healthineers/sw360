@@ -29,6 +29,7 @@ import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.users.User;
+import org.eclipse.sw360.rest.resourceserver.Sw360ResourceServer;
 import org.eclipse.sw360.rest.resourceserver.core.AwareOfRestServices;
 import org.eclipse.sw360.rest.resourceserver.core.RestControllerHelper;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -88,6 +89,15 @@ public class Sw360ComponentService implements AwareOfRestServices<Component> {
 
         return projectService.getProjectsByReleaseIds(releaseIds, sw360User);
     }
+    public List<Component> getComponentSubscriptions(User sw360User) throws TException {
+        ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
+        return sw360ComponentClient.getSubscribedComponents(sw360User);
+    }
+
+    public List<Component> getRecentComponents(User sw360User) throws TException {
+        ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
+        return sw360ComponentClient.getRecentComponentsSummary(5, sw360User);
+    }
 
     public Set<Component> getUsingComponentsForComponent(String componentId, User sw360User) throws TException {
         ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
@@ -128,7 +138,12 @@ public class Sw360ComponentService implements AwareOfRestServices<Component> {
 
     public RequestStatus updateComponent(Component component, User sw360User) throws TException {
         ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
-        RequestStatus requestStatus = sw360ComponentClient.updateComponent(component, sw360User);
+        RequestStatus requestStatus;
+        if (Sw360ResourceServer.IS_FORCE_UPDATE_ENABLED) {
+            requestStatus = sw360ComponentClient.updateComponentWithForceFlag(component, sw360User, true);
+        } else {
+            requestStatus = sw360ComponentClient.updateComponent(component, sw360User);
+        }
         if (requestStatus == RequestStatus.INVALID_INPUT) {
             throw new HttpMessageNotReadableException("Dependent document Id/ids not valid.");
         } else if (requestStatus == RequestStatus.NAMINGERROR) {
@@ -141,7 +156,11 @@ public class Sw360ComponentService implements AwareOfRestServices<Component> {
 
     public RequestStatus deleteComponent(String componentId, User sw360User) throws TException {
         ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
-        return sw360ComponentClient.deleteComponent(componentId, sw360User);
+        if (Sw360ResourceServer.IS_FORCE_UPDATE_ENABLED) {
+            return sw360ComponentClient.deleteComponentWithForceFlag(componentId, sw360User, true);
+        } else {
+            return sw360ComponentClient.deleteComponent(componentId, sw360User);
+        }
     }
 
     public List<Component> searchComponentByName(String name) throws TException {
