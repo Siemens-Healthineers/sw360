@@ -27,7 +27,6 @@ import org.eclipse.sw360.datahandler.thrift.Source;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
-import org.eclipse.sw360.datahandler.thrift.components.ClearingState;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcess;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -50,7 +49,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.util.MultiValueMap;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -127,10 +126,13 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
             sw360Releases.addAll(releaseService.getReleasesForUser(sw360User));
         }
 
+        for(Release release: sw360Releases) {
+            releaseService.setComponentDependentFieldsInRelease(release, sw360User);
+        }
+
         sw360Releases = sw360Releases.stream()
                 .filter(release -> name == null || name.isEmpty() || release.getName().equalsIgnoreCase(name))
                 .collect(Collectors.toList());
-
         PaginationResult<Release> paginationResult = restControllerHelper.createPaginationResult(request, pageable, sw360Releases, SW360Constants.TYPE_RELEASE);
 
         List<EntityModel> releaseResources = new ArrayList<>();
@@ -183,6 +185,22 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         return new ResponseEntity<>(halRelease, HttpStatus.OK);
     }
 
+    @GetMapping(value = RELEASES_URL + "/recentReleases")
+    public ResponseEntity<CollectionModel<EntityModel>> getRecentRelease() throws TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        List<Release> sw360Releases = releaseService.getRecentReleases(sw360User);
+
+        List<EntityModel> resources = new ArrayList<>();
+        sw360Releases.forEach(r -> {
+            Release embeddedRelease = restControllerHelper.convertToEmbeddedRelease(r);
+            resources.add(EntityModel.of(embeddedRelease));
+        });
+
+        CollectionModel<EntityModel> finalResources = restControllerHelper.createResources(resources);
+        HttpStatus status = finalResources == null ? HttpStatus.NO_CONTENT : HttpStatus.OK;
+        return new ResponseEntity<>(finalResources, status);
+    }
+
     @RequestMapping(value = RELEASES_URL + "/usedBy" + "/{id}", method = RequestMethod.GET)
     public ResponseEntity<CollectionModel<EntityModel>> getUsedByResourceDetails(@PathVariable("id") String id)
             throws TException {
@@ -207,8 +225,8 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
     }
 
     @GetMapping(value = RELEASES_URL + "/searchByExternalIds")
-    public ResponseEntity searchByExternalIds(@RequestParam MultiValueMap<String, String> externalIdsMultiMap) throws TException {
-        return restControllerHelper.searchByExternalIds(externalIdsMultiMap, releaseService, null);
+    public ResponseEntity searchByExternalIds(@RequestBody(required = false) Map<String, List<String>> externalIdsMultiMap) throws TException {
+        return restControllerHelper.searchByExternalIds(new LinkedMultiValueMap<String, String>(externalIdsMultiMap), releaseService, null);
     }
 
     @PreAuthorize("hasAuthority('WRITE')")
