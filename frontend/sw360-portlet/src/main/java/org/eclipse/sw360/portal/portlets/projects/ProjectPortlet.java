@@ -275,7 +275,8 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             } else {
                 request.setAttribute("inProjectDetailsContext", false);
             }
-
+            PortletUtils.setCommonRulesOSS(request);
+            PortletUtils.setCommonRulesCOTS(request);
             request.setAttribute("isObligationPresent", true);
             include("/html/projects/includes/projects/linkedObligations.jsp", request, response,
                     PortletRequest.RESOURCE_PHASE);
