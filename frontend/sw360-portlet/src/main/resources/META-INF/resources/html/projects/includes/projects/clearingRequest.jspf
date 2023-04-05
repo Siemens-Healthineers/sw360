@@ -11,6 +11,11 @@
 <portlet:defineObjects />
 <liferay-theme:defineObjects />
 
+<%@ taglib uri="http://liferay.com/tld/theme" prefix="liferay-theme" %>
+<%@ page import="com.liferay.expando.kernel.model.ExpandoBridge" %>
+<%ExpandoBridge expandoBridge = user.getExpandoBridge();%>
+<%String clearingRequestMessage =  expandoBridge.getAttribute("ClearingRequestMessage").toString(); %>
+
 <%@ page import="org.eclipse.sw360.datahandler.thrift.projects.ClearingRequest" %>
 <%@ page import="org.eclipse.sw360.datahandler.thrift.ClearingRequestPriority"%>
 
@@ -59,10 +64,9 @@
                     <hr/>
                     <form id="createClearingRequestForm">
                         <div class="form-group">
-                            <sw360:DisplayUserEdit id="clearingTeamEmail" email="" description="please.enter.the.clearing.team.email.id" multiUsers="false"/>
-                            <div class="invalid-feedback" id="clearingTeamEmailErrorMsg">
-                                <liferay-ui:message key="email.should.be.in.valid.format" />
-                            </div>
+                            <label for="clearingTeamEmailDisplay"><liferay-ui:message key="clearing.team" />:</label>
+                            <input class="form-control" type="text" readonly value="ossclearing.func@siemens-healthineers.com"
+                            placeholder="OSS CLEARING OFFICE Siemens Healthineers" id="clearingTeamEmail">
                         </div>
                         <div class="form-group">
                             <label for="requestedClearingDate" class="mandatory"><liferay-ui:message key="preferred.clearing.date" />:</label>
@@ -84,6 +88,13 @@
                             <label for="clearingRequestComment"><liferay-ui:message key="please.comment.your.request" />:</label>
                             <textarea id="clearingRequestComment" class="form-control" data-name="comment" rows="4" placeholder="<liferay-ui:message key='comment.your.request' />"></textarea>
                         </div>
+                        <% if(expandoBridge.hasAttribute("ClearingRequestMessage") && !clearingRequestMessage.isBlank()) { %>
+                        <div class="form-group">
+		                    <div class="alert alert-info">
+		                        <%= clearingRequestMessage %>
+		                    </div>
+                        </div>
+                        <% } %>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -215,7 +226,7 @@
                     crData = {
                         projectId : projectId,
                         requestedClearingDate : $("#requestedClearingDate").val(),
-                        clearingTeam : $("#clearingTeamEmail").val(),
+                        clearingTeam : "ossclearing.func@siemens-healthineers.com",
                         requestingUserComment : $("#clearingRequestComment").val(),
                         priority : $("#priority:checked").val() ? "<%=ClearingRequestPriority.CRITICAL%>" : "<%=ClearingRequestPriority.LOW%>"
                     };
@@ -284,31 +295,19 @@
 
             }, function(submit, callback) {
                 let selectedDate = $("#requestedClearingDate").val(),
-                    emailId = $("#clearingTeamEmail").val(),
+                    emailId = "ossclearing.func@siemens-healthineers.com",
                     isCritical = $("#priority:checked").val(),
-                    $form = $('#createClearingRequestForm'),
-                    isEmailValid = validation.isValidEmail(emailId);
-                $form.addClass('was-validated');
-                if (isEmailValid) {
-                    $("#clearingTeamEmailErrorMsg").hide();
-                }
-                if (!isEmailValid) {
-                    $("#clearingTeamEmailErrorMsg").show();
-                    callback();
-                } else if ((isCritical && !validation.isValidDate(selectedDate, 0)) || (!isCritical && !validation.isValidDate(selectedDate, pcdLimit))) {
+                    $form = $('#createClearingRequestForm');
+                if ((isCritical && !validation.isValidDate(selectedDate, 0)) || (!isCritical && !validation.isValidDate(selectedDate, pcdLimit))) {
                     $("#requestedClearingDate").addClass("is-invalid");
-                    $("#clearingTeamEmail").removeClass("is-invalid");
                     callback();
                 } else {
                     $("#requestedClearingDate").removeClass("is-invalid");
-                    $("#clearingTeamEmail").removeClass("is-invalid");
                     createClearingRequestInternal(callback);
                 }
             }, function() {
                 $('#createClearingRequestDialog #createClearingRequestForm').removeClass('was-validated');
                 $("#requestedClearingDate").removeClass("is-invalid");
-                $("#clearingTeamEmail").removeClass("is-invalid");
-                $("#clearingTeamEmail").val("");
             });
         }
 
@@ -371,14 +370,6 @@
             return portletUrl
                 .replace('<%=PortalConstants.FRIENDLY_URL_PLACEHOLDER_PAGENAME%>', page)
                 .replace('<%=PortalConstants.FRIENDLY_URL_PLACEHOLDER_ID%>', id);
-        }
-        
-        let clearingTeamEmailEditable = $("#clearingTeamEmail");
-        if (clearingTeamEmailEditable) {
-            clearingTeamEmailEditable.parents("div:eq(0)").find("label:eq(0)").addClass("mandatory");
-            $("#clearingTeamEmailDisplay").click(function(){
-                $("#clearingTeamEmailErrorMsg").hide();
-            });
         }
         });
     });
