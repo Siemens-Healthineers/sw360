@@ -410,6 +410,7 @@ public class PortalConstants {
     public static final String CUSTOM_FIELD_VULNERABILITIES_VIEW_SIZE = "VulnerabilitiesViewSize";
     public static final String CUSTOM_FIELD_PREFERRED_CLEARING_DATE_LIMIT = "PreferredClearingDateLimit";
     public static final String CUSTOM_FIELD_BANNER_MESSAGE = "BannerMessage";
+    public static final String CUSTOM_FIELD_CLEARING_REQUEST_MESSAGE = "ClearingRequestMessage";
 
     //! Specialized keys for scheduling
     public static final String CVESEARCH_IS_SCHEDULED = "cveSearchIsScheduled";
@@ -725,7 +726,7 @@ public class PortalConstants {
     public static final String PREDEFINED_TAGS;
     public static final boolean SSO_LOGIN_ENABLED;
     public static final boolean IS_COMPONENT_VISIBILITY_RESTRICTION_ENABLED;
-    
+
     public static final boolean IS_SVM_ENABLED;
 
     static {
