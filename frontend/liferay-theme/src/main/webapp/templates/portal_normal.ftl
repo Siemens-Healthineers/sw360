@@ -140,7 +140,7 @@
 		<div class="powered-by">
 			<@liferay.language key="powered-by" />
 			<a href="http://www.github.com/eclipse/sw360" rel="external" target="_blank">SW360</a> |
-			<a href="/resource/mkdocs/index.html" rel="external" target="_blank">SW360 Docs</a> |
+			<a href="https://www.eclipse.org/sw360/docs/userguide/" rel="external" target="_blank">SW360 Docs</a> |
 			<a href="/resource/docs/api-guide.html" rel="external" target="_blank">REST API Docs</a> |
 			<a href="https://code.siemens.com/SHS/shs-sw-360-portal/issues" rel="external" target="_blank">Healthineers Issue Tracker</a> |
 			<a href="https://teams.microsoft.com/l/team/19%3aUjBY3R8YTaI3Wik7-LKOA6Zpzk-j1ZIreeQ9Aa0MNQE1%40thread.tacv2/conversations?groupId=eec48a5b-4288-4f46-8c62-4f108410a641&tenantId=5dbf1add-202a-4b8d-815b-bf0fb024e033" rel="external" target="_blank">SHS SW360 User Group – MS Teams</a>
