@@ -9,14 +9,14 @@
  */
 package org.eclipse.sw360.rest.resourceserver.restdocs;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.thrift.TException;
-import org.eclipse.sw360.datahandler.thrift.Source;
+import org.eclipse.sw360.datahandler.common.SW360Utils;
+import org.eclipse.sw360.datahandler.thrift.*;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
 import org.eclipse.sw360.datahandler.thrift.attachments.CheckStatus;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.*;
 import org.eclipse.sw360.rest.resourceserver.attachment.AttachmentInfo;
-import org.eclipse.sw360.datahandler.thrift.MainlineState;
-import org.eclipse.sw360.datahandler.thrift.ReleaseRelationship;
-import org.eclipse.sw360.datahandler.thrift.RequestStatus;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentContent;
 import org.eclipse.sw360.datahandler.thrift.components.COTSDetails;
@@ -36,9 +36,11 @@ import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.vendors.Vendor;
 import org.eclipse.sw360.rest.resourceserver.TestHelper;
 import org.eclipse.sw360.rest.resourceserver.attachment.Sw360AttachmentService;
+import org.eclipse.sw360.rest.resourceserver.core.JacksonCustomizations;
 import org.eclipse.sw360.rest.resourceserver.license.Sw360LicenseService;
 import org.eclipse.sw360.rest.resourceserver.release.Sw360ReleaseService;
 import org.eclipse.sw360.rest.resourceserver.user.Sw360UserService;
+import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -85,11 +87,13 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
     private Sw360ReleaseService releaseServiceMock;
 
     @MockBean
+    private Sw360VulnerabilityService vulnerabilityServiceMock;
+
+    @MockBean
     private Sw360AttachmentService attachmentServiceMock;
 
     @MockBean
     private Sw360LicenseService licenseServiceMock;
-
     private Release release, release3;
     private Attachment attachment;
     Component component;
@@ -203,7 +207,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         Map<String, String> release2ExternalIds = new HashMap<>();
         release2ExternalIds.put("mainline-id-component", "4876");
         release2ExternalIds.put("ws-component-id", "[\"589211\",\"987135\"]");
-        release2.setId("3765276512");
+        release2.setId("6868686868");
         release2.setName("Angular");
         release2.setCpeid("cpe:/a:Google:Angular:2.3.1:");
         release2.setReleaseDate("2016-12-15");
@@ -250,6 +254,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
 
         given(this.releaseServiceMock.getReleasesForUser(any())).willReturn(releaseList);
         given(this.releaseServiceMock.getRecentReleases(any())).willReturn(releaseList);
+        given(this.releaseServiceMock.getReleaseSubscriptions(any())).willReturn(releaseList);
         given(this.releaseServiceMock.getReleaseForUserById(eq(release.getId()), any())).willReturn(release);
         given(this.releaseServiceMock.getReleaseForUserById(eq(testRelease.getId()), any())).willReturn(testRelease);
         given(this.releaseServiceMock.getProjectsByRelease(eq(release.getId()), any())).willReturn(projectList);
@@ -321,8 +326,30 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         when(releaseServiceMock.getExternalToolProcess(release3)).thenReturn(fossologyProcess);
 
         releaseIdToRelationship1 = ImmutableMap.of(release2.getId(), ReleaseRelationship.DYNAMICALLY_LINKED, release3.getId(), ReleaseRelationship.CONTAINED);
-    }
 
+        List<VulnerabilityDTO> vulDtos = new ArrayList<VulnerabilityDTO>();
+        VulnerabilityDTO vulDto = new VulnerabilityDTO();
+        vulDto.setComment("Lorem Ipsum");
+        vulDto.setExternalId("12345");
+        vulDto.setProjectRelevance("IRRELEVANT");
+        vulDto.setIntReleaseId("3765276512");
+        vulDto.setIntReleaseName("Angular 2.3.0");
+        vulDto.setAction("Update to Fixed Version");
+        vulDto.setPriority("2 - major");
+        vulDtos.add(vulDto);
+
+        VulnerabilityDTO vulDto1 = new VulnerabilityDTO();
+        vulDto1.setComment("Lorem Ipsum");
+        vulDto1.setExternalId("23105");
+        vulDto1.setProjectRelevance("APPLICABLE");
+        vulDto1.setIntReleaseId("3765276512");
+        vulDto1.setIntReleaseName("Angular 2.3.0");
+        vulDto1.setAction("Update to Fixed Version");
+        vulDto1.setPriority("1 - critical");
+        vulDtos.add(vulDto1);
+
+        given(this.vulnerabilityServiceMock.getVulnerabilitiesByReleaseId(any(), any())).willReturn(vulDtos);
+    }
     @Test
     public void should_document_get_releases() throws Exception {
         String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
@@ -773,5 +800,43 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                         subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                 )
         );
+    }
+    
+    @Test
+    public void should_document_get_release_vulnerabilities() throws Exception {
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/releases/" + release.getId()+ "/vulnerabilities")
+                        .contentType(MediaTypes.HAL_JSON)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler.document(
+                        links(
+                                linkWithRel("curies").description("Curies are used for online documentation")
+                        ),
+                        responseFields(
+                                subsectionWithPath("_embedded.sw360:vulnerabilities.[]externalId").description("The external Id of the vulnerability"),
+                                subsectionWithPath("_embedded.sw360:vulnerabilities").description("An array of <<resources-vulnerabilities, Vulnerabilities resources>>"),
+                                subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
+                        )));
+    }
+
+    @Test
+    public void should_document_get_release_subscription() throws Exception {
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/releases/mySubscriptions")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler.document(
+                        links(
+                                linkWithRel("curies").description("Curies are used for online documentation")
+                        ),
+                        responseFields(
+                                subsectionWithPath("_embedded.sw360:releases.[]name").description("The name of the release"),
+                                subsectionWithPath("_embedded.sw360:releases.[]version").description("The version of the release"),
+                                subsectionWithPath("_embedded.sw360:releases").description("An array of <<resources-releases, Releases resources>>"),
+                                subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
+                        )));
     }
 }

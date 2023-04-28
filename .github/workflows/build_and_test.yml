@@ -18,6 +18,8 @@ on:
     paths-ignore:
       - "**.md"
 
+permissions: write-all
+
 env:
   COUCHDB_USER: admin
   COUCHDB_PASSWORD: password
@@ -69,9 +71,9 @@ jobs:
         path: |
           /usr/local/bin/thrift
           /usr/share/thrift/${{ env.THRIFT_VERSION }}
-        key: ${{ runner.os }}-thrift-${{ hashFiles('/usr/local/bin/thrift') }}
+        key: ${{ runner.os }}-thrift-${{ env.THRIFT_VERSION }}
         restore-keys: |
-          ${{ runner.os }}-thrift-
+          ${{ runner.os }}-thrift-${{ env.THRIFT_VERSION }}
 
     - name: Install Thrift
       if: steps.cache-thrift.outputs.cache-hit != 'true'
@@ -85,7 +87,7 @@ jobs:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
-          ${{ runner.os }}-maven-
+          ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
     - name: Build SW360
       run: |

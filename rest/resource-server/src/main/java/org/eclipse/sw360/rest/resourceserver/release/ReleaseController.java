@@ -32,12 +32,15 @@ import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcess;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.vendors.Vendor;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.Vulnerability;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
 import org.eclipse.sw360.rest.resourceserver.attachment.AttachmentInfo;
 import org.eclipse.sw360.rest.resourceserver.attachment.Sw360AttachmentService;
 import org.eclipse.sw360.rest.resourceserver.component.ComponentController;
 import org.eclipse.sw360.rest.resourceserver.core.HalResource;
 import org.eclipse.sw360.rest.resourceserver.core.MultiStatus;
 import org.eclipse.sw360.rest.resourceserver.core.RestControllerHelper;
+import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.rest.webmvc.BasePathAwareController;
@@ -100,6 +103,9 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
 
     @NonNull
     private Sw360ReleaseService releaseService;
+
+    @NonNull
+    private final Sw360VulnerabilityService vulnerabilityService;
 
     @NonNull
     private Sw360AttachmentService attachmentService;
@@ -192,6 +198,36 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         sw360Releases.forEach(r -> {
             Release embeddedRelease = restControllerHelper.convertToEmbeddedRelease(r);
             resources.add(EntityModel.of(embeddedRelease));
+        });
+
+        CollectionModel<EntityModel> finalResources = restControllerHelper.createResources(resources);
+        HttpStatus status = finalResources == null ? HttpStatus.NO_CONTENT : HttpStatus.OK;
+        return new ResponseEntity<>(finalResources, status);
+    }
+
+    @GetMapping(value = RELEASES_URL + "/{id}/vulnerabilities")
+    public ResponseEntity<CollectionModel<EntityModel<Vulnerability>>> getVulnerabilitiesOfReleases(
+            @PathVariable("id") String id) throws TException {
+        User user = restControllerHelper.getSw360UserFromAuthentication();
+        final List<VulnerabilityDTO> allVulnerabilityDTOs = vulnerabilityService.getVulnerabilitiesByReleaseId(id, user);
+        List<EntityModel<Vulnerability>> vulnerabilityResources = new ArrayList<>();
+        allVulnerabilityDTOs.forEach(v -> {
+            Vulnerability vulnerability = restControllerHelper.convertToEmbeddedVulnerability(v);
+            vulnerabilityResources.add(EntityModel.of(vulnerability));
+        });
+        CollectionModel<EntityModel<Vulnerability>> resources = CollectionModel.of(vulnerabilityResources);
+        return new ResponseEntity<>(resources, HttpStatus.OK);
+    }
+
+    @GetMapping(value = RELEASES_URL + "/mySubscriptions")
+    public ResponseEntity<CollectionModel<EntityModel>> getReleaseSubscription() throws TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        List<Release> sw360Releases = releaseService.getReleaseSubscriptions(sw360User);
+
+        List<EntityModel> resources = new ArrayList<>();
+        sw360Releases.forEach(c -> {
+            Release embeddedComponent = restControllerHelper.convertToEmbeddedRelease(c);
+            resources.add(EntityModel.of(embeddedComponent));
         });
 
         CollectionModel<EntityModel> finalResources = restControllerHelper.createResources(resources);
@@ -479,7 +515,6 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
                 .slash("api" + ComponentController.COMPONENTS_URL + "/" + release.getComponentId()).withRel("component");
         halRelease.add(componentLink);
         release.setComponentId(null);
-
         if (verbose) {
             if (release.getModerators() != null) {
                 Set<String> moderators = release.getModerators();
@@ -504,7 +539,6 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         }
         return halRelease;
     }
-
     private HalResource<Release> createHalReleaseResourceWithAllDetails(Release release) {
         HalResource<Release> halRelease = new HalResource<>(release);
         Link componentLink = linkTo(ReleaseController.class)
