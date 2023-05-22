@@ -109,6 +109,8 @@
                                 <input class="form-check-input" type="checkbox" value="On" name="<portlet:namespace/><%=PortalConstants.ORPHAN_PACKAGE_CHECKBOX%>"
                                       <core_rt:if test="${orphanPackageCheckBox != ''}"> checked="checked"</core_rt:if> />
                                 <label class="form-check-label" for="orphanPackage"><liferay-ui:message key="orphan.package" /></label>
+                                <sup title="<liferay-ui:message key="a.package.that.is.not.linked.to.any.release" />">
+                                    <liferay-ui:icon icon="info-sign" />
                             </div>
                             <div class="form-group">
                                 <input class="form-check-input" type="checkbox" value="On" name="<portlet:namespace/><%=PortalConstants.EXACT_MATCH_CHECKBOX%>"
