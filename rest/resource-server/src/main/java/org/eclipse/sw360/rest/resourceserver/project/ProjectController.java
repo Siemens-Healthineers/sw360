@@ -17,6 +17,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang.StringUtils;
@@ -70,6 +72,7 @@ import org.eclipse.sw360.rest.resourceserver.core.HalResource;
 import org.eclipse.sw360.rest.resourceserver.core.RestControllerHelper;
 import org.eclipse.sw360.rest.resourceserver.license.Sw360LicenseService;
 import org.eclipse.sw360.rest.resourceserver.licenseinfo.Sw360LicenseInfoService;
+import org.eclipse.sw360.rest.resourceserver.packages.SW360PackageService;
 import org.eclipse.sw360.rest.resourceserver.release.Sw360ReleaseService;
 import org.eclipse.sw360.rest.resourceserver.user.Sw360UserService;
 import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
@@ -138,7 +141,8 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             .put(Project._Fields.EXTERNAL_URLS, "externalUrls")
             .put(Project._Fields.MODERATORS, "sw360:moderators")
             .put(Project._Fields.CONTRIBUTORS,"sw360:contributors")
-            .put(Project._Fields.ATTACHMENTS,"sw360:attachments").build();
+            .put(Project._Fields.ATTACHMENTS,"sw360:attachments")
+            .put(Project._Fields.PACKAGE_IDS,"sw360:packageIds").build();
     private static final ImmutableMap<Project._Fields, String> mapOfProjectFieldsToRequestBody = ImmutableMap.<Project._Fields, String>builder()
             .put(Project._Fields.VISBILITY, "visibility")
             .put(Project._Fields.RELEASE_ID_TO_USAGE, "linkedReleases").build();
@@ -147,6 +151,9 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 
     @NonNull
     private final Sw360ProjectService projectService;
+
+    @NonNull
+    private final SW360PackageService packageService;
 
     @NonNull
     private final Sw360UserService userService;
@@ -1056,32 +1063,84 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Attachment attachment = null;
         final RequestSummary requestSummary;
-        if (!type.equalsIgnoreCase("SPDX")) {
-            return new ResponseEntity<String>("Invalid SBOM file type. It currently only supports SPDX(.rdf/.xml) files.",
+        String projectId = null;
+        Map<String, String> messageMap = new HashMap<>();
+
+        if (!(type.equalsIgnoreCase("SPDX") || type.equalsIgnoreCase("CycloneDX"))) {
+            return new ResponseEntity<String>("Invalid SBOM file type. Only SPDX(.rdf/.xml) and CycloneDX(.json/.xml) files are supported.",
                     HttpStatus.BAD_REQUEST);
         }
+
         try {
             attachment = attachmentService.uploadAttachment(file, new Attachment(), sw360User);
-            try {
-                requestSummary = projectService.importSBOM(sw360User, attachment.getAttachmentContentId());
-            } catch (Exception e) {
-                log.error("Failed to import SBOM", e.getMessage());
-                throw new RuntimeException(e.getMessage());
-            }
         } catch (IOException e) {
             log.error("failed to upload attachment", e);
             throw new RuntimeException("failed to upload attachment", e);
         }
 
-        String projectId = requestSummary.getMessage();
+            if (type.equalsIgnoreCase("SPDX")) {
+                requestSummary = projectService.importSPDX(sw360User, attachment.getAttachmentContentId());
 
-        if (!(requestSummary.requestStatus == RequestStatus.SUCCESS && CommonUtils.isNotNullEmptyOrWhitespace(projectId))) {
-            return new ResponseEntity<String>("Invalid SBOM file", HttpStatus.BAD_REQUEST);
-        }
+                if (!(requestSummary.getRequestStatus() == RequestStatus.SUCCESS)) {
+                    return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+                }
+                projectId = requestSummary.getMessage();
+            } else {
+                requestSummary = projectService.importCycloneDX(sw360User, attachment.getAttachmentContentId(), "");
+
+                if (requestSummary.getRequestStatus() == RequestStatus.FAILURE) {
+                    return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+                }
+                String jsonMessage = requestSummary.getMessage();
+                messageMap = new Gson().fromJson(jsonMessage, Map.class);
+                projectId = messageMap.get("projectId");
+
+                if (requestSummary.getRequestStatus() == RequestStatus.DUPLICATE) {
+                    return new ResponseEntity<String>("A project with same name and version already exists. The projectId is: "
+                            + projectId, HttpStatus.CONFLICT);
+                }
+            }
+
         Project project = projectService.getProjectForUserById(projectId, sw360User);
-        HttpStatus status = HttpStatus.OK;
         HalResource<Project> halResource = createHalProject(project, sw360User);
-        return new ResponseEntity<HalResource<Project>>(halResource, status);
+        return new ResponseEntity<HalResource<Project>>(halResource, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = PROJECTS_URL + "/{id}/import/SBOM", method = RequestMethod.POST, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<?> importSBOMonProject(@PathVariable(value = "id", required = true) String id,
+                                                  @RequestBody MultipartFile file) throws TException {
+        final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Attachment attachment = null;
+        final RequestSummary requestSummary;
+        String projectId = null;
+        Map<String, String> messageMap = new HashMap<>();
+
+        try {
+            attachment = attachmentService.uploadAttachment(file, new Attachment(), sw360User);
+        } catch (IOException e) {
+            log.error("failed to upload attachment", e);
+            throw new RuntimeException("failed to upload attachment", e);
+        }
+
+        requestSummary = projectService.importCycloneDX(sw360User, attachment.getAttachmentContentId(), id);
+
+        if (requestSummary.getRequestStatus() == RequestStatus.FAILURE) {
+            return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+        String jsonMessage = requestSummary.getMessage();
+        messageMap = new Gson().fromJson(jsonMessage, Map.class);
+        projectId = messageMap.get("projectId");
+
+        if (requestSummary.getRequestStatus() == RequestStatus.DUPLICATE) {
+            return new ResponseEntity<String>(
+                    "A project with same name and version already exists. The projectId is: " + projectId,
+                    HttpStatus.CONFLICT);
+        }
+
+        Project project = projectService.getProjectForUserById(projectId, sw360User);
+        HalResource<Project> halResource = createHalProject(project, sw360User);
+        return new ResponseEntity<HalResource<Project>>(halResource, HttpStatus.OK);
     }
 
     @Override
@@ -1128,6 +1187,10 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             HalResource<Vendor> vendorHalResource = restControllerHelper.addEmbeddedVendor(vendor.getFullname());
             halProject.addEmbeddedResource("sw360:vendors", vendorHalResource);
             sw360Project.setVendor(null);
+        }
+
+        if (sw360Project.getPackageIds() != null) {
+            restControllerHelper.addEmbeddedPackages(halProject, sw360Project.getPackageIds(), packageService, sw360User);
         }
 
         return halProject;

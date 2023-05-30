@@ -214,7 +214,8 @@ public class JacksonCustomizations {
                 "modifiedBy",
                 "packageIdsSize",
                 "setPackageIds",
-                "packageIdsIterator"
+                "packageIdsIterator",
+                "packageIds"
         })
         static abstract class ProjectMixin extends Project {
 
@@ -446,7 +447,7 @@ public class JacksonCustomizations {
                 "setVcs",
                 "setPackageManagerType",
                 "releaseId",
-                "setRelease"
+                "setRelease",
         })
         static abstract class PackageMixin extends Package {
         }

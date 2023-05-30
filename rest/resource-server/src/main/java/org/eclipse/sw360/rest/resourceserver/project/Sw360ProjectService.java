@@ -34,6 +34,7 @@ import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.components.ReleaseClearingStatusData;
 import org.eclipse.sw360.datahandler.thrift.components.ReleaseLink;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectClearingState;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectData;
@@ -298,6 +299,11 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
         return projectClient;
     }
 
+    public PackageService.Iface getThriftPackageClient() throws TTransportException {
+        PackageService.Iface packageClient = new ThriftClients().makePackageClient();
+        return packageClient;
+    }
+
     public Function<ProjectLink, ProjectLink> filterAndSortAttachments(Collection<AttachmentType> attachmentTypes) {
         Predicate<Attachment> filter = att -> attachmentTypes.contains(att.getAttachmentType());
         return createProjectLinkMapper(rl -> rl.setAttachments(nullToEmptyList(rl.getAttachments())
@@ -490,8 +496,25 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
      * @return RequestSummary
      * @throws TException
      */
-    public RequestSummary importSBOM(User user, String attachmentContentId) throws TException {
+    public RequestSummary importSPDX(User user, String attachmentContentId) throws TException {
         ProjectService.Iface sw360ProjectClient = getThriftProjectClient();
         return sw360ProjectClient.importBomFromAttachmentContent(user, attachmentContentId);
+    }
+
+    /**
+     * Import SBOM as CycloneDX using the method on the thrift client.
+     * @param user                User uploading the SBOM
+     * @param attachmentContentId Id of the attachment uploaded
+     * @return RequestSummary
+     * @throws TException
+     */
+    public RequestSummary importCycloneDX(User user, String attachmentContentId, String projectId) throws TException {
+        PackageService.Iface sw360PackageClient = getThriftPackageClient();
+
+        if(projectId.isBlank()) {
+            return sw360PackageClient.importCycloneDxFromAttachmentContent(user, attachmentContentId, "");
+        } else {
+            return sw360PackageClient.importCycloneDxFromAttachmentContent(user, attachmentContentId, projectId);
+        }
     }
 }

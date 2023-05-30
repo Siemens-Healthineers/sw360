@@ -55,6 +55,8 @@ import org.eclipse.sw360.rest.resourceserver.moderationrequest.EmbeddedModeratio
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.ModerationRequestController;
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.Sw360ModerationRequestService;
 import org.eclipse.sw360.rest.resourceserver.obligation.ObligationController;
+import org.eclipse.sw360.rest.resourceserver.packages.PackageController;
+import org.eclipse.sw360.rest.resourceserver.packages.SW360PackageService;
 import org.eclipse.sw360.rest.resourceserver.project.EmbeddedProject;
 import org.eclipse.sw360.rest.resourceserver.project.ProjectController;
 import org.eclipse.sw360.rest.resourceserver.project.Sw360ProjectService;
@@ -316,6 +318,17 @@ public class RestControllerHelper<T> {
         }
     }
 
+    public void addEmbeddedPackages(
+            HalResource<Package> halResource,
+            Set<String> packages,
+            SW360PackageService sw360PackageService,
+            User user) throws TException {
+        for (String packageId : packages) {
+            final Package pkg = sw360PackageService.getPackageForUserById(packageId);
+            addEmbeddedPackage(halResource, pkg);
+        }
+    }
+
     public void addEmbeddedUser(HalResource halResource, User user, String relation) {
         User embeddedUser = convertToEmbeddedUser(user);
         EntityModel<User> embeddedUserResource = EntityModel.of(embeddedUser);
@@ -392,6 +405,15 @@ public class RestControllerHelper<T> {
                 slash("api/releases/" + release.getId()).withSelfRel();
         halRelease.add(releaseLink);
         halResource.addEmbeddedResource("sw360:releases", halRelease);
+    }
+
+    public void addEmbeddedPackage(HalResource<Package> halResource, Package pkg) {
+        Package embeddedPackage = convertToEmbeddedPackage(pkg);
+        HalResource<Package> halPackage = new HalResource<>(embeddedPackage);
+        Link packageLink = linkTo(PackageController.class).
+                slash("api/packages/" + pkg.getId()).withSelfRel();
+        halPackage.add(packageLink);
+        halResource.addEmbeddedResource("sw360:packages", halPackage);
     }
 
     public void addEmbeddedAttachments(
@@ -559,6 +581,14 @@ public class RestControllerHelper<T> {
         embeddedRelease.setVersion(release.getVersion());
         embeddedRelease.setType(null);
         return embeddedRelease;
+    }
+
+    public Package convertToEmbeddedPackage(Package pkg) {
+        Package embeddedPackage = new Package();
+        embeddedPackage.setId(pkg.getId());
+        embeddedPackage.setName(pkg.getName());
+        embeddedPackage.setVersion(pkg.getVersion());
+        return embeddedPackage;
     }
 
     public Release convertToEmbeddedReleaseWithDet(Release release) {

@@ -78,9 +78,7 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
     private Sw360ReleaseService releaseServiceMock;
 
     private Package package1;
-
     private Package package2;
-
     private Set<String> licenseIds;
 
     @Before
@@ -103,6 +101,7 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
 
         licenseIds = new HashSet<>();
         licenseIds.add("MIT");
+        licenseIds.add("GPL");
 
         package1 = new Package("angular-sanitize","1.8.2","pkg:npm/angular-sanitize@1.8.2")
                         .setId("122357345")
