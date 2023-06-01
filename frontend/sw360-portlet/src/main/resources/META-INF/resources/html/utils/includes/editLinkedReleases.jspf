@@ -20,7 +20,7 @@
        </colgroup>
     <thead>
         <tr>
-            <th><liferay-ui:message key="vendor.name" /></th>
+            <th><liferay-ui:message key="manufacturer.name" /></th>
             <th><liferay-ui:message key="release.name" /></th>
             <th><liferay-ui:message key="release.version" /></th>
             <th><liferay-ui:message key="release.relation" /> <sw360:DisplayEnumInfo type="<%=ReleaseRelationship.class%>"/></th>

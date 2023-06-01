@@ -67,7 +67,7 @@
                             </div>
                             <div class="form-check">
                                 <input id="keyword-search-vendors" type="checkbox" class="form-check-input" value="<%=SW360Constants.TYPE_VENDOR%>" name="<portlet:namespace/><%=PortalConstants.TYPE_MASK%>"   <core_rt:if test="<%=typeMask.contains(SW360Constants.TYPE_VENDOR)%>"> checked="" </core_rt:if> >
-                                <label for="keyword-search-vendors" class="form-check-label"><sw360:icon title="vendors" icon="vendor" className="type-icon type-icon-vendor"/> <liferay-ui:message key="vendors" /></label>
+                                <label for="keyword-search-vendors" class="form-check-label"><sw360:icon title="manufacturers" icon="manufacturer" className="type-icon type-icon-vendor"/> <liferay-ui:message key="manufacturers" /></label>
                             </div>
                             <div class="form-check">
                                 <input id="keyword-search-document" type="checkbox"  class="form-check-input" value="<%=SW360Constants.TYPE_DOCUMENT%>" name="<portlet:namespace/><%=PortalConstants.TYPE_MASK%>"  <core_rt:if test="<%=typeMask.contains(SW360Constants.TYPE_DOCUMENT)%>"> checked="" </core_rt:if>  <core_rt:if test="${(empty typeMask) and (empty searchtext)}"> checked="" </core_rt:if>>
@@ -158,7 +158,7 @@
                 } else if (data === '<%=SW360Constants.TYPE_USER%>') {
                     return '<svg class="lexicon-icon type-icon type-icon-user"><title><liferay-ui:message key="user" /></title><use href="<%=request.getContextPath()%>/images/icons.svg#user"/></svg>'
                 } else if (data === '<%=SW360Constants.TYPE_VENDOR%>') {
-                    return '<svg class="lexicon-icon type-icon type-icon-vendor"><title><liferay-ui:message key="vendor" /></title><use href="<%=request.getContextPath()%>/images/icons.svg#vendor"/></svg>'
+                    return '<svg class="lexicon-icon type-icon type-icon-vendor"><title><liferay-ui:message key="manufacturer" /></title><use href="<%=request.getContextPath()%>/images/icons.svg#manufacturer"/></svg>'
                 } else {
                     return data;
                 }

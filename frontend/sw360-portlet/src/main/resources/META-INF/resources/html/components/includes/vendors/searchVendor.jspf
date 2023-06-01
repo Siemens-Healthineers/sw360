@@ -13,7 +13,7 @@
 </portlet:resourceURL>
 
 <div class="dialogs">
-    <div id="searchVendorDialog" data-title="<liferay-ui:message key="search.vendor" />" class="modal fade" tabindex="-1" role="dialog" data-view-vendor-url="<%=viewVendorURL%>">
+    <div id="searchVendorDialog" data-title="<liferay-ui:message key="search.manufacturer" />" class="modal fade" tabindex="-1" role="dialog" data-view-vendor-url="<%=viewVendorURL%>">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
             <div class="modal-content">
                 <div class="modal-body container">
@@ -58,8 +58,8 @@
 				</div>
 			    <div class="modal-footer">
 		        <button type="button" class="btn btn-light" data-dismiss="modal"><liferay-ui:message key="close" /></button>
-			        <button name="add-vendor" data-submit="add" type="button" class="btn btn-secondary"><liferay-ui:message key="add.vendor" /></button>
-                    <button name="select-vendor" data-submit="select" type="button" class="btn btn-primary"><liferay-ui:message key="select.vendor" /></button>
+			        <button name="add-vendor" data-submit="add" type="button" class="btn btn-secondary"><liferay-ui:message key="add.manufacturer" /></button>
+                    <button name="select-vendor" data-submit="select" type="button" class="btn btn-primary"><liferay-ui:message key="select.manufacturer" /></button>
 			    </div>
             </div>
         </div>

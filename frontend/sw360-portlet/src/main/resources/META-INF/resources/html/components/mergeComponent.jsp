@@ -213,7 +213,7 @@
             );
             $stepElement.append(wizard.createMultiMergeLine('<liferay-ui:message key="categories" />', data.componentTarget.categories, data.componentSource.categories));
             $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="component.type" />', data.componentTarget.componentType, data.componentSource.componentType, getComponentTypeDisplayString));
-            $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="default.vendor" />', data.componentTarget.defaultVendor, data.componentSource.defaultVendor, getDefaultVendorDisplayString));
+            $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="default.manufacturer" />', data.componentTarget.defaultVendor, data.componentSource.defaultVendor, getDefaultVendorDisplayString));
             $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="homepage" />', data.componentTarget.homepage, data.componentSource.homepage));
             $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="blog" />', data.componentTarget.blog, data.componentSource.blog));
             $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="wiki" />', data.componentTarget.wiki, data.componentSource.wiki));
@@ -282,7 +282,7 @@
             componentSelection.createdBy = wizard.getFinalSingleValue('<liferay-ui:message key="created.by" />');
             componentSelection.categories = wizard.getFinalMultiValue('<liferay-ui:message key="categories" />');
             componentSelection.componentType = wizard.getFinalSingleValue('<liferay-ui:message key="component.type" />');
-            componentSelection.defaultVendor = wizard.getFinalSingleValue('<liferay-ui:message key="default.vendor" />');
+            componentSelection.defaultVendor = wizard.getFinalSingleValue('<liferay-ui:message key="default.manufacturer" />');
             componentSelection.defaultVendorId = componentSelection.defaultVendor ? componentSelection.defaultVendor.id : undefined;
             componentSelection.homepage = wizard.getFinalSingleValue('<liferay-ui:message key="homepage" />');
             componentSelection.blog = wizard.getFinalSingleValue('<liferay-ui:message key="blog" />');
@@ -357,7 +357,7 @@
             );
             $stepElement.append(wizard.createMultiDisplayLine('<liferay-ui:message key="categories" />', data.componentSelection.categories));
             $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="component.type" />', data.componentSelection.componentType, getComponentTypeDisplayString));
-            $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="default.vendor" />', data.componentSelection.defaultVendor, getDefaultVendorDisplayString));
+            $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="default.manufacturer" />', data.componentSelection.defaultVendor, getDefaultVendorDisplayString));
             $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="homepage" />', data.componentSelection.homepage));
             $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="blog" />', data.componentSelection.blog));
             $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="wiki" />', data.componentSelection.wiki));

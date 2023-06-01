@@ -67,8 +67,8 @@ import static org.eclipse.sw360.portal.common.PortalConstants.*;
     property = {
         "javax.portlet.name=" + VENDOR_PORTLET_NAME,
 
-        "javax.portlet.display-name=Vendor Administration",
-        "javax.portlet.info.short-title=Vendors",
+        "javax.portlet.display-name=Manufacturer Administration",
+        "javax.portlet.info.short-title=Manufacturers",
         "javax.portlet.info.title=Vendor Administration",
         "javax.portlet.resource-bundle=content.Language",
         "javax.portlet.init-param.view-template=/html/admin/vendors/view.jsp",
@@ -363,7 +363,7 @@ public class VendorPortlet extends Sw360Portlet {
         // perform the real merge, update merge target and delete merge source
         User sessionUser = UserCacheHolder.getUserFromRequest(request);
         RequestStatus status = vendorClient.mergeVendors(vendorSelection.getId(), vendorSourceId, vendorSelection, sessionUser);
-        
+
         // write response JSON
         jsonGenerator.writeStartObject();
 

@@ -60,7 +60,7 @@
         <td><sw360:DisplayEnum value="${component.componentType}"/></td>
     </tr>
     <tr>
-        <td><liferay-ui:message key="default.vendor" />:</td>
+        <td><liferay-ui:message key="default.manufacturer" />:</td>
         <td><sw360:out value="${component.defaultVendor.fullname}"/></td>
     </tr>
     <tr>
@@ -104,7 +104,7 @@
     </thead>
     <tbody id="releaseAggregateTableBody" class="collapse show">
     <tr>
-        <td><liferay-ui:message key="vendors" />:</td>
+        <td><liferay-ui:message key="manufacturers" />:</td>
         <td><sw360:DisplayCollection value="${component.vendorNames}"/></td>
     </tr>
     <tr>

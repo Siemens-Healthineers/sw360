@@ -44,15 +44,15 @@
 					<div class="btn-toolbar" role="toolbar">
                         <core_rt:if test="${addMode}" >
                             <div class="btn-group">
-                                <button type="button" class="btn btn-primary" data-action="save"><liferay-ui:message key="create.vendor" /></button>
+                                <button type="button" class="btn btn-primary" data-action="save"><liferay-ui:message key="create.manufacturer" /></button>
                             </div>
                         </core_rt:if>
 						<core_rt:if test="${not addMode}" >
                             <div class="btn-group">
-                                <button type="button" class="btn btn-primary" data-action="save"><liferay-ui:message key="update.vendor" /></button>
+                                <button type="button" class="btn btn-primary" data-action="save"><liferay-ui:message key="update.manufacturer" /></button>
                             </div>
                             <div class="btn-group">
-                                <button type="button" class="btn btn-danger" data-action="delete" data-vendor-name="<sw360:out value="${vendor.fullname}"/>"><liferay-ui:message key="delete.vendor" /></button>
+                                <button type="button" class="btn btn-danger" data-action="delete" data-vendor-name="<sw360:out value="${vendor.fullname}"/>"><liferay-ui:message key="delete.manufacturer" /></button>
 						    </div>
                         </core_rt:if>
                         <div class="btn-group">
@@ -71,7 +71,7 @@
                         <table id="VendorEdit" class="table edit-table three-columns">
                             <thead>
                                 <tr>
-                                    <th colspan="3"><liferay-ui:message key="edit.vendor" /></th>
+                                    <th colspan="3"><liferay-ui:message key="edit.manufacturer" /></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -79,7 +79,7 @@
                                     <td>
                                         <div class="form-group">
                                             <label for="vendorFullname"><liferay-ui:message key="full.name" /></label>
-                                            <input id="vendorFullname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.vendor.fullname" />" name="<portlet:namespace/><%=Vendor._Fields.FULLNAME%>"
+                                            <input id="vendorFullname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.fullname" />" name="<portlet:namespace/><%=Vendor._Fields.FULLNAME%>"
                                                 value="<sw360:out value="${vendor.fullname}"/>" />
                                              <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.a.full.name" />
@@ -89,7 +89,7 @@
                                     <td>
                                         <div class="form-group">
                                             <label for="vendorShortname"><liferay-ui:message key="short.name" /></label>
-                                            <input id="vendorShortname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.vendor.short.name" />" name="<portlet:namespace/><%=Vendor._Fields.SHORTNAME%>"
+                                            <input id="vendorShortname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.short.name" />" name="<portlet:namespace/><%=Vendor._Fields.SHORTNAME%>"
                                                 value="<sw360:out value="${vendor.shortname}"/>" />
                                             <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.a.short.name" />
@@ -99,7 +99,7 @@
                                     <td>
                                         <div class="form-group">
                                             <label for="vendorURL"><liferay-ui:message key="url" /></label>
-                                            <input id="vendorURL" type="url" required class="form-control" placeholder="<liferay-ui:message key="enter.vendor.url" />" name="<portlet:namespace/><%=Vendor._Fields.URL%>"
+                                            <input id="vendorURL" type="url" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.url" />" name="<portlet:namespace/><%=Vendor._Fields.URL%>"
                                                 value="<sw360:out value="${vendor.url}"/>" />
                                             <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.an.url" />
@@ -163,9 +163,9 @@
             dialog.confirm(
                 'danger',
                 'question-circle',
-                '<liferay-ui:message key="delete.vendor" />?',
-                '<p><liferay-ui:message key="do.you.really.want.to.delete.the.vendor.x" />?</p>',
-                '<liferay-ui:message key="delete.vendor" />',
+                '<liferay-ui:message key="delete.manufacturer" />?',
+                '<p><liferay-ui:message key="do.you.really.want.to.delete.the.manufacturer.x" />?</p>',
+                '<liferay-ui:message key="delete.manufacturer" />',
                 {
                     name: data.vendorName,
                 },

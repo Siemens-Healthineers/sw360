@@ -13,7 +13,7 @@
 </portlet:resourceURL>
 
 <div class="dialogs">
-    <div id="addVendorDialog" data-title="<liferay-ui:message key="create.new.vendor" />" class="modal fade" tabindex="-1" role="dialog" data-add-vendor-url="<%=addVendorURL%>">
+    <div id="addVendorDialog" data-title="<liferay-ui:message key="create.new.manufacturer" />" class="modal fade" tabindex="-1" role="dialog" data-add-vendor-url="<%=addVendorURL%>">
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-body container">
@@ -21,7 +21,7 @@
                         <table class="table edit-table three-columns">
                             <thead>
                                 <tr>
-                                    <th colspan="3"><liferay-ui:message key="edit.vendor" /></th>
+                                    <th colspan="3"><liferay-ui:message key="edit.manufacturer" /></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -29,7 +29,7 @@
                                     <td>
                                         <div class="form-group">
                                             <label for="vendorFullname"><liferay-ui:message key="full.name" /></label>
-                                            <input id="vendorFullname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.vendor.fullname" />" data-name="fullname" autofocus/>
+                                            <input id="vendorFullname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.fullname" />" data-name="fullname" autofocus/>
                                                 <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.a.full.name" />
                                             </div>
@@ -38,7 +38,7 @@
                                     <td>
                                         <div class="form-group">
                                             <label for="vendorShortname"><liferay-ui:message key="short.name" /></label>
-                                            <input id="vendorShortname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.vendor.short.name" />" data-name="shortname" />
+                                            <input id="vendorShortname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.short.name" />" data-name="shortname" />
                                             <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.a.short.name" />
                                             </div>
@@ -47,7 +47,7 @@
                                     <td>
                                         <div class="form-group">
                                             <label for="vendorURL"><liferay-ui:message key="url" /></label>
-                                            <input id="vendorURL" type="url" required class="form-control" placeholder="<liferay-ui:message key="enter.vendor.url" />" data-name="url" />
+                                            <input id="vendorURL" type="url" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.url" />" data-name="url" />
                                             <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.an.url" />
                                             </div>
@@ -60,7 +60,7 @@
                 </div>
                 <div class="modal-footer">
 		        <button type="button" class="btn btn-light" data-dismiss="modal"><liferay-ui:message key="close" /></button>
-			        <button name="add-vendor" data-submit="add" type="button" class="btn btn-primary"><liferay-ui:message key="add.vendor" /></button>
+			        <button name="add-vendor" data-submit="add" type="button" class="btn btn-primary"><liferay-ui:message key="add.manufacturer" /></button>
 			    </div>
             </div>
         </div>
