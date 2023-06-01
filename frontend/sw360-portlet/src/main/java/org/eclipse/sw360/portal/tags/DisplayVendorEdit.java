@@ -39,6 +39,7 @@ public class DisplayVendorEdit extends NameSpaceAwareTag {
     private String releaseId = "";
     private String label = "";
 
+    @Override
     public int doStartTag() throws JspException {
         JspWriter jspWriter = pageContext.getOut();
 
@@ -66,17 +67,17 @@ public class DisplayVendorEdit extends NameSpaceAwareTag {
         }
         return SKIP_BODY;
     }
-    
+
     private void printEmptyVendor(StringBuilder display) {
         HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
         ResourceBundle resourceBundle = ResourceBundleUtil.getBundle("content.Language", request.getLocale(), getClass());
-        
+
         display.append("<div class=\"form-group\">");
         printLabel(display);
         display.append(String.format("<input type=\"hidden\" readonly=\"\" value=\"\"  id=\"%s\" name=\"%s%s\"/>", id, namespace, id))
                 .append("<div class=\"form-group has-feedback\">")
                 .append(String.format(
-                        "<input type=\"text\" readonly=\"\" class=\"form-control edit-vendor clickable\" placeholder=\"" + LanguageUtil.get(resourceBundle, "click.to.set.vendor") + "\" id=\"%sDisplay\" data-release-id=\"%s\"/>",
+                        "<input type=\"text\" readonly=\"\" class=\"form-control edit-vendor clickable\" placeholder=\"" + LanguageUtil.get(resourceBundle, "click.to.set.manufacturer") + "\" id=\"%sDisplay\" data-release-id=\"%s\"/>",
                         id, releaseId))
                 .append("<span class=\"glyphicon glyphicon-remove-circle form-control-feedback clearSelection\" id=\"clearVendor\"/>")
                 .append("</div>");
@@ -99,7 +100,7 @@ public class DisplayVendorEdit extends NameSpaceAwareTag {
     private void printLabel(StringBuilder display) {
     	HttpServletRequest request = (HttpServletRequest) pageContext.getRequest();
         ResourceBundle resourceBundle = ResourceBundleUtil.getBundle("content.Language", request.getLocale(), getClass());
-        
+
         if (StringUtils.isNotEmpty(label)) {
             display.append(
                     String.format("<label for=\"%sDisplay\">%s</label>", id, LanguageUtil.get(resourceBundle,label)));

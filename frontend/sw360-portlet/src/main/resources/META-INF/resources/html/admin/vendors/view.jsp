@@ -44,15 +44,15 @@
 				<div class="col-auto">
 					<div class="btn-toolbar" role="toolbar">
 						<div class="btn-group" role="group">
-							<button type="button" class="btn btn-primary" onclick="window.location.href='<%=addVendorURL%>'"><liferay-ui:message key="add.vendor" /></button>
+							<button type="button" class="btn btn-primary" onclick="window.location.href='<%=addVendorURL%>'"><liferay-ui:message key="add.manufacturer" /></button>
 						</div>
 						<div class="btn-group" role="group">
 							<button type="button" class="btn btn-secondary" onclick="window.location.href='<%=exportVendorsURL%>'"><liferay-ui:message key="export.spreadsheet" /></button>
 						</div>
 					</div>
 				</div>
-                <div class="col portlet-title text-truncate" title="<liferay-ui:message key="vendors" /> (${vendorList.size()})">
-					<liferay-ui:message key="vendors" /> (<span id="vendorCounter">${vendorList.size()}</span>)
+                <div class="col portlet-title text-truncate" title="<liferay-ui:message key="manufacturers" /> (${vendorList.size()})">
+					<liferay-ui:message key="manufacturers" /> (<span id="vendorCounter">${vendorList.size()}</span>)
 				</div>
             </div>
 
@@ -177,12 +177,12 @@
                                 $('#vendorCounter').parent().attr('title', $('#vendorCounter').parent().text());
                                 $dialog.close();
                             } else {
-                                $dialog.alert('<liferay-ui:message key="i.could.not.delete.the.vendor" />');
+                                $dialog.alert('<liferay-ui:message key="i.could.not.delete.the.manufacturer" />');
                             }
                         },
                         error: function () {
                             callback();
-                            $dialog.alert('<liferay-ui:message key="i.could.not.delete.the.vendor" />');
+                            $dialog.alert('<liferay-ui:message key="i.could.not.delete.the.manufacturer" />');
                         }
                     });
                 }
@@ -190,9 +190,9 @@
                 $dialog = dialog.confirm(
                     'danger',
                     'question-circle',
-                    '<liferay-ui:message key="delete.vendor" /> ?',
-                    '<p><liferay-ui:message key="do.you.really.want.to.delete.the.vendor.x" />?</p>',
-                    '<liferay-ui:message key="delete.vendor" />',
+                    '<liferay-ui:message key="delete.manufacturer" /> ?',
+                    '<p><liferay-ui:message key="do.you.really.want.to.delete.the.manufacturer.x" />?</p>',
+                    '<liferay-ui:message key="delete.manufacturer" />',
                     {
                         name: name,
                     },

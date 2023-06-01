@@ -26,7 +26,7 @@
                     <clay:icon symbol="users"/> <liferay-ui:message key="user" />
                 </a>
                 <a class="btn btn-secondary" href="${baseUrl}/../vendors">
-                    <clay:icon symbol="suitcase"/> <liferay-ui:message key="vendors" />
+                    <clay:icon symbol="suitcase"/> <liferay-ui:message key="manufacturers" />
                 </a>
 
                 <a class="btn btn-secondary" href="${baseUrl}/../bulkreleaseedit">

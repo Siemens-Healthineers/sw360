@@ -50,5 +50,14 @@
                 </g>
             </g>
         </symbol>
-    </defs>
-</svg>
+        <symbol id="manufacturer">
+            <g id="Group_2" data-name="Group 2" transform="translate(-620.824 -423.396)">
+                <rect id="Rectangle_1" data-name="Rectangle 1" width="19.19" height="19.19" rx="2" transform="translate(620.824 423.396)"/>
+                <g id="Group_1" data-name="Group 1" transform="translate(-36.360 -1.104)">
+                    <g id="rect1055" transform="translate(660.595 424.5)">
+                        <text id="M" transform="translate(0 15)" fill="#fff" font-size="14" font-family="sans-serif" font-weight="700">
+                            <tspan x="0" y="0">M</tspan>
+                        </text>
+                    </g>
+                </g>
+            </g></svg>

@@ -197,7 +197,7 @@
             $stepElement.append(renderNotice(data.usageInformation));
 
             $stepElement.append(wizard.createCategoryLine('<liferay-ui:message key="general" />'));
-            $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="vendor" />', 
+            $stepElement.append(wizard.createSingleMergeLine('<liferay-ui:message key="manufacturer" />',
                 data.releaseTarget.vendor ? data.releaseTarget.vendor.id : null, 
                 data.releaseSource.vendor ? data.releaseSource.vendor.id : null, 
                 vendorFormatter(data.releaseTarget.vendor, data.releaseSource.vendor)
@@ -355,7 +355,7 @@
             releaseSelection.id = releaseTarget.id;
             releaseSelection.componentId = releaseTarget.componentId;
 
-            releaseSelection.vendor = wizard.getEnhancedFinalSingleValue('<liferay-ui:message key="vendor" />').target ? releaseTarget.vendor : releaseSource.vendor;
+            releaseSelection.vendor = wizard.getEnhancedFinalSingleValue('<liferay-ui:message key="manufacturer" />').target ? releaseTarget.vendor : releaseSource.vendor;
             releaseSelection.vendorId = releaseSelection.vendor ? releaseSelection.vendorId : undefined;
             releaseSelection.name = wizard.getFinalSingleValue('<liferay-ui:message key="name" />');
             releaseSelection.version = wizard.getFinalSingleValue('<liferay-ui:message key="version" />');
@@ -477,7 +477,7 @@
             $stepElement.append(renderNotice(usageInformation));
 
             $stepElement.append(wizard.createCategoryLine('<liferay-ui:message key="general" />'));
-            $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="vendor" />', 
+            $stepElement.append(wizard.createSingleDisplayLine('<liferay-ui:message key="manufacturer" />',
                 data.releaseSelection.vendor ? data.releaseSelection.vendor.id : null, 
                 vendorFormatter(releaseTarget.vendor, releaseSource.vendor)
             ));

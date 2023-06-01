@@ -25,7 +25,7 @@
         </colgroup>
         <thead>
             <tr>
-                <th><liferay-ui:message key="vendor" /></th>
+                <th><liferay-ui:message key="manufacturer" /></th>
                 <th><liferay-ui:message key="name" /></th>
                 <th><liferay-ui:message key="main.licenses" /></th>
                 <th><liferay-ui:message key="component.type" /></th>
