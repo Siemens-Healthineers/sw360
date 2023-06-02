@@ -91,7 +91,8 @@ public class ThriftEnumUtils {
             ProjectType.INTERNAL, "Internal Project" ,
             ProjectType.PRODUCT, "Product" ,
             ProjectType.SERVICE, "Service",
-            ProjectType.INNER_SOURCE, "Inner Source");
+            ProjectType.INNER_SOURCE, "Inner Source",
+            ProjectType.CLOUD_BACKEND, "Cloud Backend");
 
     private static final ImmutableMap<AttachmentType, String> MAP_ATTACHMENT_TYPE_STRING = ImmutableMap.<AttachmentType, String>builder()
             .put(AttachmentType.DOCUMENT, "Document")
@@ -115,6 +116,7 @@ public class ThriftEnumUtils {
             .put(AttachmentType.SECURITY_ASSESSMENT, "Security Assessment")
             .put(AttachmentType.SBOM, "SBOM")
             .put(AttachmentType.INITIAL_SCAN_REPORT, "Initial Scan Report")
+            .put(AttachmentType.INTERNAL_USE_SCAN, "Initial Use Scan")
             .build();
 
     // @formatter:off
@@ -141,6 +143,7 @@ public class ThriftEnumUtils {
             .put(AttachmentType.SECURITY_ASSESSMENT, "SECA")
             .put(AttachmentType.SBOM, "SBOM")
             .put(AttachmentType.INITIAL_SCAN_REPORT, "ISR")
+            .put(AttachmentType.INTERNAL_USE_SCAN, "IUS")
             .build();
 
     private static final ImmutableMap<ClearingState, String> MAP_CLEARING_STATUS_STRING = ImmutableMap
@@ -151,6 +154,7 @@ public class ThriftEnumUtils {
             .put(ClearingState.REPORT_AVAILABLE, "Report available")
             .put(ClearingState.APPROVED, "Report approved")
             .put(ClearingState.SCAN_AVAILABLE, "Scan available")
+            .put(ClearingState.INTERNAL_USE_SCAN_AVAILABLE, "Internal use scan available")
             .build();
 
     private static final ImmutableMap<ExternalTool, String> MAP_EXTERNAL_TOOL_STRING = ImmutableMap
@@ -280,13 +284,16 @@ public class ThriftEnumUtils {
             ECCStatus.REJECTED, "Rejected"
     );
 
-    private static final ImmutableMap<DocumentType, String> MAP_DOCUMENT_TYPE_STRING = ImmutableMap.of(
-            DocumentType.COMPONENT, "component" ,
-            DocumentType.RELEASE, "release" ,
-            DocumentType.PROJECT, "project",
-            DocumentType.LICENSE, "license",
-            DocumentType.USER, "user"
-    );
+    private static final ImmutableMap<DocumentType, String> MAP_DOCUMENT_TYPE_STRING = ImmutableMap.<DocumentType, String>builder()
+            .put(DocumentType.COMPONENT, "component" )
+            .put(DocumentType.RELEASE, "release")
+            .put(DocumentType.PROJECT, "project")
+            .put(DocumentType.LICENSE, "license")
+            .put(DocumentType.USER, "user")
+            .put(DocumentType.SPDX_DOCUMENT, "spdxDocument")
+            .put(DocumentType.SPDX_PACKAGE_INFO, "spdxPackageInfo")
+            .put(DocumentType.SPDX_DOCUMENT_CREATION_INFO, "spdxDocumentCreation")
+            .build();
 
     private static final ImmutableMap<ObligationStatus, String> MAP_OBLIGATION_STATUS_STRING = ImmutableMap.<ObligationStatus, String>builder()
             .put(ObligationStatus.OPEN, "Open")
@@ -306,6 +313,12 @@ public class ThriftEnumUtils {
             .put(ClearingRequestState.IN_PROGRESS, "In Progress")
             .put(ClearingRequestState.CLOSED, "Closed")
             .put(ClearingRequestState.AWAITING_RESPONSE, "Awaiting Response")
+            .build();
+
+    private static final ImmutableMap<ClearingReportStatus, String> MAP_CLEARING_REPORT_STATUS_STRING = ImmutableMap.<ClearingReportStatus, String>builder()
+            .put(ClearingReportStatus.NO_STATUS, "No status")
+            .put(ClearingReportStatus.NO_REPORT, "No report")
+            .put(ClearingReportStatus.DOWNLOAD, "Download")
             .build();
 
     private static final ImmutableMap<ClearingRequestPriority, String> MAP_CLEARING_REQUEST_PRIORITY_STRING = ImmutableMap.of(
@@ -347,6 +360,7 @@ public class ThriftEnumUtils {
             .put(DocumentType.class, MAP_DOCUMENT_TYPE_STRING)
             .put(ObligationStatus.class, MAP_OBLIGATION_STATUS_STRING)
             .put(ClearingRequestState.class, MAP_CLEARING_REQUEST_STATE_STRING)
+            .put(ClearingReportStatus.class, MAP_CLEARING_REPORT_STATUS_STRING)
             .put(ObligationLevel.class, MAP_OBLIGATION_LEVEL_STRING)
             .put(ObligationType.class, MAP_OBLIGATION_TYPE_STRING)
             .put(ClearingRequestPriority.class, MAP_CLEARING_REQUEST_PRIORITY_STRING)

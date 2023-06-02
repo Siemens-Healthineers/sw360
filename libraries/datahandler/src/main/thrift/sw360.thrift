@@ -146,6 +146,12 @@ enum DateRange {
     BETWEEN = 3
 }
 
+enum ClearingReportStatus {
+    NO_STATUS = 0,
+    NO_REPORT = 1,
+    DOWNLOAD = 2
+}
+
 struct ConfigContainer {
     1: optional string id,
     2: optional string revision,
@@ -190,9 +196,10 @@ struct ImportBomRequestPreparation {
     1: required RequestStatus requestStatus;
     2: optional bool isComponentDuplicate;
     3: optional bool isReleaseDuplicate;
-    4: optional string name;
-    5: optional string version;
-    6: optional string message;
+    4: optional string componentsName;
+    5: optional string releasesName;
+    6: optional string version;
+    7: optional string message;
 }
 
 struct CustomProperties {

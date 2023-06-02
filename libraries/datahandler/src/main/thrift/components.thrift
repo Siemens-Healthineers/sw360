@@ -27,6 +27,7 @@ typedef sw360.MainlineState MainlineState
 typedef sw360.ProjectReleaseRelationship ProjectReleaseRelationship
 typedef sw360.SW360Exception SW360Exception
 typedef sw360.PaginationData PaginationData
+typedef sw360.ClearingReportStatus ClearingReportStatus
 typedef sw360.ImportBomRequestPreparation ImportBomRequestPreparation
 typedef attachments.Attachment Attachment
 typedef attachments.FilledAttachment FilledAttachment
@@ -125,6 +126,7 @@ enum ClearingState {
     REPORT_AVAILABLE = 3,
     APPROVED = 4,
     SCAN_AVAILABLE = 5,
+    INTERNAL_USE_SCAN_AVAILABLE = 6
 }
 
 /**
@@ -138,6 +140,7 @@ struct ReleaseClearingStateSummary {
     4: required i32 reportAvailable,
     5: required i32 approved,
     6: required i32 scanAvailable, 
+    7: required i32 internalUseScanAvailable,
 }
 
 enum ECCStatus {
@@ -275,6 +278,8 @@ struct Release {
     90: optional DocumentState documentState,
 
     200: optional map<RequestedAction, bool> permissions,
+
+    400: optional string spdxId,
     204: optional string modifiedBy, // Last Modified By User Email
     205: optional string modifiedOn, // Last Modified Date YYYY-MM-dd
 }
@@ -366,7 +371,7 @@ struct ReleaseLink{
     22: required bool hasSubreleases,
     25: optional string nodeId,
     26: optional string parentNodeId,
-
+    27: optional ClearingReport clearingReport,
     31: optional ClearingState clearingState,
     32: optional list<Attachment> attachments,
     33: optional ComponentType componentType,
@@ -383,6 +388,13 @@ struct ReleaseClearingStatusData {
     3: optional string projectNames, // comma separated list of project names for display; possibly abbreviated
     4: optional string mainlineStates, // comma separated list of mainline states for display; possibly abbreviated
     5: optional bool accessible = true
+}
+
+struct ClearingReport{
+    1: optional string id,
+    2: optional string revision,
+    3: required ClearingReportStatus clearingReportStatus,
+    4: required set<Attachment> attachments
 }
 
 service ComponentService {
@@ -602,6 +614,11 @@ service ComponentService {
     list<Release> getReleasesByIdsForExport(1: set<string> ids);
 
     /**
+      * get list Release ids from Component ID
+      **/
+    list<string> getReleaseIdsFromComponentId(1: string id, 2: User user);
+
+    /**
       * get short summary with accessibility of all releases specified by ids
       **/
     list<Release> getReleasesWithAccessibilityByIdsForExport(1: set<string> ids, 2: User user);
@@ -707,6 +724,8 @@ service ComponentService {
      * get summaries of releases of component specified by id, filled with permissions for user
      **/
     list<Release> getReleasesByComponentId(1: string id, 2: User user);
+
+    list<Release> getReleasesFullDocsFromComponentId(1: string id, 2: User user);
 
     /**
      * get components belonging to linked releases of the release specified by releaseId
