@@ -27,7 +27,7 @@
             <tr id="releaseLinkRow${uuid}" >
                 <td>
                     <div class="form-group">
-                        <input id="releaseVendor" type="text" placeholder="<liferay-ui:message key="enter.vendor" />" class="form-control"
+                        <input id="releaseVendor" type="text" placeholder="<liferay-ui:message key="enter.manufacturer" />" class="form-control"
                             value="<sw360:out value="${releaseLink.vendor}"/>" readonly />
                     </div>
                 </td>

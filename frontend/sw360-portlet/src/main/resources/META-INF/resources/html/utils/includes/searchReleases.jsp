@@ -60,7 +60,7 @@
                                 <thead>
                                     <tr>
                                         <th></th>
-                                        <th><liferay-ui:message key="vendor" /></th>
+                                        <th><liferay-ui:message key="manufacturer" /></th>
                                         <th><liferay-ui:message key="component.name" /></th>
                                         <th><liferay-ui:message key="release.version" /></th>
                                         <th><liferay-ui:message key="clearing.state" /></th>

@@ -20,7 +20,7 @@
     </thead>
     <tr>
         <td>
-            <sw360:DisplayVendorEdit id="<%=Release._Fields.VENDOR_ID.toString()%>" vendor="${release.vendor}" label="vendor"/>
+            <sw360:DisplayVendorEdit id="<%=Release._Fields.VENDOR_ID.toString()%>" vendor="${release.vendor}" label="Manufacturer"/>
         </td>
         <td>
             <div class="form-group">

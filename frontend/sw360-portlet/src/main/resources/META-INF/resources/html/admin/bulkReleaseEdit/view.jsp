@@ -46,7 +46,7 @@
                             <tr>
                                 <th width="13%"><liferay-ui:message key="status" /></th>
                                 <th width="20%"><liferay-ui:message key="cpe.id1" /></th>
-                                <th width="20%"><liferay-ui:message key="vendor" /></th>
+                                <th width="20%"><liferay-ui:message key="manufacturer" /></th>
                                 <th width="20%"><liferay-ui:message key="release.name" /></th>
                                 <th width="20%"><liferay-ui:message key="release.version" /></th>
                                 <th width="7%"><liferay-ui:message key="submit" /></th>
@@ -121,7 +121,7 @@
             $(".clearSelection").click(function(event) {
                 var vendorTextBoxData = $(event.currentTarget.previousSibling).data();
                 $('#vendorId'+ vendorTextBoxData.releaseId).val("");
-                $('#vendorId'+ vendorTextBoxData.releaseId+'Display').val("").attr("placeholder", "Click to set vendor");
+                $('#vendorId'+ vendorTextBoxData.releaseId+'Display').val("").attr("placeholder", "Click to set manufacturer");
             });
 
             var componentsInfoTable;

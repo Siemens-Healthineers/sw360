@@ -131,7 +131,7 @@
                                     value="<sw360:out value="${operatingSystems}"/>" id="operating_systems">
                             </div>
                             <div class="form-group">
-                                <label for="vendor_names"><liferay-ui:message key="vendors" /></label>
+                                <label for="vendor_names"><liferay-ui:message key="manufacturers" /></label>
                                 <input type="text" class="form-control form-control-sm"
                                     name="<portlet:namespace/><%=Component._Fields.VENDOR_NAMES%>"
                                     value="<sw360:out value="${vendorNames}"/>" id="vendor_names">
@@ -319,7 +319,7 @@
             // create and render data table
             function createComponentsTable() {
                 let columns = [
-                    {"title": "<liferay-ui:message key="vendor" />", data: "vndrs", render: {display: renderVendorNames}},
+                    {"title": "<liferay-ui:message key="manufacturer" />", data: "vndrs", render: {display: renderVendorNames}},
                     {"title": "<liferay-ui:message key="component.name" />", data: function(row){
                         if(row.isAccessible) {
                             return row["name"];

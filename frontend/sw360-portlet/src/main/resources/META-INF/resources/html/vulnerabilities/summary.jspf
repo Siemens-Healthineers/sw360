@@ -64,7 +64,7 @@
         <td><sw360:DisplayCVEReferences value="${vulnerability.cveReferences}"/></td>
     </tr>
     <tr>
-        <td><liferay-ui:message key="vendor.advisories" />:</td>
+        <td><liferay-ui:message key="manufacturer.advisories" />:</td>
         <td><sw360:DisplayVendorAdvisories value="${vulnerability.vendorAdvisories}"/></td>
     </tr>
     <tr>
