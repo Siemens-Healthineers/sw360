@@ -12,6 +12,20 @@
  */
 package org.eclipse.sw360.clients.rest;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+import org.eclipse.sw360.clients.auth.AccessTokenProvider;
+import org.eclipse.sw360.clients.config.SW360ClientConfig;
+import org.eclipse.sw360.clients.rest.resource.releases.SW360Release;
+import org.eclipse.sw360.clients.rest.resource.releases.SW360ReleaseList;
+import org.eclipse.sw360.clients.rest.resource.releases.SW360SparseRelease;
+import org.eclipse.sw360.clients.utils.SW360ResourceUtils;
+import org.eclipse.sw360.http.RequestBuilder;
+import org.eclipse.sw360.http.utils.HttpUtils;
+
 import org.eclipse.sw360.http.RequestBuilder;
 import org.eclipse.sw360.http.utils.HttpUtils;
 import org.eclipse.sw360.clients.config.SW360ClientConfig;
@@ -20,11 +34,6 @@ import org.eclipse.sw360.clients.utils.SW360ResourceUtils;
 import org.eclipse.sw360.clients.rest.resource.releases.SW360Release;
 import org.eclipse.sw360.clients.rest.resource.releases.SW360ReleaseList;
 import org.eclipse.sw360.clients.rest.resource.releases.SW360SparseRelease;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * <p>
@@ -107,7 +116,7 @@ public class SW360ReleaseClient extends SW360AttachmentAwareClient<SW360Release>
                 TAG_GET_RELEASES_BY_EXTERNAL_IDS, SW360ReleaseList::new)
                 .thenApply(SW360ResourceUtils::getSw360SparseReleases);
     }
-
+    
     private String getExternalIdUrl(Map<String, ?> externalIds) {
         return HttpUtils.addQueryParameters(resourceUrl(RELEASES_ENDPOINT_APPENDIX, PATH_SEARCH_EXT_IDS),
                 externalIds);

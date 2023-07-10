@@ -168,17 +168,20 @@
                     <div class="btn-toolbar" role="toolbar">
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-primary" onclick="window.location.href='<%=addProjectURL%>'"><liferay-ui:message key="add.project" /></button>
-                            <core_rt:if test = "${isSbomImportExportAccessUser}">
-                            <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <liferay-ui:message key="import.sbom" />
-                                <clay:icon symbol="caret-bottom" />
-                            </button>
-                            <div class="dropdown-menu" id="importSbom">
-                                <a class="dropdown-item import" href="#" data-type="spdx"><liferay-ui:message key="spdx" /></a>
-                                <a class="dropdown-item import" href="#" data-type="cycloneDx"><liferay-ui:message key="cyclonedx" /></a>
-                            </div>
-                            </core_rt:if>
-                        </div>
+									<button type="button" ${isSbomImportExportAccessUser ? '' : 'disabled'}
+									class="btn btn-secondary dropdown-toggle"
+										data-toggle="dropdown" aria-haspopup="true"
+										aria-expanded="false">
+										<liferay-ui:message key="import.sbom" />
+										<clay:icon symbol="caret-bottom" />
+									</button>
+									<div class="dropdown-menu" id="importSbom">
+										<!--<a class="dropdown-item import" href="#" data-type="spdx"><liferay-ui:message key="spdx" /></a>-->
+										<a class="dropdown-item import" href="#" data-type="cycloneDx"><liferay-ui:message
+												key="cyclonedx" /></a>
+									</div>
+									<else>
+						</div>
                         <div id="btnExportGroup" class="btn-group" role="group">
                             <button id="btnExport" type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <liferay-ui:message key="export.spreadsheet" />
