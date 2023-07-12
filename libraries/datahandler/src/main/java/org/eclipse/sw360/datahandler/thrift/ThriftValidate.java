@@ -15,7 +15,6 @@ import com.google.common.collect.FluentIterable;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentContent;
 import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.licenses.*;
-import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectClearingState;
 import org.eclipse.sw360.datahandler.thrift.spdx.documentcreationinformation.DocumentCreationInformation;
@@ -166,19 +165,6 @@ public class ThriftValidate {
             }
         }).filter(notNull()).toList();
 
-    }
-
-    public static void preparePackage(Package pkg) throws SW360Exception {
-        // Check required fields
-        assertNotEmpty(pkg.getName());
-        assertNotEmpty(pkg.getVersion());
-        assertNotEmpty(pkg.getPurl());
-        assertNotEmpty(pkg.getPackageManager().name());
-        assertNotEmpty(pkg.getPackageType().name());
-        pkg.unsetRelease();
-
-        // Check type
-        pkg.setType(TYPE_PACKAGE);
     }
 
     public static void prepareRelease(Release release) throws SW360Exception {

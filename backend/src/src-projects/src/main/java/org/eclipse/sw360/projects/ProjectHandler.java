@@ -10,12 +10,6 @@
  */
 package org.eclipse.sw360.projects;
 
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertId;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertIdUnset;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertNotEmpty;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertNotNull;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertUser;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
@@ -47,6 +41,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Supplier;
+
+import static org.eclipse.sw360.datahandler.common.SW360Assert.*;
 
 /**
  * Implementation of the Thrift service
@@ -160,26 +156,6 @@ public class ProjectHandler implements ProjectService.Iface {
     @Override
     public Set<Project> searchByReleaseIds(Set<String> ids, User user) throws TException {
         return handler.searchByReleaseId(ids, user);
-    }
-
-    @Override
-    public Set<Project> searchProjectByPackageId(String id, User user) throws TException {
-        assertId(id);
-        assertUser(user);
-        return handler.searchByPackageId(id, user);
-    }
-
-    @Override
-    public Set<Project> searchProjectByPackageIds(Set<String> ids, User user) throws TException {
-        assertNotEmpty(ids);
-        assertUser(user);
-        return handler.searchByPackageIds(ids, user);
-    }
-
-    @Override
-    public int getProjectCountByPackageId(String id) throws TException {
-        assertNotEmpty(id);
-        return handler.getProjectCountByPackageId(id);
     }
 
     @Override
