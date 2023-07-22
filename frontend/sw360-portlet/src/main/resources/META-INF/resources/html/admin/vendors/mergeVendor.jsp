@@ -26,7 +26,7 @@
         <div class="col">
             <div class="wizardHeader">
                 <ul>
-                    <li class="active"><liferay-ui:message key="choose.source" /><br /><small><liferay-ui:message key="choose.a.manufacturer.that.should.be.merged.into.the.current.one" /></small></li>
+                    <li class="active"><liferay-ui:message key="choose.source" /><br /><small><liferay-ui:message key="choose.a.vendor.that.should.be.merged.into.the.current.one" /></small></li>
                     <li><liferay-ui:message key="merge.data" /><br /><small><liferay-ui:message key="merge.data.from.source.into.target.manufacturer" /></small></li>
                     <li><liferay-ui:message key="confirm" /><br /><small><liferay-ui:message key="check.the.merged.version.and.confirm" /></small></li>
                 </ul>
