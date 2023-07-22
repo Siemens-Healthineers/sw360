@@ -390,7 +390,10 @@ public class JacksonCustomizations {
                 "setAdditionalData",
                 "setModifiedOn",
                 "setModifiedBy",
-                "modifiedBy"
+                "modifiedBy",
+                "cdxComponentType",
+                "setCdxComponentType",
+                "setVcs",
         })
         static abstract class ComponentMixin extends Component {
             @Override
