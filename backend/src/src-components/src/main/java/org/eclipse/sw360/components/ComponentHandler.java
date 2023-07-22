@@ -121,12 +121,6 @@ public class ComponentHandler implements ComponentService.Iface {
     }
     
     @Override
-    public Map<PaginationData, List<Release>> getAccessibleReleasesWithPagination(User user, PaginationData pageData) throws TException {
-        assertUser(user);
-        return handler.getAccessibleReleasesWithPagination(user, pageData);
-    }
-
-    @Override
     public List<Component> refineSearch(String text, Map<String, Set<String>> subQueryRestrictions) throws TException {
         return componentSearchHandler.search(text, subQueryRestrictions);
     }

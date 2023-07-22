@@ -20,8 +20,11 @@ import org.eclipse.sw360.datahandler.thrift.Visibility;
 import org.eclipse.sw360.datahandler.thrift.VerificationState;
 import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
 import org.eclipse.sw360.datahandler.thrift.RequestSummary;
+import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
+import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentContent;
+import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
+import org.eclipse.sw360.datahandler.thrift.attachments.CheckStatus;
 import org.eclipse.sw360.datahandler.thrift.components.*;
-import org.eclipse.sw360.datahandler.thrift.attachments.*;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectType;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -161,13 +164,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         angularComponent.setDescription("Angular is a development platform for building mobile and desktop web applications.");
         angularComponent.setCreatedOn("2016-12-15");
         angularComponent.setCreatedBy("admin@sw360.org");
-        angularComponent.setModifiedBy("admin1@sw360.org");
-        angularComponent.setModifiedOn("2016-12-30");
-        angularComponent.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Linux")));
-        angularComponent.setMainLicenseIds(new HashSet<>(Arrays.asList("123")));
-        angularComponent.setSubscribers(new HashSet<>(Arrays.asList("Mari")));
-        angularComponent.setWiki("http://wiki.ubuntu.com/");
-        angularComponent.setBlog("http://www.javaworld.com/");
         angularComponent.setComponentType(ComponentType.OSS);
         angularComponent.setVendorNames(new HashSet<>(Collections.singletonList("Google")));
         angularComponent.setModerators(new HashSet<>(Arrays.asList("admin@sw360.org", "john@sw360.org")));
@@ -187,29 +183,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         componentList.add(angularComponent);
         componentListByName.add(angularComponent);
 
-        AttachmentDTO attachmentDTO = new AttachmentDTO();
-        attachmentDTO.setAttachmentContentId("");
-        attachmentDTO.setFilename(attachment.getFilename());
-        attachmentDTO.setSha1(attachment.getSha1());
-        attachmentDTO.setAttachmentType(AttachmentType.BINARY_SELF);
-        attachmentDTO.setCreatedBy("admin@sw360.org");
-        attachmentDTO.setCreatedTeam("Clearing Team 1");
-        attachmentDTO.setCreatedComment("please check asap");
-        attachmentDTO.setCreatedOn("2016-12-18");
-        attachmentDTO.setCheckedTeam("Clearing Team 2");
-        attachmentDTO.setCheckedComment("everything looks good");
-        attachmentDTO.setCheckedOn("2016-12-18");
-        attachmentDTO.setCheckStatus(CheckStatus.ACCEPTED);
-
-        UsageAttachment usageAttachment = new UsageAttachment();
-        usageAttachment.setVisible(0);
-        usageAttachment.setRestricted(0);
-
-        attachmentDTO.setUsageAttachment(usageAttachment);
-        List<EntityModel<AttachmentDTO>> atEntityModels = new ArrayList<>();
-        atEntityModels.add(EntityModel.of(attachmentDTO));
-        given(this.attachmentServiceMock.getAttachmentDTOResourcesFromList(any(), any(), any())).willReturn(CollectionModel.of(atEntityModels));
-
         Component springComponent = new Component();
         Map<String, String> springComponentExternalIds = new HashMap<>();
         springComponentExternalIds.put("component-id-key", "c77321");
@@ -221,13 +194,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         springComponent.setDescription("The Spring Framework provides a comprehensive programming and configuration model for modern Java-based enterprise applications.");
         springComponent.setCreatedOn("2016-12-18");
         springComponent.setCreatedBy("jane@sw360.org");
-        springComponent.setModifiedBy("User@sw360.org");
-        springComponent.setModifiedOn("2016-12-25");
-        springComponent.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Windows")));
-        springComponent.setMainLicenseIds(new HashSet<>(Arrays.asList("222")));
-        springComponent.setSubscribers(new HashSet<>(Arrays.asList("Natan")));
-        springComponent.setWiki("http://wiki.ubuntu.com/");
-        springComponent.setBlog("http://www.javaworld.com/");
         springComponent.setComponentType(ComponentType.OSS);
         springComponent.setVendorNames(new HashSet<>(Collections.singletonList("Pivotal")));
         springComponent.setModerators(new HashSet<>(Arrays.asList("admin@sw360.org", "jane@sw360.org")));
@@ -536,13 +502,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:components.[]_embedded.defaultVendor").description("Default vendor of component"),
                                 subsectionWithPath("_embedded.sw360:components.[]defaultVendorId").description("Default vendor of component"),
 
-                                subsectionWithPath("_embedded.sw360:components.[]subscribers").description("The subscribers of component"),
-                                subsectionWithPath("_embedded.sw360:components.[]mainLicenseIds").description("The Main License Ids of component"),
-                                subsectionWithPath("_embedded.sw360:components.[]softwarePlatforms").description("The Software Platforms of component"),
-                                subsectionWithPath("_embedded.sw360:components.[]wiki").description("The wiki of component"),
-                                subsectionWithPath("_embedded.sw360:components.[]blog").description("The blog of component"),
-                                subsectionWithPath("_embedded.sw360:components.[]modifiedOn").description("The date the component was modified"),
-
                                 subsectionWithPath("_embedded.sw360:components.[]categories").description("The component categories"),
                                 subsectionWithPath("_embedded.sw360:components.[]languages").description("The language of the component"),
 
@@ -706,7 +665,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                                 fieldWithPath("componentType").description("The component type, possible values are: " + Arrays.asList(ComponentType.values())),
                                 fieldWithPath("description").description("The component description"),
                                 fieldWithPath("createdOn").description("The date the component was created"),
-                                fieldWithPath("modifiedOn").description("The date the component was modified"),
                                 fieldWithPath("componentOwner").description("The owner name of the component"),
                                 fieldWithPath("ownerAccountingUnit").description("The owner accounting unit of the component"),
                                 fieldWithPath("ownerGroup").description("The owner group of the component"),
@@ -716,11 +674,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("externalIds").description("When components are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                                 subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
                                 fieldWithPath("operatingSystems").description("The OS on which the component operates"),
-                                fieldWithPath("softwarePlatforms").description("The Software Platforms of component"),
-                                fieldWithPath("subscribers").description("The subscribers of component"),
-                                fieldWithPath("mainLicenseIds").description("The Main License Ids of component"),
-                                fieldWithPath("wiki").description("The wiki of component"),
-                                fieldWithPath("blog").description("The blog of component"),
                                 fieldWithPath("mailinglist").description("Component mailing lists"),
                                 fieldWithPath("homepage").description("The homepage url of the component"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"),
@@ -883,20 +836,9 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                 .andExpect(status().isOk())
                 .andDo(this.documentationHandler.document(
                         responseFields(
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes").description("An array of <<resources-attachment, Attachments resources>>"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]attachmentContentId").description("The attachment attachmentContentId"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]filename").description("The attachment filename"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]sha1").description("The attachment sha1"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]attachmentType").description("The attachment attachmentType"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdBy").description("The attachment createdBy"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdTeam").description("The attachment createdTeam"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdComment").description("The attachment createdComment"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdOn").description("The attachment createdOn"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]checkedComment").description("The attachment checkedComment"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]checkStatus").description("The attachment checkStatus"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment").description("The usages in project"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.visible").description("The visible usages in project"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.restricted").description("The restricted usages in project"),
+                                subsectionWithPath("_embedded.sw360:attachments").description("An array of <<resources-attachment, Attachments resources>>"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]filename").description("The attachment filename"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]sha1").description("The attachment sha1 value"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
     }
@@ -1004,12 +946,6 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                         fieldWithPath("ownerCountry").description("The owner country of the component"),
                         subsectionWithPath("externalIds").description("When projects are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                         subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
-                        fieldWithPath("modifiedOn").description("The date the component was modified"),
-                        fieldWithPath("softwarePlatforms").description("The Software Platforms of component"),
-                        fieldWithPath("subscribers").description("The subscribers of component"),
-                        fieldWithPath("mainLicenseIds").description("The Main License Ids of component"),
-                        fieldWithPath("wiki").description("The wiki of component"),
-                        fieldWithPath("blog").description("The blog of component"),
                         fieldWithPath("categories").description("The component categories"),
                         fieldWithPath("languages").description("The language of the component"),
                         fieldWithPath("mailinglist").description("Component mailing lists"),
