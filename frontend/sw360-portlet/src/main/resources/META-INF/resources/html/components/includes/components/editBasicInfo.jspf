@@ -65,7 +65,7 @@
             </div>
         </td>
         <td>
-            <sw360:DisplayVendorEdit id="<%=Component._Fields.DEFAULT_VENDOR_ID.toString()%>" vendorId="${component.defaultVendorId}" vendor="${component.defaultVendor}" label="default.vendor"/>
+            <sw360:DisplayVendorEdit id="<%=Component._Fields.DEFAULT_VENDOR_ID.toString()%>" vendorId="${component.defaultVendorId}" vendor="${component.defaultVendor}" label="default.manufacturer"/>
         </td>
         <td>
             <div class="form-group">
