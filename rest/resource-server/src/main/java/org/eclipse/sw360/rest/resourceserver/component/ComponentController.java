@@ -25,7 +25,6 @@ import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.thrift.Source;
 import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
-import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.components.ReleaseLink;
@@ -189,7 +188,6 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
         User user = restControllerHelper.getSw360UserFromAuthentication();
         Component sw360Component = componentService.getComponentForUserById(id, user);
         HalResource<Component> userHalResource = createHalComponent(sw360Component, user);
-        restControllerHelper.addEmbeddedDataToComponent(userHalResource, sw360Component);
         return new ResponseEntity<>(userHalResource, HttpStatus.OK);
     }
 
@@ -299,11 +297,11 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
     }
 
     @RequestMapping(value = COMPONENTS_URL + "/{id}/attachments", method = RequestMethod.GET)
-    public ResponseEntity<CollectionModel<EntityModel<AttachmentDTO>>> getComponentAttachments(
+    public ResponseEntity<CollectionModel<EntityModel<Attachment>>> getComponentAttachments(
             @PathVariable("id") String id) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         final Component sw360Component = componentService.getComponentForUserById(id, sw360User);
-        final CollectionModel<EntityModel<AttachmentDTO>> resources = attachmentService.getAttachmentDTOResourcesFromList(sw360User, sw360Component.getAttachments(), Source.releaseId(sw360Component.getId()));
+        final CollectionModel<EntityModel<Attachment>> resources = attachmentService.getResourcesFromList(sw360Component.getAttachments());
         return new ResponseEntity<>(resources, HttpStatus.OK);
     }
 

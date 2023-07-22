@@ -25,10 +25,7 @@ import org.eclipse.sw360.datahandler.resourcelists.PaginationResult;
 import org.eclipse.sw360.datahandler.resourcelists.ResourceClassNotFoundException;
 import org.eclipse.sw360.datahandler.thrift.*;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
-import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
-import org.eclipse.sw360.datahandler.thrift.attachments.UsageAttachment;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
-import org.eclipse.sw360.datahandler.thrift.components.ReleaseLink;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.components.ClearingState;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
@@ -172,10 +169,13 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Release sw360Release = releaseService.getReleaseForUserById(id, sw360User);
         HalResource halRelease = createHalReleaseResource(sw360Release, true);
-        restControllerHelper.addEmbeddedDataToHalResourceRelease(halRelease, sw360Release);
-        List<ReleaseLink> linkedReleaseRelations = releaseService.getLinkedReleaseRelations(sw360Release, sw360User);
-        if (linkedReleaseRelations != null) {
-            restControllerHelper.addEmbeddedReleaseLinks(halRelease, linkedReleaseRelations);
+        Map<String, ReleaseRelationship> releaseIdToRelationship = sw360Release.getReleaseIdToRelationship();
+        if (releaseIdToRelationship != null) {
+            List<Release> listOfLinkedRelease = releaseIdToRelationship.keySet().stream()
+                    .map(linkedReleaseId -> wrapTException(
+                            () -> releaseService.getReleaseForUserById(linkedReleaseId, sw360User)))
+                    .collect(Collectors.toList());
+            restControllerHelper.addEmbeddedReleases(halRelease, listOfLinkedRelease);
         }
         return new ResponseEntity<>(halRelease, HttpStatus.OK);
     }
@@ -411,11 +411,11 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
     }
 
     @GetMapping(value = RELEASES_URL + "/{id}/attachments")
-    public ResponseEntity<CollectionModel<EntityModel<AttachmentDTO>>> getReleaseAttachment1s(
+    public ResponseEntity<CollectionModel<EntityModel<Attachment>>> getReleaseAttachments(
             @PathVariable("id") String id) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         final Release sw360Release = releaseService.getReleaseForUserById(id, sw360User);
-        final CollectionModel<EntityModel<AttachmentDTO>> resources = attachmentService.getAttachmentDTOResourcesFromList(sw360User, sw360Release.getAttachments(), Source.releaseId(sw360Release.getId()));
+        final CollectionModel<EntityModel<Attachment>> resources = attachmentService.getResourcesFromList(sw360Release.getAttachments());
         return new ResponseEntity<>(resources, HttpStatus.OK);
     }
 
@@ -603,7 +603,7 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
             }
             if (release.getVendor() != null) {
                 Vendor vendor = release.getVendor();
-                HalResource<Vendor> vendorHalResource = restControllerHelper.addEmbeddedVendor(vendor);
+                HalResource<Vendor> vendorHalResource = restControllerHelper.addEmbeddedVendor(vendor.getFullname());
                 halRelease.addEmbeddedResource("sw360:vendors", vendorHalResource);
                 release.setVendor(null);
             }

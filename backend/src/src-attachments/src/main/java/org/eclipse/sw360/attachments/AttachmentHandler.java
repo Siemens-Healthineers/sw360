@@ -194,12 +194,6 @@ public class AttachmentHandler implements AttachmentService.Iface {
     }
 
     @Override
-    public List<AttachmentUsage> getUsedAttachmentsById(String attachmentId) throws TException {
-        assertNotNull(attachmentId);
-        return handler.getUsedAttachmentsById(attachmentId);
-    }
-
-    @Override
     public void replaceAttachmentUsages(Source usedBy, List<AttachmentUsage> attachmentUsages) throws TException {
         assertNotNull(usedBy);
         assertTrue(usedBy.isSet());

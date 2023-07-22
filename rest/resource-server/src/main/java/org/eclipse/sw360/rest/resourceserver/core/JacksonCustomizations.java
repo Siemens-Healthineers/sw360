@@ -23,9 +23,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.eclipse.sw360.datahandler.thrift.*;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
-import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
-import org.eclipse.sw360.datahandler.thrift.attachments.ProjectUsage;
-import org.eclipse.sw360.datahandler.thrift.attachments.UsageAttachment;
 import org.eclipse.sw360.datahandler.thrift.changelogs.ChangeLogs;
 import org.eclipse.sw360.datahandler.thrift.changelogs.ChangedFields;
 import org.eclipse.sw360.datahandler.thrift.changelogs.ReferenceDocData;
@@ -45,7 +42,6 @@ import org.eclipse.sw360.datahandler.thrift.vulnerabilities.*;
 import org.eclipse.sw360.rest.resourceserver.core.serializer.JsonProjectRelationSerializer;
 import org.eclipse.sw360.rest.resourceserver.core.serializer.JsonReleaseRelationSerializer;
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.EmbeddedModerationRequest;
-import org.eclipse.sw360.rest.resourceserver.moderationrequest.ModerationPatch;
 import org.eclipse.sw360.rest.resourceserver.project.EmbeddedProject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -71,9 +67,6 @@ public class JacksonCustomizations {
             setMixInAnnotation(ReleaseLink.class, Sw360Module.ReleaseLinkMixin.class);
             setMixInAnnotation(ClearingReport.class, Sw360Module.ClearingReportMixin.class);
             setMixInAnnotation(Attachment.class, Sw360Module.AttachmentMixin.class);
-            setMixInAnnotation(AttachmentDTO.class, Sw360Module.AttachmentDTOMixin.class);
-            setMixInAnnotation(UsageAttachment.class, Sw360Module.UsageAttachmentMixin.class);
-            setMixInAnnotation(ProjectUsage.class, Sw360Module.ProjectUsageMixin.class);
             setMixInAnnotation(Vendor.class, Sw360Module.VendorMixin.class);
             setMixInAnnotation(License.class, Sw360Module.LicenseMixin.class);
             setMixInAnnotation(Obligation.class, Sw360Module.ObligationMixin.class);
@@ -81,6 +74,8 @@ public class JacksonCustomizations {
             setMixInAnnotation(VulnerabilityState.class, Sw360Module.VulnerabilityStateMixin.class);
             setMixInAnnotation(ReleaseVulnerabilityRelationDTO.class, Sw360Module.ReleaseVulnerabilityRelationDTOMixin.class);
             setMixInAnnotation(VulnerabilityDTO.class, Sw360Module.VulnerabilityDTOMixin.class);
+            setMixInAnnotation(VulnerabilityState.class, Sw360Module.VulnerabilityStateMixin.class);
+            setMixInAnnotation(ReleaseVulnerabilityRelationDTO.class, Sw360Module.ReleaseVulnerabilityRelationDTOMixin.class);
             setMixInAnnotation(VulnerabilityApiDTO.class, Sw360Module.VulnerabilityApiDTOMixin.class);
             setMixInAnnotation(EccInformation.class, Sw360Module.EccInformationMixin.class);
             setMixInAnnotation(EmbeddedProject.class, Sw360Module.EmbeddedProjectMixin.class);
@@ -102,7 +97,6 @@ public class JacksonCustomizations {
             setMixInAnnotation(ModerationRequest.class, Sw360Module.ModerationRequestMixin.class);
             setMixInAnnotation(EmbeddedModerationRequest.class, Sw360Module.EmbeddedModerationRequestMixin.class);
             setMixInAnnotation(ImportBomRequestPreparation.class, Sw360Module.ImportBomRequestPreparationMixin.class);
-            setMixInAnnotation(ModerationPatch.class, Sw360Module.ModerationPatchMixin.class);
         }
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -198,11 +192,14 @@ public class JacksonCustomizations {
                 "setConsiderReleasesFromExternalList",
                 "externalUrlsSize",
                 "setExternalUrls",
+                "externalUrls",
                 "setVendor",
                 "setVendorId",
                 "setSpdxId",
                 "setModifiedOn",
+                "modifiedOn",
                 "setModifiedBy",
+                "modifiedBy"
         })
         static abstract class ProjectMixin extends Project {
 
@@ -255,6 +252,7 @@ public class JacksonCustomizations {
             abstract public boolean isEnableVulnerabilitiesDisplay();
 
             @Override
+            @JsonIgnore
             abstract public ProjectState getState();
         }
 
@@ -320,8 +318,12 @@ public class JacksonCustomizations {
                 "revision",
                 "attachments",
                 "createdBy",
+                "subscribers",
                 "moderators",
                 "releases",
+                "softwarePlatforms",
+                "wiki",
+                "blog",
                 "wikipedia",
                 "openHub",
                 "documentState",
@@ -389,6 +391,7 @@ public class JacksonCustomizations {
                 "additionalDataSize",
                 "setAdditionalData",
                 "setModifiedOn",
+                "modifiedOn",
                 "setModifiedBy",
                 "modifiedBy",
                 "cdxComponentType",
@@ -407,8 +410,6 @@ public class JacksonCustomizations {
                 "revision",
                 "permissions",
                 "moderators",
-                "subscribers",
-                "contributors",
                 "clearingInformation",
                 "setAttachments",
                 "setCreatedOn",
@@ -476,6 +477,7 @@ public class JacksonCustomizations {
                 "otherLicenseIdsSize",
                 "setOtherLicenseIds",
                 "setModifiedOn",
+                "modifiedOn",
                 "setModifiedBy",
                 "modifiedBy",
                 "setComponentType"
@@ -492,12 +494,18 @@ public class JacksonCustomizations {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonIgnoreProperties({
+                "vendor",
+                "longName",
+                "releaseRelationship",
+                "hasSubreleases",
                 "nodeId",
                 "parentNodeId",
                 "componentType",
+                "licenseIds",
                 "licenseNames",
                 "comment",
                 "otherLicenseIds",
+                "accessible",
                 "attachmentsSize",
                 "setName",
                 "setVersion",
@@ -574,65 +582,6 @@ public class JacksonCustomizations {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonIgnoreProperties({
-                "setAttachmentContentId",
-                "setFilename",
-                "setSha1",
-                "setAttachmentType",
-                "setCreatedBy",
-                "setCreatedTeam",
-                "setCreatedComment",
-                "setCreatedOn",
-                "setCheckedBy",
-                "setCheckedTeam",
-                "setCheckedComment",
-                "setCheckedOn",
-                "uploadHistorySize",
-                "uploadHistoryIterator",
-                "setUploadHistory",
-                "setCheckStatus",
-                "setSuperAttachmentId",
-                "setSuperAttachmentFilename",
-                "setUsageAttachment"
-        })
-        static abstract class AttachmentDTOMixin {
-        }
-
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        @JsonIgnoreProperties({
-                "id",
-                "revision",
-                "type",
-                "setVisible",
-                "setRestricted",
-                "projectNameSize",
-                "projectNameIterator",
-                "setProjectName",
-                "setRevision",
-                "setType",
-                "setId",
-                "projectUsagesSize",
-                "projectUsagesIterator",
-                "setProjectUsages",
-        })
-        static abstract class UsageAttachmentMixin {
-        }
-
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        @JsonIgnoreProperties({
-                "id",
-                "revision",
-                "type",
-                "setRevision",
-                "setType",
-                "setProjectId",
-                "setId",
-                "setProjectName"
-        })
-        static abstract class ProjectUsageMixin {
-        }
-
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        @JsonIgnoreProperties({
                 "id",
                 "revision",
                 "permissionsSize",
@@ -697,7 +646,6 @@ public class JacksonCustomizations {
                 "setChecked",
                 "additionalDataSize",
                 "setAdditionalData",
-                "setNote",
         })
         static abstract class LicenseMixin extends License {
             @Override
@@ -995,6 +943,11 @@ public class JacksonCustomizations {
 
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
         @JsonIgnoreProperties({
+                "assessorContactPerson",
+                "assessorDepartment",
+                "eccComment",
+                "materialIndexNumber",
+                "assessmentDate",
                 "setEccComment",
                 "setEccn",
                 "setEccStatus",
@@ -1417,10 +1370,6 @@ public class JacksonCustomizations {
                 "setRequestStatus"
         })
         public static abstract class ImportBomRequestPreparationMixin extends ImportBomRequestPreparation {
-        }
-
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public static abstract class ModerationPatchMixin extends ModerationPatch {
         }
     }
 }

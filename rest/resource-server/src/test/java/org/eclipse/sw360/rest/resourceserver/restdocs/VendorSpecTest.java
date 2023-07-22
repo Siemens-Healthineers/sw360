@@ -91,8 +91,6 @@ public class VendorSpecTest extends TestRestDocsSpecBase {
                         ),
                         responseFields(
                                 subsectionWithPath("_embedded.sw360:vendors.[]fullName").description("The full name of the vendor"),
-                                subsectionWithPath("_embedded.sw360:vendors.[]shortName").description("The Short Name of the vendor"),
-                                subsectionWithPath("_embedded.sw360:vendors.[]url").description("The Url of the vendor"),
                                 subsectionWithPath("_embedded.sw360:vendors").description("An array of <<resources-vendors, Vendors resources>>"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
