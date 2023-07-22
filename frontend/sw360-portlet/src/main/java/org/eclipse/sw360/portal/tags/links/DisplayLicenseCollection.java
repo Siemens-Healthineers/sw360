@@ -31,7 +31,6 @@ import javax.servlet.jsp.JspWriter;
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.eclipse.sw360.datahandler.common.CommonUtils;
-import org.eclipse.sw360.portal.tags.OutTag;
 
 public class DisplayLicenseCollection extends TagSupport {
     private Long scopeGroupId;
@@ -41,7 +40,6 @@ public class DisplayLicenseCollection extends TagSupport {
     private boolean main = true;
     private String title;
     private boolean commaJoiner;
-    private boolean displayLink = true;
 
     public void setLicenseIds(Collection<String> licenseIds) {
         this.licenseIds = licenseIds;
@@ -66,9 +64,6 @@ public class DisplayLicenseCollection extends TagSupport {
     public String getTitle() {
         return title;
     }
-    public void setDisplayLink(Boolean displayLink) {
-        this.displayLink = displayLink;
-    }
 
     @Override
     public int doStartTag() throws JspException {
@@ -82,21 +77,13 @@ public class DisplayLicenseCollection extends TagSupport {
                 if (CommonUtils.isNullEmptyOrWhitespace(icon)) {
                     for (Iterator<String> iterator = licenseIds.iterator(); iterator.hasNext(); ) {
                         String licenseId = iterator.next();
-                        if (displayLink) {
-                            DisplayLinkToLicense linkToLicense = new DisplayLinkToLicense();
-                            linkToLicense.setPageContext(pageContext);
-                            linkToLicense.setScopeGroupId(scopeGroupId);
-                            linkToLicense.setLicenseId(licenseId);
+                        DisplayLinkToLicense linkToLicense = new DisplayLinkToLicense();
+                        linkToLicense.setPageContext(pageContext);
+                        linkToLicense.setScopeGroupId(scopeGroupId);
+                        linkToLicense.setLicenseId(licenseId);
 
-                            linkToLicense.doStartTag();
-                            linkToLicense.doEndTag();
-                        } else {
-                            OutTag license = new OutTag();
-                            license.setPageContext(pageContext);
-                            license.setValue(licenseId);
-                            license.doStartTag();
-                            license.doEndTag();
-                        }
+                        linkToLicense.doStartTag();
+                        linkToLicense.doEndTag();
                         if (iterator.hasNext()) {
                             jspWriter.write(", ");
                         }

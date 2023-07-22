@@ -11,6 +11,15 @@
 
 package org.eclipse.sw360.datahandler.resourcelists;
 
+import org.eclipse.sw360.datahandler.common.SW360Constants;
+import org.eclipse.sw360.datahandler.thrift.changelogs.ChangeLogs;
+import org.eclipse.sw360.datahandler.thrift.components.Component;
+import org.eclipse.sw360.datahandler.thrift.components.Release;
+import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
+import org.eclipse.sw360.datahandler.thrift.projects.Project;
+import org.eclipse.sw360.datahandler.thrift.search.SearchResult;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -19,22 +28,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.eclipse.sw360.datahandler.common.SW360Constants;
-import org.eclipse.sw360.datahandler.thrift.changelogs.ChangeLogs;
-import org.eclipse.sw360.datahandler.thrift.components.Component;
-import org.eclipse.sw360.datahandler.thrift.components.Release;
-import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
-import org.eclipse.sw360.datahandler.thrift.packages.Package;
-import org.eclipse.sw360.datahandler.thrift.projects.Project;
-import org.eclipse.sw360.datahandler.thrift.search.SearchResult;
-import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
-
 public class ResourceComparatorGenerator<T> {
 
     private static final Map<Component._Fields, Comparator<Component>> componentMap = generateComponentMap();
     private static final Map<Project._Fields, Comparator<Project>> projectMap = generateProjectMap();
     private static final Map<Release._Fields, Comparator<Release>> releaseMap = generateReleaseMap();
-    private static final Map<Package._Fields, Comparator<Package>> packageMap = generatePackageMap();
     private static final Map<SearchResult._Fields, Comparator<SearchResult>> searchResultMap = generateSearchResultMap();
     private static final Map<ChangeLogs._Fields, Comparator<ChangeLogs>> changeLogMap = generateChangeLogMap();
     private static final Map<VulnerabilityDTO._Fields, Comparator<VulnerabilityDTO>> vDtoMap = generateVulDtoMap();
@@ -64,12 +62,6 @@ public class ResourceComparatorGenerator<T> {
         releaseMap.put(Release._Fields.NAME, Comparator.comparing(Release::getName, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
         releaseMap.put(Release._Fields.CLEARING_STATE, Comparator.comparing(p -> Optional.ofNullable(p.getClearingState()).map(Object::toString).orElse(null), Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
         return Collections.unmodifiableMap(releaseMap);
-    }
-
-    private static Map<Package._Fields, Comparator<Package>> generatePackageMap() {
-        Map<Package._Fields, Comparator<Package>> packageMap = new HashMap<>();
-        packageMap.put(Package._Fields.NAME, Comparator.comparing(Package::getName, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
-        return Collections.unmodifiableMap(packageMap);
     }
 
     private static Map<SearchResult._Fields, Comparator<SearchResult>> generateSearchResultMap() {
@@ -124,8 +116,6 @@ public class ResourceComparatorGenerator<T> {
                 return (Comparator<T>)defaultVulDtoComparator();
             case SW360Constants.TYPE_MODERATION:
                 return (Comparator<T>)defaultModerationRequestComparator();
-            case SW360Constants.TYPE_PACKAGE:
-                return (Comparator<T>)defaultPackageComparator();
             default:
                 throw new ResourceClassNotFoundException("No default comparator for resource class with name " + type);
         }
@@ -164,15 +154,6 @@ public class ResourceComparatorGenerator<T> {
                     }
                 }
                 return generateReleaseComparatorWithFields(type, releaeFields);
-            case SW360Constants.TYPE_PACKAGE:
-                List<Package._Fields> packageFields = new ArrayList<>();
-                for (String property:properties) {
-                    Package._Fields field = Package._Fields.findByName(property);
-                    if (field != null) {
-                        packageFields.add(field);
-                    }
-                }
-                return generatePackageComparatorWithFields(type, packageFields);
             case SW360Constants.TYPE_SEARCHRESULT:
                 List<SearchResult._Fields> searchReult = new ArrayList<>();
                 for(String property:properties) {
@@ -227,15 +208,6 @@ public class ResourceComparatorGenerator<T> {
         switch (type) {
             case SW360Constants.TYPE_RELEASE:
                 return (Comparator<T>)releaseComparator(fields);
-            default:
-                throw new ResourceClassNotFoundException("No comparator for resource class with name " + type);
-        }
-    }
-
-    public Comparator<T> generatePackageComparatorWithFields(String type, List<Package._Fields> fields) throws ResourceClassNotFoundException {
-        switch (type) {
-            case SW360Constants.TYPE_PACKAGE:
-                return (Comparator<T>)packageComparator(fields);
             default:
                 throw new ResourceClassNotFoundException("No comparator for resource class with name " + type);
         }
@@ -304,18 +276,6 @@ public class ResourceComparatorGenerator<T> {
         return comparator;
     }
 
-    private Comparator<Package> packageComparator(List<Package._Fields> fields) {
-        Comparator<Package> comparator = Comparator.comparing(x -> true);
-        for (Package._Fields field:fields) {
-            Comparator<Package> fieldComparator = packageMap.get(field);
-            if (fieldComparator != null) {
-                comparator = comparator.thenComparing(fieldComparator);
-            }
-        }
-        comparator = comparator.thenComparing(defaultPackageComparator());
-        return comparator;
-    }
-
     private Comparator<SearchResult> searchResultComparator(List<SearchResult._Fields> fields) {
         Comparator<SearchResult> comparator = Comparator.comparing(x -> true);
         for (SearchResult._Fields field:fields) {
@@ -378,9 +338,5 @@ public class ResourceComparatorGenerator<T> {
 
     private Comparator<ModerationRequest> defaultModerationRequestComparator() {
         return moderationRequestMap.get(ModerationRequest._Fields.TIMESTAMP);
-    }
-
-    private Comparator<Package> defaultPackageComparator() {
-        return packageMap.get(Package._Fields.NAME);
     }
 }

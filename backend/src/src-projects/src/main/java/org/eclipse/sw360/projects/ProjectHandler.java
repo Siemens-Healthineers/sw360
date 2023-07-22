@@ -10,12 +10,6 @@
  */
 package org.eclipse.sw360.projects;
 
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertId;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertIdUnset;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertNotEmpty;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertNotNull;
-import static org.eclipse.sw360.datahandler.common.SW360Assert.assertUser;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
@@ -26,8 +20,8 @@ import org.eclipse.sw360.datahandler.db.ProjectSearchHandler;
 import org.eclipse.sw360.datahandler.thrift.AddDocumentRequestSummary;
 import org.eclipse.sw360.datahandler.thrift.PaginationData;
 import org.eclipse.sw360.datahandler.thrift.RequestStatus;
-import org.eclipse.sw360.datahandler.thrift.RequestSummary;
 import org.eclipse.sw360.datahandler.thrift.SW360Exception;
+import org.eclipse.sw360.datahandler.thrift.RequestSummary;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.components.ReleaseClearingStatusData;
 import org.eclipse.sw360.datahandler.thrift.projects.ClearingRequest;
@@ -36,6 +30,7 @@ import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectData;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectLink;
 import org.eclipse.sw360.datahandler.thrift.projects.ObligationList;
+import org.eclipse.sw360.datahandler.thrift.projects.ProjectRelationship;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
 import org.eclipse.sw360.datahandler.thrift.projects.UsedReleaseRelations;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -44,9 +39,11 @@ import org.ektorp.http.HttpClient;
 import com.cloudant.client.api.CloudantClient;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Supplier;
+
+import static org.eclipse.sw360.datahandler.common.SW360Assert.*;
+import java.nio.ByteBuffer;
 
 /**
  * Implementation of the Thrift service
@@ -163,26 +160,6 @@ public class ProjectHandler implements ProjectService.Iface {
     }
 
     @Override
-    public Set<Project> searchProjectByPackageId(String id, User user) throws TException {
-        assertId(id);
-        assertUser(user);
-        return handler.searchByPackageId(id, user);
-    }
-
-    @Override
-    public Set<Project> searchProjectByPackageIds(Set<String> ids, User user) throws TException {
-        assertNotEmpty(ids);
-        assertUser(user);
-        return handler.searchByPackageIds(ids, user);
-    }
-
-    @Override
-    public int getProjectCountByPackageId(String id) throws TException {
-        assertNotEmpty(id);
-        return handler.getProjectCountByPackageId(id);
-    }
-
-    @Override
     public Set<Project> searchLinkingProjects(String id, User user) throws TException {
         assertId(id);
         return handler.searchLinkingProjects(id, user);
@@ -258,26 +235,6 @@ public class ProjectHandler implements ProjectService.Iface {
         assertNotNull(attachmentContentId);
         assertUser(user);
         return handler.importBomFromAttachmentContent(user, attachmentContentId);
-    }
-
-    @Override
-    public RequestSummary importCycloneDxFromAttachmentContent(User user, String attachmentContentId, String projectId) throws SW360Exception {
-        assertId(attachmentContentId);
-        assertUser(user);
-        return handler.importCycloneDxFromAttachmentContent(user, attachmentContentId, projectId);
-    }
-
-    @Override
-    public RequestSummary exportCycloneDxSbom(String projectId, String bomType, boolean includeSubProjReleases, User user) throws SW360Exception {
-        assertId(projectId);
-        assertUser(user);
-        return handler.exportCycloneDxSbom(projectId, bomType, includeSubProjReleases, user);
-    }
-
-    @Override
-    public String getSbomImportInfoFromAttachmentAsString(String attachmentContentId) throws SW360Exception {
-        assertId(attachmentContentId);
-        return handler.getSbomImportInfoFromAttachmentAsString(attachmentContentId);
     }
 
     ////////////////////////////

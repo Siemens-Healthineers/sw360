@@ -17,14 +17,11 @@ import com.google.common.base.Strings;
 import com.google.common.collect.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.thrift.TException;
+
 import org.eclipse.sw360.common.utils.BackendUtils;
 import org.eclipse.sw360.components.summary.SummaryType;
-import org.eclipse.sw360.cyclonedx.CycloneDxBOMExporter;
-import org.eclipse.sw360.cyclonedx.CycloneDxBOMImporter;
 import org.eclipse.sw360.datahandler.businessrules.ReleaseClearingStateSummaryComputer;
 import org.eclipse.sw360.datahandler.cloudantclient.DatabaseConnectorCloudant;
 import org.eclipse.sw360.datahandler.common.*;
@@ -40,8 +37,6 @@ import org.eclipse.sw360.datahandler.thrift.changelogs.ChangeLogs;
 import org.eclipse.sw360.datahandler.thrift.changelogs.Operation;
 import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
-import org.eclipse.sw360.datahandler.thrift.packages.Package;
-import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -59,7 +54,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.net.MalformedURLException;
-import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -105,8 +99,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private final ProjectModerator moderator;
     private final AttachmentConnector attachmentConnector;
     private final ComponentDatabaseHandler componentDatabaseHandler;
-    private final PackageDatabaseHandler packageDatabaseHandler;
-    private final PackageRepository packageRepository;
+    private static final User EMPTY_USER = new User().setId("").setEmail("").setExternalid("").setDepartment("").setLastname("").setGivenname("");
 
     private static final Pattern PLAUSIBLE_GID_REGEXP = Pattern.compile("^[zZ].{7}$");
     private final RelationsUsageRepository relUsageRepository;
@@ -145,29 +138,27 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     public ProjectDatabaseHandler(Supplier<CloudantClient> httpClient, String dbName, String attachmentDbName) throws MalformedURLException {
         this(httpClient, dbName, attachmentDbName, new ProjectModerator(),
                 new ComponentDatabaseHandler(httpClient,dbName,attachmentDbName),
-                new PackageDatabaseHandler(httpClient, dbName, DatabaseSettings.COUCH_DB_CHANGE_LOGS, attachmentDbName),
                 new AttachmentDatabaseHandler(httpClient, dbName, attachmentDbName));
     }
 
     public ProjectDatabaseHandler(Supplier<CloudantClient> httpClient, String dbName, String changeLogDbName, String attachmentDbName) throws MalformedURLException {
         this(httpClient, dbName, changeLogDbName, attachmentDbName, new ProjectModerator(),
-                new ComponentDatabaseHandler(httpClient, dbName, attachmentDbName),
-                new PackageDatabaseHandler(httpClient, dbName, changeLogDbName, attachmentDbName),
+                new ComponentDatabaseHandler(httpClient,dbName,attachmentDbName),
                 new AttachmentDatabaseHandler(httpClient, dbName, attachmentDbName));
     }
 
     @VisibleForTesting
     public ProjectDatabaseHandler(Supplier<CloudantClient> httpClient, String dbName, String changeLogsDbName, String attachmentDbName, ProjectModerator moderator,
-                                  ComponentDatabaseHandler componentDatabaseHandler, PackageDatabaseHandler packageDatabaseHandler,
+                                  ComponentDatabaseHandler componentDatabaseHandler,
                                   AttachmentDatabaseHandler attachmentDatabaseHandler) throws MalformedURLException {
-        this(httpClient, dbName, attachmentDbName, moderator, componentDatabaseHandler, packageDatabaseHandler, attachmentDatabaseHandler);
+        this(httpClient, dbName, attachmentDbName, moderator, componentDatabaseHandler, attachmentDatabaseHandler);
         DatabaseConnectorCloudant db = new DatabaseConnectorCloudant(httpClient, changeLogsDbName);
         this.dbHandlerUtil = new DatabaseHandlerUtil(db);
     }
 
     @VisibleForTesting
     public ProjectDatabaseHandler(Supplier<CloudantClient> httpClient, String dbName, String attachmentDbName, ProjectModerator moderator,
-                                  ComponentDatabaseHandler componentDatabaseHandler, PackageDatabaseHandler packageDatabaseHandler,
+                                  ComponentDatabaseHandler componentDatabaseHandler,
                                   AttachmentDatabaseHandler attachmentDatabaseHandler) throws MalformedURLException {
         super(attachmentDatabaseHandler);
         DatabaseConnectorCloudant db = new DatabaseConnectorCloudant(httpClient, dbName);
@@ -179,7 +170,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         relUsageRepository = new RelationsUsageRepository(db);
         vendorRepository = new VendorRepository(db);
         releaseRepository = new ReleaseRepository(db, vendorRepository);
-        packageRepository = new PackageRepository(db);
 
         // Create the moderator
         this.moderator = moderator;
@@ -188,7 +178,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         attachmentConnector = new AttachmentConnector(httpClient, attachmentDbName, Duration.durationOf(30, TimeUnit.SECONDS));
 
         this.componentDatabaseHandler = componentDatabaseHandler;
-        this.packageDatabaseHandler = packageDatabaseHandler;
         DatabaseConnectorCloudant dbChangelogs = new DatabaseConnectorCloudant(httpClient, DatabaseSettings.COUCH_DB_CHANGE_LOGS);
         this.dbHandlerUtil = new DatabaseHandlerUtil(dbChangelogs);
     }
@@ -374,7 +363,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             return addDocumentRequestSummary;
         }
 
-        if (!isDependenciesExists(project, user) || (SW360Constants.IS_PACKAGE_PORTLET_ENABLED && isLinkedReleasesUpdateFromLinkedPackagesFailed(project, Collections.emptySet()))) {
+        if (!isDependenciesExists(project, user)) {
             return new AddDocumentRequestSummary()
                     .setRequestStatus(AddDocumentRequestStatus.INVALID_INPUT);
         }
@@ -426,14 +415,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
                 project.getAttachments(), user.getEmail(), project.getId());
         if (changeWouldResultInDuplicate(actual, project)) {
             return RequestStatus.DUPLICATE;
-        } else if (duplicateAttachmentExist(project)) {
-            return RequestStatus.DUPLICATE_ATTACHMENT;
         } else if (!updateProjectAllowed(actual, user)) {
             return RequestStatus.CLOSED_UPDATE_NOT_ALLOWED;
         } else if (!changePassesSanityCheck(project, actual)){
             return RequestStatus.FAILED_SANITY_CHECK;
-        } else if (!isDependenciesExists(project, user) || (SW360Constants.IS_PACKAGE_PORTLET_ENABLED &&
-                isLinkedReleasesUpdateFromLinkedPackagesFailed(project, CommonUtils.nullToEmptySet(actual.getPackageIds())))) {
+        } else if (!isDependenciesExists(project, user)) {
             return RequestStatus.INVALID_INPUT;
         } else if (isWriteActionAllowedOnProject(actual, user) || forceUpdate) {
             copyImmutableFields(project,actual);
@@ -533,11 +519,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         if (isValidDependentIds && CommonUtils.isNotNullEmptyOrWhitespace(project.getVendorId())) {
             isValidDependentIds = DatabaseHandlerUtil.isAllIdInSetExists(Sets.newHashSet(project.getVendorId()),
                     vendorRepository);
-        }
-
-        if (isValidDependentIds && project.isSetPackageIds()) {
-            Set<String> pacakgeIds = project.getPackageIds();
-            isValidDependentIds = DatabaseHandlerUtil.isAllIdInSetExists(pacakgeIds, packageRepository);
         }
         return isValidDependentIds;
     }
@@ -694,13 +675,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return isDuplicate(after);
     }
 
-    private boolean duplicateAttachmentExist(Project project) {
-        if(project.attachments != null && !project.attachments.isEmpty()) {
-            return AttachmentConnector.isDuplicateAttachment(project.attachments);
-        }
-        return false;
-    }
-
     private boolean updateProjectAllowed(Project project, User user) {
         if (project.clearingState != null && project.clearingState.equals(ProjectClearingState.CLOSED)
                 && !PermissionUtils.isUserAtLeast(UserGroup.SW360_ADMIN, user) && !SW360Utils.isUserAllowedToEditClosedProject(project, user)) {
@@ -743,81 +717,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         if (CommonUtils.isNotNullEmptyOrWhitespace(actual.getLinkedObligationId()) && !actualLinkedReleaseIds.equals(updatedLinkedReleaseIds)) {
             obligationRepository.update(deleteObligationsOfUnlinkedReleases(updated));
         }
-    }
-
-    /**
-     * Link the Release of newly linked Packages to the Project.
-     * Unlink the Release of unlinked Packages from the Project.
-     * @return true if linking or unlinking is failed, else returns false.
-     */
-    private boolean isLinkedReleasesUpdateFromLinkedPackagesFailed(Project updatedProject, Set<String> currentPackageIds) throws SW360Exception {
-        Set<String> updatedPackageIds = CommonUtils.nullToEmptySet(updatedProject.getPackageIds());
-        if (updatedPackageIds.equals(currentPackageIds)) {
-            return false;
-        }
-        Set<String> linkedPacakgeIds = Sets.difference(updatedPackageIds, currentPackageIds);
-        Set<String> unlinkedPacakgeIds = Sets.difference(currentPackageIds, updatedPackageIds);
-        final ProjectReleaseRelationship releaseRelation = new ProjectReleaseRelationship(ReleaseRelationship.UNKNOWN, MainlineState.OPEN);
-        if (CommonUtils.isNotEmpty(linkedPacakgeIds)) {
-            try {
-                PackageService.Iface packageClient = new ThriftClients().makePackageClient();
-                List<Package> addedPackages = packageClient.getPackageByIds(linkedPacakgeIds);
-
-                Map<String, ProjectReleaseRelationship> releaseIdToUsageMap = addedPackages.stream().map(Package::getReleaseId)
-                        .filter(CommonUtils::isNotNullEmptyOrWhitespace)
-                        .map(relId -> new AbstractMap.SimpleEntry<>(relId, releaseRelation))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldVal, newVal) -> newVal));
-
-                /* Check if the releaseId found from linked Packages are present in database.
-                 * If present, then link the Release to the Project.
-                 * If not present, then return true (status failed).
-                 */
-                if (DatabaseHandlerUtil.isAllIdInSetExists(releaseIdToUsageMap.keySet(), releaseRepository)) {
-                    Map<String, ProjectReleaseRelationship> targetMap = CommonUtils.nullToEmptyMap(updatedProject.getReleaseIdToUsage());
-                    if (CommonUtils.isNullOrEmptyMap(targetMap)) {
-                        updatedProject.setReleaseIdToUsage(releaseIdToUsageMap);
-                    } else {
-                        for (Map.Entry<String, ProjectReleaseRelationship> entry : releaseIdToUsageMap.entrySet()) {
-                            targetMap.putIfAbsent(entry.getKey(), entry.getValue());
-                        }
-                    }
-                } else {
-                    return true;
-                }
-            } catch (TException e) {
-                log.error(String.format("Error fetching newly added linked package info of project: %s", updatedProject.getId()), e.getCause());
-                throw new SW360Exception(e.getMessage());
-            }
-        }
-
-        if (CommonUtils.isNotEmpty(unlinkedPacakgeIds)) {
-            try {
-                PackageService.Iface packageClient = new ThriftClients().makePackageClient();
-                List<Package> removedPackages = packageClient.getPackageWithReleaseByPackageIds(unlinkedPacakgeIds);
-
-                Map<String, Set<String>> releaseIdToPackageIdsMap = removedPackages.stream().map(Package::getRelease)
-                        .filter(rel -> CommonUtils.isNotEmpty(rel.getPackageIds()))
-                        .map(rel -> new AbstractMap.SimpleEntry<>(rel.getId(), rel.getPackageIds()))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldVal, newVal) -> newVal));
-
-                Map<String, ProjectReleaseRelationship> targetMap = CommonUtils.nullToEmptyMap(updatedProject.getReleaseIdToUsage());
-
-                /* If Project contains releaseId of unlinked Package,
-                 * & check if Project contains at least one Package from the Release of unlinked Package.
-                 * If No, unlink the Release from Project.
-                 */
-                for (Map.Entry<String, Set<String>> entry : releaseIdToPackageIdsMap.entrySet()) {
-                    if (targetMap.containsKey(entry.getKey()) &&
-                            CommonUtils.isNotEmpty(CommonUtils.nullToEmptySet(Sets.intersection(entry.getValue(), unlinkedPacakgeIds)))) {
-                        targetMap.remove(entry.getKey());
-                    }
-                }
-            } catch (TException e) {
-                log.error(String.format("Error fetching removed linked package info of project: %s", updatedProject.getId()), e.getCause());
-                throw new SW360Exception(e.getMessage());
-            }
-        }
-        return false;
     }
 
     private boolean changePassesSanityCheck(Project updated, Project current) {
@@ -884,18 +783,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     public boolean checkIfInUse(String projectId) {
         final Set<Project> usingProjects = repository.searchByLinkingProjectId(projectId);
        return !usingProjects.isEmpty();
-    }
-
-    public Set<Project> searchByPackageId(String id, User user) {
-        return repository.searchByPackageId(id, user);
-    }
-
-    public Set<Project> searchByPackageIds(Set<String> ids, User user) {
-        return repository.searchByPackageIds(ids, user);
-    }
-
-    public int getProjectCountByPackageId(String packageId) {
-        return repository.getCountByPackageId(packageId);
     }
 
     private void removeProjectAndCleanUp(Project project, User user) throws SW360Exception {
@@ -1204,7 +1091,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             ReleaseClearingStatusData releaseClearingStatusData = new ReleaseClearingStatusData(release)
                     .setProjectNames(joinStrings(projectNames))
                     .setMainlineStates(joinStrings(mainlineStates))
-                    .setComponentType(componentsById.get(release.getComponentId()).getComponentType());
+                    .setComponentType(componentsById.get(release.getComponentId()).getComponentType()); 
 
             boolean isAccessible = componentDatabaseHandler.isReleaseActionAllowed(release, user, RequestedAction.READ);
             releaseClearingStatusData.setAccessible(isAccessible);
@@ -1804,48 +1691,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         }
     }
 
-    public RequestSummary importCycloneDxFromAttachmentContent(User user, String attachmentContentId, String projectId) throws SW360Exception {
-        final AttachmentContent attachmentContent = attachmentConnector.getAttachmentContent(attachmentContentId);
-        final Duration timeout = Duration.durationOf(30, TimeUnit.SECONDS);
-        try {
-            final AttachmentStreamConnector attachmentStreamConnector = new AttachmentStreamConnector(timeout);
-            try (final InputStream inputStream = attachmentStreamConnector
-                    .unsafeGetAttachmentStream(attachmentContent)) {
-                final CycloneDxBOMImporter cycloneDxBOMImporter = new CycloneDxBOMImporter(this,
-                        componentDatabaseHandler, packageDatabaseHandler, attachmentConnector, user);
-                return cycloneDxBOMImporter.importFromBOM(inputStream, attachmentContent, projectId, user);
-            }
-        } catch (IOException e) {
-            log.error("Error while importing / parsing CycloneDX SBOM! ", e);
-            throw new SW360Exception(e.getMessage());
-        }
-    }
-
-    public RequestSummary exportCycloneDxSbom(String projectId, String bomType, Boolean includeSubProjReleases, User user) throws SW360Exception {
-        try {
-            final CycloneDxBOMExporter cycloneDxBOMExporter = new CycloneDxBOMExporter(this, componentDatabaseHandler, packageDatabaseHandler, user);
-            return cycloneDxBOMExporter.exportSbom(projectId, bomType, includeSubProjReleases, user);
-        } catch (Exception e) {
-            log.error("Error while exporting CycloneDX SBOM! ", e);
-            throw new SW360Exception(e.getMessage());
-        }
-    }
-
-    public String getSbomImportInfoFromAttachmentAsString(String attachmentContentId) throws SW360Exception {
-        final AttachmentContent attachmentContent = attachmentConnector.getAttachmentContent(attachmentContentId);
-        final Duration timeout = Duration.durationOf(30, TimeUnit.SECONDS);
-        try {
-            final AttachmentStreamConnector attachmentStreamConnector = new AttachmentStreamConnector(timeout);
-            try (final InputStream inputStream = attachmentStreamConnector
-                    .unsafeGetAttachmentStream(attachmentContent)) {
-                return IOUtils.toString(inputStream, Charset.defaultCharset());
-            }
-        } catch (IOException e) {
-            log.error("Error while getting sbom import info from attachment! ", e);
-            throw new SW360Exception(e.getMessage());
-        }
-    }
-
     private void removeLeadingTrailingWhitespace(Project project) {
         DatabaseHandlerUtil.trimStringFields(project, listOfStringFieldsInProjToTrim);
 
@@ -1928,7 +1773,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             if (releaseOrigin.containsKey(releaseId))
                 return;
             Release rel = componentDatabaseHandler.getRelease(releaseId, user);
-
+            
             if (!isInaccessibleLinkMasked || componentDatabaseHandler.isReleaseActionAllowed(rel, user, RequestedAction.READ)) {
                 Map<String, ReleaseRelationship> releaseIdToRelationship = rel.getReleaseIdToRelationship();
                 releaseOrigin.put(releaseId, SW360Utils.printName(rel));
@@ -1958,7 +1803,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             if (releaseOrigin.containsKey(releaseId))
                 return;
             Release rel = componentDatabaseHandler.getRelease(releaseId, user);
-
+            
             if (!isInaccessibleLinkMasked || componentDatabaseHandler.isReleaseActionAllowed(rel, user, RequestedAction.READ)) {
                 Map<String, ReleaseRelationship> subReleaseIdToRelationship = rel.getReleaseIdToRelationship();
                 releaseOrigin.put(releaseId, SW360Utils.printName(rel));
@@ -2020,7 +1865,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         clearingStatusList.add(row);
         return row;
     }
-
+    
     private Map<String, String> createInaccessibleReleaseCSRow(List<Map<String, String>> clearingStatusList) throws SW360Exception {
         Map<String, String> row = new HashMap<>();
         row.put("id", "");

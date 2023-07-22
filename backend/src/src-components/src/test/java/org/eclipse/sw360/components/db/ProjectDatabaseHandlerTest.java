@@ -18,7 +18,6 @@ import org.eclipse.sw360.datahandler.common.DatabaseSettings;
 import org.eclipse.sw360.datahandler.couchdb.DatabaseConnector;
 import org.eclipse.sw360.datahandler.db.AttachmentDatabaseHandler;
 import org.eclipse.sw360.datahandler.db.ComponentDatabaseHandler;
-import org.eclipse.sw360.datahandler.db.PackageDatabaseHandler;
 import org.eclipse.sw360.datahandler.db.ProjectDatabaseHandler;
 import org.eclipse.sw360.datahandler.entitlement.ProjectModerator;
 import org.eclipse.sw360.datahandler.thrift.MainlineState;
@@ -61,7 +60,6 @@ public class ProjectDatabaseHandlerTest {
 
     private static final String dbName = DatabaseSettingsTest.COUCH_DB_DATABASE;
     private static final String attachmentsDbName = DatabaseSettingsTest.COUCH_DB_ATTACHMENTS;
-    private static final String changeLogsDbName = DatabaseSettingsTest.COUCH_DB_CHANGELOGS;
 
     @Rule
     public final ExpectedException exception = ExpectedException.none();
@@ -82,7 +80,6 @@ public class ProjectDatabaseHandlerTest {
     public void setUp() throws Exception {
         assertTestString(dbName);
         assertTestString(attachmentsDbName);
-        assertTestString(changeLogsDbName);
 
         vendors = new ArrayList<>();
         vendors.add(new Vendor().setId("V1").setShortname("vendor").setFullname("vendor").setUrl("http://vendor.example.com"));
@@ -141,8 +138,7 @@ public class ProjectDatabaseHandlerTest {
 
         ComponentDatabaseHandler componentHandler = new ComponentDatabaseHandler(DatabaseSettingsTest.getConfiguredClient(), dbName, attachmentsDbName);
         AttachmentDatabaseHandler attachmentDatabaseHandler = new AttachmentDatabaseHandler(DatabaseSettingsTest.getConfiguredClient(), dbName, attachmentsDbName);
-        PackageDatabaseHandler packageHandler = new PackageDatabaseHandler(DatabaseSettingsTest.getConfiguredClient(), dbName, changeLogsDbName, attachmentsDbName, attachmentDatabaseHandler, componentHandler);
-        handler = new ProjectDatabaseHandler(DatabaseSettingsTest.getConfiguredClient(), dbName, attachmentsDbName, moderator, componentHandler, packageHandler, attachmentDatabaseHandler);
+        handler = new ProjectDatabaseHandler(DatabaseSettingsTest.getConfiguredClient(), dbName, attachmentsDbName, moderator, componentHandler, attachmentDatabaseHandler);
     }
 
     private ProjectReleaseRelationship newDefaultProjectReleaseRelationship() {

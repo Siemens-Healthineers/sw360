@@ -45,7 +45,6 @@
         <module>svc-spdxdocument</module>
         <module>svc-spdxdocumentcreationinfo</module>
         <module>svc-spdxpackageinfo</module>
-        <module>svc-packages</module>
     </modules>
 
     <build>
