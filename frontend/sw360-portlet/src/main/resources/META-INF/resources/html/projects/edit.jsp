@@ -454,7 +454,7 @@ require(['jquery', 'modules/autocomplete', 'modules/dialog', 'modules/listgroup'
 
     $("#clearVendor").click(function() {
         $('#<%=Project._Fields.VENDOR_ID.toString()%>').val("");
-        $('#<%=Project._Fields.VENDOR_ID.toString()%>Display').val("").attr("placeholder", "Click to set manufacturer");
+        $('#<%=Project._Fields.VENDOR_ID.toString()%>Display').val("").attr("placeholder", "Click to set vendor");
     });
 
     function fillDepartmentInfo(departmentInfo) {
