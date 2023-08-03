@@ -101,6 +101,7 @@ public class JacksonCustomizations {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         static abstract class MultiStatusMixin extends MultiStatus {
+            @Override
             @JsonProperty("status")
             abstract public int getStatusCode();
         }
@@ -393,7 +394,9 @@ public class JacksonCustomizations {
                 "setModifiedOn",
                 "modifiedOn",
                 "setModifiedBy",
-                "modifiedBy"
+                "modifiedBy",
+                "cdxComponentType",
+                "setCdxComponentType"
         })
         static abstract class ComponentMixin extends Component {
             @Override
