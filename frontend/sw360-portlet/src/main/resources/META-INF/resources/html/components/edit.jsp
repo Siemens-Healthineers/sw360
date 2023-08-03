@@ -334,7 +334,7 @@
 
         $("#clearVendor").click(function() {
             $('#<%=Component._Fields.DEFAULT_VENDOR_ID.toString()%>').val("");
-            $('#<%=Component._Fields.DEFAULT_VENDOR_ID.toString()%>Display').val("").attr("placeholder", "Click to set vendor");
+            $('#<%=Component._Fields.DEFAULT_VENDOR_ID.toString()%>Display').val("").attr("placeholder", "Click to set manufacturer");
         });
 
         function fillDepartmentInfo(departmentInfo) {

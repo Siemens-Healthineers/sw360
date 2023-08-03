@@ -114,7 +114,7 @@
                                 <liferay-ui:message key="name.for.project.component.release.and.package" />
                              </li>
                              <li>
-                                <liferay-ui:message key="fullname.for.license.user.and.vendor" />
+                                <liferay-ui:message key="fullname.for.license.user.and.manufacturer" />
                              </li>
                              <li>
                                 <liferay-ui:message key="title.for.obligation" />
