@@ -69,7 +69,7 @@ public class ReleaseRepository extends SummaryAwareRepository<Release> {
             "      emit(doc.componentId, doc._id);" +
             "  }" +
             "}";
-    
+
     private static final String RELEASE_IDS_BY_VENDOR_ID = "function(doc) {" +
             " if (doc.type == 'release'){" +
             "      emit(doc.vendorId, doc._id);" +
@@ -101,7 +101,7 @@ public class ReleaseRepository extends SummaryAwareRepository<Release> {
             "    }" +
             "  }" +
             "}";
-    
+
     private static final String BY_LOWERCASE_RELEASE_CPE_VIEW =
             "function(doc) {" +
                     "  if (doc.type == 'release' && doc.cpeid != null) {" +
@@ -243,7 +243,7 @@ public class ReleaseRepository extends SummaryAwareRepository<Release> {
 
     public List<Release> getReleasesFromComponentId(String id, User user) {
         Set<String> releaseIds = queryForIdsAsValue("releasesByComponentId", id);
-        return makeSummaryWithPermissionsFromFullDocs(SummaryType.SUMMARY, 
+        return makeSummaryWithPermissionsFromFullDocs(SummaryType.SUMMARY,
                 new ArrayList<Release>(getFullDocsById(releaseIds)), user);
     }
 
@@ -306,7 +306,7 @@ public class ReleaseRepository extends SummaryAwareRepository<Release> {
     public List<Release> getReferencingReleases(String releaseId) {
         return queryView("usedInReleaseRelation", releaseId);
     }
-    
+
     public Map<PaginationData, List<Release>> getAccessibleReleasesWithPagination(User user, PaginationData pageData) {
         final int rowsPerPage = pageData.getRowsPerPage();
         Map<PaginationData, List<Release>> result = Maps.newHashMap();

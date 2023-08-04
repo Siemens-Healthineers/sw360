@@ -506,4 +506,22 @@ public class ProjectHandler implements ProjectService.Iface {
     public void sendExportSpreadsheetSuccessMail(String url, String recepient) throws TException {
         handler.sendExportSpreadsheetSuccessMail(url, recepient);
     }
+
+    @Override
+    public ByteBuffer downloadExcel(User user, boolean extendedByReleases, String token)
+            throws TException {
+        return handler.downloadExcel(user, extendedByReleases,token);
+    }
+
+	@Override
+	public ByteBuffer getReportDataStream(User user, boolean extendedByReleases)
+			throws TException {
+		return handler.getReportDataStream(user, extendedByReleases);
+	}
+
+	@Override
+	public String getReportInEmail(User user, boolean extendedByReleases)
+			throws TException {
+		return handler.getReportInEmail(user, extendedByReleases);
+	}
 }

@@ -47,8 +47,8 @@ import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
+import org.eclipse.sw360.datahandler.thrift.components.ReleaseLink;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
-import org.eclipse.sw360.datahandler.thrift.components.ClearingState;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcess;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -79,19 +79,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -156,10 +146,13 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
             sw360Releases.addAll(releaseService.getReleasesForUser(sw360User));
         }
 
+        for(Release release: sw360Releases) {
+            releaseService.setComponentDependentFieldsInRelease(release, sw360User);
+        }
+
         sw360Releases = sw360Releases.stream()
                 .filter(release -> name == null || name.isEmpty() || release.getName().equalsIgnoreCase(name))
                 .collect(Collectors.toList());
-
         PaginationResult<Release> paginationResult = restControllerHelper.createPaginationResult(request, pageable, sw360Releases, SW360Constants.TYPE_RELEASE);
 
         List<EntityModel> releaseResources = new ArrayList<>();
@@ -201,13 +194,10 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Release sw360Release = releaseService.getReleaseForUserById(id, sw360User);
         HalResource halRelease = createHalReleaseResource(sw360Release, true);
-        Map<String, ReleaseRelationship> releaseIdToRelationship = sw360Release.getReleaseIdToRelationship();
-        if (releaseIdToRelationship != null) {
-            List<Release> listOfLinkedRelease = releaseIdToRelationship.keySet().stream()
-                    .map(linkedReleaseId -> wrapTException(
-                            () -> releaseService.getReleaseForUserById(linkedReleaseId, sw360User)))
-                    .collect(Collectors.toList());
-            restControllerHelper.addEmbeddedReleases(halRelease, listOfLinkedRelease);
+        restControllerHelper.addEmbeddedDataToHalResourceRelease(halRelease, sw360Release);
+        List<ReleaseLink> linkedReleaseRelations = releaseService.getLinkedReleaseRelations(sw360Release, sw360User);
+        if (linkedReleaseRelations != null) {
+            restControllerHelper.addEmbeddedReleaseLinks(halRelease, linkedReleaseRelations);
         }
         return new ResponseEntity<>(halRelease, HttpStatus.OK);
     }
@@ -277,8 +267,28 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
     }
 
     @GetMapping(value = RELEASES_URL + "/searchByExternalIds")
-    public ResponseEntity searchByExternalIds(@RequestParam MultiValueMap<String, String> externalIdsMultiMap) throws TException {
-        return restControllerHelper.searchByExternalIds(externalIdsMultiMap, releaseService, null);
+    public ResponseEntity searchByExternalIds(HttpServletRequest request) throws TException {
+        String queryString = request.getQueryString();
+        MultiValueMap<String, String> externalIdsMultiMap = parseQueryString(queryString);
+        return restControllerHelper.searchByExternalIds(new LinkedMultiValueMap<String, String>(externalIdsMultiMap), releaseService, null);
+    }
+
+    private MultiValueMap<String, String> parseQueryString(String queryString) {
+        MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
+
+        if (queryString != null && !queryString.isEmpty()) {
+            String[] params = queryString.split("&");
+            for (String param : params) {
+                String[] keyValue = param.split("=");
+                if (keyValue.length == 2) {
+                    String key = keyValue[0];
+                    String value = keyValue[1];
+                    parameters.add(key, value);
+                }
+            }
+        }
+
+        return parameters;
     }
 
     @PreAuthorize("hasAuthority('WRITE')")
@@ -443,11 +453,11 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
     }
 
     @GetMapping(value = RELEASES_URL + "/{id}/attachments")
-    public ResponseEntity<CollectionModel<EntityModel<Attachment>>> getReleaseAttachments(
+    public ResponseEntity<CollectionModel<EntityModel<AttachmentDTO>>> getReleaseAttachment1s(
             @PathVariable("id") String id) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         final Release sw360Release = releaseService.getReleaseForUserById(id, sw360User);
-        final CollectionModel<EntityModel<Attachment>> resources = attachmentService.getResourcesFromList(sw360Release.getAttachments());
+        final CollectionModel<EntityModel<AttachmentDTO>> resources = attachmentService.getAttachmentDTOResourcesFromList(sw360User, sw360Release.getAttachments(), Source.releaseId(sw360Release.getId()));
         return new ResponseEntity<>(resources, HttpStatus.OK);
     }
 
@@ -590,6 +600,62 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         return new ResponseEntity<HalResource>(responseResource, status);
     }
 
+    @RequestMapping(value = RELEASES_URL + "/{id}/reloadFossologyReport", method = RequestMethod.GET)
+    public ResponseEntity<HalResource> triggerReloadFossologyReport(@PathVariable("id") String releaseId) throws TException {
+        releaseService.checkFossologyConnection();
+        User user = restControllerHelper.getSw360UserFromAuthentication();
+        Map<String, String> responseMap = new HashMap<>();
+        String errorMsg = "Could not trigger report generation for this release";
+        HttpStatus status = null;
+        try {
+            Release release = releaseService.getReleaseForUserById(releaseId, user);
+            RequestStatus requestResult = releaseService.triggerReportGenerationFossology(releaseId, user);
+
+            if (requestResult == RequestStatus.FAILURE) {
+                responseMap.put("message", errorMsg);
+                status = HttpStatus.INTERNAL_SERVER_ERROR;
+            } else {
+                ExternalToolProcess externalToolProcess = releaseService.getExternalToolProcess(release);
+                if (externalToolProcess != null) {
+                    ReentrantLock lock = mapOfLocks.get(releaseId);
+
+                    if (lock == null || !lock.isLocked()) {
+                        if (mapOfLocks.size() > 10) {
+                            responseMap.put("message",
+                                    "Max 10 FOSSology Process can be triggered simultaneously. Please try after sometime.");
+                            status = HttpStatus.TOO_MANY_REQUESTS;
+                        } else {
+                            releaseService.executeFossologyProcess(user, attachmentService, mapOfLocks, releaseId,
+                                    false, "");
+                            responseMap.put("message", "Re-generate FOSSology's report process for Release Id : " + releaseId
+                                    + " has been triggered.");
+                            status = HttpStatus.OK;
+                        }
+                    } else {
+                        responseMap.put("message", "Another FOSSology Process for Release Id : " + releaseId
+                                + " is already running. Please wait till it is completed.");
+                        status = HttpStatus.NOT_ACCEPTABLE;
+                    }
+                } else {
+                    responseMap.put("message", "The source file is either not yet uploaded or scanning is not done.");
+                    status = HttpStatus.INTERNAL_SERVER_ERROR;
+                }
+            }
+        } catch (TException | IOException e) {
+            responseMap.put("message", errorMsg);
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+            log.error("Error pulling report from fossology", e);
+        }
+
+        HalResource responseResource = new HalResource(responseMap);
+        if (status == HttpStatus.OK || status == HttpStatus.NOT_ACCEPTABLE) {
+            Link checkStatusLink = linkTo(ReleaseController.class).slash("api" + RELEASES_URL).slash(releaseId)
+                    .slash("checkFossologyProcessStatus").withSelfRel();
+            responseResource.add(checkStatusLink);
+        }
+        return new ResponseEntity<>(responseResource, status);
+    }
+
     // Link release to release
     @PreAuthorize("hasAuthority('WRITE')")
     @RequestMapping(value = RELEASES_URL + "/{id}/releases", method = RequestMethod.POST)
@@ -676,7 +742,7 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
             }
             if (release.getVendor() != null) {
                 Vendor vendor = release.getVendor();
-                HalResource<Vendor> vendorHalResource = restControllerHelper.addEmbeddedVendor(vendor.getFullname());
+                HalResource<Vendor> vendorHalResource = restControllerHelper.addEmbeddedVendor(vendor);
                 halRelease.addEmbeddedResource("sw360:vendors", vendorHalResource);
                 release.setVendor(null);
             }
@@ -735,5 +801,3 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         return release;
     }
 }
-
-
