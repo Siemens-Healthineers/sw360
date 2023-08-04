@@ -245,7 +245,7 @@ public class PackageController implements RepresentationModelProcessor<Repositor
 
         paginationResult.getResources().stream().forEach(consumer);
         CollectionModel<EntityModel<Package>> resources;
-        if (packageResources.size() == 0) {
+        if (packageResources.isEmpty()) {
             resources = restControllerHelper.emptyPageResource(Package.class, paginationResult);
         } else {
             resources = restControllerHelper.generatePagesResource(paginationResult, packageResources);

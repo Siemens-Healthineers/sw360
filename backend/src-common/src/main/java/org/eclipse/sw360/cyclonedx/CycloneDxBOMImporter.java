@@ -99,7 +99,6 @@ public class CycloneDxBOMImporter {
     private static final Pattern FIRST_SLASH_PATTERN = Pattern.compile("/(.*)");
     private static final String VCS_HTTP_REGEX = "^[^:]+://";
     private static final String COLON_REGEX = "[:,\\s]";
-    // private static final String CLEAN_PUBLISHER_REGEX = "<[^>]+>";
     private static final String HTTPS_SCHEME = "https://";
     private static final String COMP_CREATION_COUNT_KEY = "compCreationCount";
     private static final String COMP_REUSE_COUNT_KEY = "compReuseCount";
@@ -136,7 +135,7 @@ public class CycloneDxBOMImporter {
     /**
      * Creating the Map of Sanitized VCS URLs to List of Component -> Grouping by VCS URLs
      * Sanitizing VCS URLs:
-     *      git+https://github.com/microsoft/ApplicationInsights-JS.git/tree/master/shared/AppInsightsCommon 
+     *      git+https://github.com/microsoft/ApplicationInsights-JS.git/tree/master/shared/AppInsightsCommon
      *              --> microsoft.applicationinsights-js
      * @param components
      * @return Map<String, List<org.cyclonedx.model.Component>>
@@ -307,7 +306,6 @@ public class CycloneDxBOMImporter {
                         requestSummary.setMessage(convertCollectionToJSONString(messageMap));
                     }
                 } else {
-                    // this case is not possible, so return & show appropriate error in UI
                     requestSummary.setMessage(String.format(String.format(
                             "SBOM import aborted with error: Multiple vcs information found in compnents, vcs found: %s and total components: %s",
                             vcsCount, componentsCount)));
@@ -916,7 +914,7 @@ public class CycloneDxBOMImporter {
                 purl = purl.toLowerCase().trim();
                 PackageURL packageURL = new PackageURL(purl);
                 pckg.setPurl(purl);
-                String packageName = StringUtils.EMPTY;
+                String packageName;
                 if (PackageManager.NPM.toString().equalsIgnoreCase(packageURL.getType())
                         || PackageManager.GOLANG.toString().equalsIgnoreCase(packageURL.getType())) {
                     packageName = getPackageName(packageURL, componentFromBom, SLASH).trim();

@@ -347,6 +347,7 @@ require(['jquery', 'modules/autocomplete', 'modules/dialog', 'modules/listgroup'
                 "<portlet:namespace/><%=PortalConstants.DOCUMENT_ID%>": "${project.id}"
             }
         }).always(function() {
+            localStorage.clear();
             var baseUrl = '<%= PortletURLFactoryUtil.create(request, portletDisplay.getId(), themeDisplay.getPlid(), PortletRequest.RENDER_PHASE) %>',
                 portletURL = Liferay.PortletURL.createURL(baseUrl)
             <core_rt:if test="${not addMode}">

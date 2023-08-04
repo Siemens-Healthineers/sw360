@@ -90,7 +90,7 @@
 </div>
 
 <script>
-require(['jquery', 'modules/dialog', 'bridges/datatables', 'utils/keyboard', /* jquery-plugins */ 'jquery-ui' ], function($, dialog, datatables, keyboard) {
+require(['jquery', 'modules/dialog', 'bridges/datatables', 'utils/keyboard'], function($, dialog, datatables, keyboard) {
     var $dataTable,
          $dialog;
 

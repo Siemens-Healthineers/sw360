@@ -91,6 +91,7 @@
                                             <label for="vendorShortname"><liferay-ui:message key="short.name" /></label>
                                             <input id="vendorShortname" type="text" required class="form-control" placeholder="<liferay-ui:message key="enter.manufacturer.short.name" />" name="<portlet:namespace/><%=Vendor._Fields.SHORTNAME%>"
                                                 value="<sw360:out value="${vendor.shortname}"/>" />
+
                                             <div class="invalid-feedback">
                                                 <liferay-ui:message key="please.enter.a.short.name" />
                                             </div>

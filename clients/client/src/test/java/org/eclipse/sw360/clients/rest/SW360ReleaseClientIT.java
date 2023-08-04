@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;
@@ -51,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.sw360.http.utils.HttpUtils.waitFor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+
 
 public class SW360ReleaseClientIT extends AbstractMockServerTest {
     /**

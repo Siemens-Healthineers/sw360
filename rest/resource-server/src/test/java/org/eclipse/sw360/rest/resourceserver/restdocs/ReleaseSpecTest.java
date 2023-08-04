@@ -1118,4 +1118,5 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 "Message indicating whether re-generate FOSSology's report Process for Release triggered or not"),
                         subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"))));
     }
+
 }
