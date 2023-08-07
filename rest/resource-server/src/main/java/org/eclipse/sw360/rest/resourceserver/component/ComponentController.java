@@ -25,7 +25,9 @@ import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.thrift.Source;
 import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
+import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
+import org.eclipse.sw360.datahandler.thrift.components.ComponentDTO;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.components.ReleaseLink;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
@@ -122,8 +124,11 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
         User sw360User = restControllerHelper.getSw360UserFromAuthentication();
 
         List<Component> allComponents = new ArrayList<>();
+        String queryString = request.getQueryString();
+        Map<String, String> params = parseQueryString(queryString);
+
         if (name != null && !name.isEmpty()) {
-            allComponents.addAll(componentService.searchComponentByName(name));
+            allComponents.addAll(componentService.searchComponentByName(params.get("name")));
         } else {
             allComponents.addAll(componentService.getComponentsForUser(sw360User));
         }
@@ -160,6 +165,24 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
         return new ResponseEntity<>(resources, HttpStatus.OK);
     }
 
+    private Map<String, String> parseQueryString(String queryString) {
+        Map<String, String> parameters = new HashMap<>();
+
+        if (queryString != null && !queryString.isEmpty()) {
+            String[] params = queryString.split("&");
+            for (String param : params) {
+                String[] keyValue = param.split("=");
+                if (keyValue.length == 2) {
+                    String key = keyValue[0];
+                    String value = keyValue[1];
+                    parameters.put(key, value);
+                }
+            }
+        }
+
+        return parameters;
+    }
+
     @RequestMapping(value = COMPONENTS_URL + "/usedBy" + "/{id}", method = RequestMethod.GET)
     public ResponseEntity<CollectionModel<EntityModel>> getUsedByResourceDetails(@PathVariable("id") String id)
             throws TException {
@@ -188,6 +211,7 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
         User user = restControllerHelper.getSw360UserFromAuthentication();
         Component sw360Component = componentService.getComponentForUserById(id, user);
         HalResource<Component> userHalResource = createHalComponent(sw360Component, user);
+        restControllerHelper.addEmbeddedDataToComponent(userHalResource, sw360Component);
         return new ResponseEntity<>(userHalResource, HttpStatus.OK);
     }
 
@@ -230,10 +254,20 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
     @RequestMapping(value = COMPONENTS_URL + "/{id}", method = RequestMethod.PATCH)
     public ResponseEntity<EntityModel<Component>> patchComponent(
             @PathVariable("id") String id,
-            @RequestBody Component updateComponent) throws TException {
+            @RequestBody ComponentDTO updateComponentDto) throws TException {
         User user = restControllerHelper.getSw360UserFromAuthentication();
         Component sw360Component = componentService.getComponentForUserById(id, user);
-        sw360Component = this.restControllerHelper.updateComponent(sw360Component, updateComponent);
+        sw360Component = this.restControllerHelper.updateComponent(sw360Component, updateComponentDto);
+        Set<AttachmentDTO> attachmentDTOS = updateComponentDto.getAttachmentDTOs();
+        if (!CommonUtils.isNullOrEmptyCollection(attachmentDTOS)) {
+            Set<Attachment> attachments = new HashSet<>();
+            for (AttachmentDTO attachmentDTO: attachmentDTOS) {
+                attachments.add(restControllerHelper.convertToAttachment(attachmentDTO));
+            }
+            sw360Component.setAttachments(attachments);
+        } else {
+            sw360Component.setAttachments(null);
+        }
         RequestStatus updateComponentStatus = componentService.updateComponent(sw360Component, user);
         HalResource<Component> userHalResource = createHalComponent(sw360Component, user);
         if (updateComponentStatus == RequestStatus.SENT_TO_MODERATOR) {
@@ -297,11 +331,11 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
     }
 
     @RequestMapping(value = COMPONENTS_URL + "/{id}/attachments", method = RequestMethod.GET)
-    public ResponseEntity<CollectionModel<EntityModel<Attachment>>> getComponentAttachments(
+    public ResponseEntity<CollectionModel<EntityModel<AttachmentDTO>>> getComponentAttachments(
             @PathVariable("id") String id) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         final Component sw360Component = componentService.getComponentForUserById(id, sw360User);
-        final CollectionModel<EntityModel<Attachment>> resources = attachmentService.getResourcesFromList(sw360Component.getAttachments());
+        final CollectionModel<EntityModel<AttachmentDTO>> resources = attachmentService.getAttachmentDTOResourcesFromList(sw360User, sw360Component.getAttachments(), Source.releaseId(sw360Component.getId()));
         return new ResponseEntity<>(resources, HttpStatus.OK);
     }
 
@@ -694,5 +728,37 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
             importBomRequestPreparationResponse.setReleasesName(importBomRequestPreparation.getReleasesName());
         }
         return importBomRequestPreparationResponse;
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = COMPONENTS_URL + "/mergecomponents", method = RequestMethod.PATCH)
+    public ResponseEntity<RequestStatus> mergeComponents(
+            @RequestParam(value = "mergeTargetId", required = true) String mergeTargetId,
+            @RequestParam(value = "mergeSourceId", required = true) String mergeSourceId,
+            @RequestBody Component mergeSelection ) throws TException {
+
+
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+
+        // perform the real merge, update merge target and delete merge sources
+        RequestStatus requestStatus = componentService.mergeComponents(mergeTargetId, mergeSourceId, mergeSelection, sw360User);
+
+        return new ResponseEntity<>(requestStatus, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = COMPONENTS_URL + "/splitComponents", method = RequestMethod.PATCH)
+    public ResponseEntity<RequestStatus> splitComponents(
+            @RequestBody Map<String, Component> componentMap) throws TException {
+
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+
+        Component srcComponent = componentMap.get("srcComponent");
+        Component targetComponent = componentMap.get("targetComponent");
+
+        // perform the real merge, update merge target and delete merge source
+        RequestStatus requestStatus = componentService.splitComponents(srcComponent, targetComponent, sw360User);
+
+        return new ResponseEntity<>(requestStatus, HttpStatus.OK);
     }
 }

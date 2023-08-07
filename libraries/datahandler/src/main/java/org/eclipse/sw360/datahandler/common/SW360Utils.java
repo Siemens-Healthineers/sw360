@@ -32,27 +32,29 @@ import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.LicenseService;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
-import org.eclipse.sw360.datahandler.thrift.users.UserService;
 import org.eclipse.sw360.datahandler.thrift.vendors.Vendor;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.ReleaseVulnerabilityRelation;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.Vulnerability;
 import org.eclipse.sw360.datahandler.thrift.spdx.spdxdocument.SPDXDocument;
 import org.eclipse.sw360.datahandler.thrift.spdx.documentcreationinformation.DocumentCreationInformation;
 import org.eclipse.sw360.datahandler.thrift.spdx.spdxpackageinfo.PackageInformation;
-import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.thrift.TEnum;
 import org.apache.thrift.TException;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityService;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -290,6 +292,13 @@ public class SW360Utils {
         return sb.toString();
     }
 
+    public static String printName(Package pkg) {
+        if (pkg == null || isNullOrEmpty(pkg.getName())) {
+            return "New Package";
+        }
+        return getVersionedName(pkg.getName(), pkg.getVersion());
+    }
+
     public static String printName(Project project) {
         if (project == null || isNullOrEmpty(project.getName())) {
             return "New Project";
@@ -348,6 +357,39 @@ public class SW360Utils {
         return sb.toString();
     }
 
+    public static boolean isWriteAccessUser(String writeAccessUserEmail, User loggedInUser, UserGroup userGroup) {
+        if (CommonUtils.isNullEmptyOrWhitespace(writeAccessUserEmail)) {
+            return false;
+        }
+        if (writeAccessUserEmail.equalsIgnoreCase(loggedInUser.getEmail())) {
+            return true;
+        }
+        return isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(loggedInUser, userGroup);
+    }
+
+    public static boolean isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(User user, UserGroup userGroup) {
+        if (PermissionUtils.isUserAtLeast(userGroup, user)) {
+            return true;
+        }
+        if (CommonUtils.isNullOrEmptyMap(user.getSecondaryDepartmentsAndRoles())) {
+            return false;
+        }
+        return (PermissionUtils.isUserAtLeastDesiredRoleInSecondaryGroup(userGroup,
+                user.getSecondaryDepartmentsAndRoles().values().stream().flatMap(Set::stream).collect(Collectors.toSet())));
+    }
+
+    public static String getSW360Version() {
+        final MavenXpp3Reader reader = new MavenXpp3Reader();
+        try (InputStreamReader iStreamReader = new InputStreamReader(
+                SW360Utils.class.getResourceAsStream(SW360Constants.DATA_HANDLER_POM_FILE_PATH))) {
+            Model model = reader.read(iStreamReader);
+            return model.getVersion();
+        } catch (Exception e) {
+            log.error("Error while getting SW360 version information: "+ e);
+            return SW360Constants.NA;
+        }
+    }
+
     public static Collection<ProjectLink> getLinkedProjects(Project project, boolean deep, ThriftClients thriftClients, Logger log, User user) {
         if (project != null) {
             try {
@@ -372,6 +414,32 @@ public class SW360Utils {
             }
         }
         return Collections.emptyList();
+    }
+
+    public static Map<String, Set<String>> getLinkedReleaseIdsOfAllSubProjectsAsFlatList(Project project, Set<String> projectIds, Set<String> releaseIds, Set<String> packageIds, ProjectService.Iface client, User user) {
+        for (String projId : CommonUtils.getNullToEmptyKeyset(project.getLinkedProjects())) {
+            if (!projectIds.contains(projId)) {
+                try {
+                    projectIds.add(projId);
+                    project = client.getProjectById(projId, user);
+                    if (project.getReleaseIdToUsageSize() > 0) {
+                        releaseIds.addAll(project.getReleaseIdToUsage().keySet());
+                    }
+                    if (project.getPackageIdsSize() > 0) {
+                        packageIds.addAll(project.getPackageIds());
+                    }
+                    if (project.getLinkedProjectsSize() > 0) {
+                        getLinkedReleaseIdsOfAllSubProjectsAsFlatList(project, projectIds, releaseIds, packageIds, client, user);
+                    }
+                } catch (TException e) {
+                    log.error("Could not get linked projects while exporting SBOM: ", e);
+                }
+            }
+        }
+        Map<String, Set<String>> idsMap = new HashMap<>();
+        idsMap.put(SW360Constants.RELEASE_IDS, releaseIds);
+        idsMap.put(SW360Constants.PACKAGE_IDS, packageIds);
+        return idsMap;
     }
 
     public static Collection<ProjectLink> getLinkedProjectsAsFlatList(Project project, boolean deep, ThriftClients thriftClients, Logger log, User user) {

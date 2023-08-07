@@ -25,6 +25,7 @@ import com.liferay.portal.kernel.portlet.PortletURLFactoryUtil;
 import com.liferay.portal.kernel.servlet.SessionMessages;
 import com.liferay.portal.kernel.servlet.SessionErrors;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
+import com.liferay.portal.kernel.util.ContentTypes;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.kernel.util.ResourceBundleUtil;
@@ -46,6 +47,8 @@ import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationType;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationService;
+import org.eclipse.sw360.datahandler.thrift.packages.Package;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.RequestedAction;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -204,6 +207,10 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             serveRemoveProject(request, response);
         } else if (PortalConstants.VIEW_LINKED_RELEASES.equals(action)) {
             serveLinkedReleases(request, response);
+        } else if (PortalConstants.VIEW_LINKED_PACKAGES.equals(action)) {
+            serveLinkedPackages(request, response);
+        } else if (PortalConstants.LOAD_LINKED_PACKAGES.equals(action)) {
+            loadLinkedPackages(request, response);
         } else if (PortalConstants.UPDATE_VULNERABILITIES_PROJECT.equals(action)) {
             updateVulnerabilitiesProject(request, response);
         } else if (PortalConstants.UPDATE_VULNERABILITY_RATINGS.equals(action)) {
@@ -238,6 +245,8 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             removeOrphanObligation(request, response);
         } else if (PortalConstants.IMPORT_BOM.equals(action)) {
             importBom(request, response);
+        } else if (PortalConstants.EXPORT_SBOM.equals(action)) {
+            exportSbom(request, response);
         } else if (PortalConstants.CREATE_CLEARING_REQUEST.equals(action)) {
             createClearingRequest(request, response);
         } else if (PortalConstants.VIEW_CLEARING_REQUEST.equals(action)) {
@@ -250,8 +259,12 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             serveLicenseToSourceFileMapping(request, response);
         } else if (PortalConstants.ADD_LICENSE_TO_RELEASE.equals(action)) {
             addLicenseToLinkedReleases(request, response);
+        } else if (PortalConstants.UPDATE_RELEASE_BY_LINKED_PACKAGES.equals(action)) {
+            updateReleaseByLinkedPackages(request, response);
         } else if (PortalConstants.LOAD_SPDX_LICENSE_INFO.equals(action)) {
             loadSpdxLicenseInfo(request, response);
+        } else if (PortalConstants.LOAD_SBOM_IMPORT_INFO.equals(action)) {
+           loadSbomImportInfoFromAttachment(request, response);
         } else if (isGenericAction(action)) {
             dealWithGenericAction(request, response, action);
         } else if (PortalConstants.LOAD_CHANGE_LOGS.equals(action) || PortalConstants.VIEW_CHANGE_LOGS.equals(action)) {
@@ -431,13 +444,24 @@ public class ProjectPortlet extends FossologyAwarePortlet {
     }
 
     private void importBom(ResourceRequest request, ResourceResponse response) {
-        ProjectService.Iface projectClient = thriftClients.makeProjectClient();
         User user = UserCacheHolder.getUserFromRequest(request);
-        String attachmentContentId = request.getParameter(ATTACHMENT_CONTENT_ID);
+        ResourceParameters parameters = request.getResourceParameters();
+        String attachmentContentId = parameters.getValue(ATTACHMENT_CONTENT_ID);
+        String bomtype = parameters.getValue(BOM_TYPE);
+        String projectId = parameters.getValue(PROJECT_ID);
+        final RequestSummary requestSummary;
 
         try {
-            final RequestSummary requestSummary = projectClient.importBomFromAttachmentContent(user, attachmentContentId);
+            boolean isSPDX = "SPDX".equals(bomtype);
+            ProjectService.Iface projectClient = thriftClients.makeProjectClient();
+            if (isSPDX) {
+                requestSummary = projectClient.importBomFromAttachmentContent(user, attachmentContentId);
+            } else {
+                Locale locale = request.getLocale();
+                requestSummary = projectClient.importCycloneDxFromAttachmentContent(user, attachmentContentId, projectId);
+            }
 
+            boolean isSuccess = RequestStatus.SUCCESS.equals(requestSummary.getRequestStatus());
             String portletId = (String) request.getAttribute(WebKeys.PORTLET_ID);
             ThemeDisplay tD = (ThemeDisplay) request.getAttribute(WebKeys.THEME_DISPLAY);
             long plid = tD.getPlid();
@@ -445,15 +469,70 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             LiferayPortletURL projectUrl = PortletURLFactoryUtil.create(request, portletId, plid,
                     PortletRequest.RENDER_PHASE);
             projectUrl.setParameter(PortalConstants.PAGENAME, PortalConstants.PAGENAME_DETAIL);
-            projectUrl.setParameter(PortalConstants.PROJECT_ID, requestSummary.getMessage());
-
 
             JSONObject jsonObject = JSONFactoryUtil.createJSONObject();
-            jsonObject.put("redirectUrl", projectUrl.toString());
 
+            if (isSPDX) {
+                projectUrl.setParameter(PortalConstants.PROJECT_ID, requestSummary.getMessage());
+                jsonObject.put("redirectUrl", projectUrl.toString());
+            } else {
+                try {
+                    if (CommonUtils.isNotNullEmptyOrWhitespace(requestSummary.getMessage())) {
+                        jsonObject = JSONFactoryUtil.createJSONObject(requestSummary.getMessage());
+                        requestSummary.unsetMessage();
+                    }
+                    if (isSuccess || RequestStatus.DUPLICATE.equals(requestSummary.getRequestStatus())) {
+                        projectUrl.setParameter(PortalConstants.PROJECT_ID, jsonObject.getString("projectId"));
+                        jsonObject.put("redirectUrl", projectUrl.toString());
+                    }
+                } catch (JSONException e) {
+                    log.error("JSON Exception occured, maybe the 'RequestSummary' message is not in JSON form: " + e.getMessage());
+                }
+            }
+            if (!isSuccess) {
+                attachmentPortletUtils.deleteAttachments(Sets.newHashSet(attachmentContentId));
+            }
             renderRequestSummary(request, response, requestSummary, jsonObject);
         } catch (TException e) {
             log.error("Failed to import BOM.", e);
+            response.setProperty(ResourceResponse.HTTP_STATUS_CODE, Integer.toString(HttpServletResponse.SC_INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    private void exportSbom(ResourceRequest request, ResourceResponse response) {
+        final User user = UserCacheHolder.getUserFromRequest(request);
+        final ResourceParameters parameters = request.getResourceParameters();
+        final String bomtype = parameters.getValue(SBOM_FROMAT);
+        final String projectId = parameters.getValue(PROJECT_ID);
+        final Boolean includeSubProjReleases = Boolean.valueOf(CommonUtils.nullToEmptyString(parameters.getValue(PROJECT_WITH_SUBPROJECT)));
+        final String fileName = EXPORT_SBOM;
+        String contentType = ContentTypes.APPLICATION_JSON;
+        String bomString = "";
+
+        try {
+            if (CommonUtils.isNotNullEmptyOrWhitespace(projectId)) {
+                ProjectService.Iface projectClient = thriftClients.makeProjectClient();
+                RequestSummary summary = projectClient.exportCycloneDxSbom(projectId, bomtype, includeSubProjReleases, user);
+                RequestStatus staus = summary.getRequestStatus();
+                if (RequestStatus.FAILED_SANITY_CHECK.equals(staus)) {
+                    bomString = "{\"status\": \"" + staus.name() + "\"}";
+                } else if (RequestStatus.ACCESS_DENIED.equals(staus)) {
+                    bomString = "{\"status\": \"" + staus.name() + "\", \"message\": \"" + SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE + "\"}";
+                } else if (RequestStatus.FAILURE.equals(staus)) {
+                    bomString = "{\"status\": \"" + staus.name() + "\", \"message\": \"" + summary.getMessage() + "\"}";
+                } else {
+                    bomString = summary.getMessage();
+                    if (SW360Constants.XML_FILE_EXTENSION.equalsIgnoreCase(bomtype)) {
+                        contentType = ContentTypes.TEXT_XML;
+                    }
+                }
+            }
+            PortletResponseUtil.sendFile(request, response, fileName, bomString.getBytes(), contentType);
+        } catch (TException e) {
+            log.error("An error occured while generating SBOM file for export.", e);
+            response.setProperty(ResourceResponse.HTTP_STATUS_CODE, Integer.toString(HttpServletResponse.SC_INTERNAL_SERVER_ERROR));
+        } catch (IOException e) {
+            log.error("Failed to export SBOM file.", e);
             response.setProperty(ResourceResponse.HTTP_STATUS_CODE, Integer.toString(HttpServletResponse.SC_INTERNAL_SERVER_ERROR));
         }
     }
@@ -629,11 +708,11 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         String outputGenerator = request.getParameter(PortalConstants.LICENSE_INFO_SELECTED_OUTPUT_FORMAT);
         String selectedTemplate = request.getParameter("tmplate");
         boolean isOnlyApprovedAttachmentSelected = Boolean.parseBoolean(request.getParameter(PortalConstants.ONLY_APPROVED));
-        String fileName = "";
+        String fileNameWithOrg = "";
         if(CommonUtils.isNotNullEmptyOrWhitespace(CLEARING_REPORT_TEMPLATE_TO_FILENAMEMAPPING) && CommonUtils.isNotNullEmptyOrWhitespace(selectedTemplate)) {
-            Map<String, String> tmplateToFileName = Arrays.stream(PortalConstants.CLEARING_REPORT_TEMPLATE_TO_FILENAMEMAPPING.split(","))
+            Map<String, String> orgToTemplate = Arrays.stream(PortalConstants.CLEARING_REPORT_TEMPLATE_TO_FILENAMEMAPPING.split(","))
                     .collect(Collectors.toMap(k -> k.split(":")[0], v -> v.split(":")[1]));
-            fileName = tmplateToFileName.get(selectedTemplate);
+            fileNameWithOrg = orgToTemplate.get(selectedTemplate) + "::" + selectedTemplate;
         }
         User user = UserCacheHolder.getUserFromRequest(request);
         ProjectService.Iface projClient = thriftClients.makeProjectClient();
@@ -648,7 +727,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         }
         if (YES.equals(isEmptyFile)) {
             try {
-                downloadEmptyLicenseInfo(request, response, project, user, outputGenerator, fileName);
+                downloadEmptyLicenseInfo(request, response, project, user, outputGenerator, fileNameWithOrg);
                 return;
             } catch (IOException | TException e) {
                 log.error("Error getting empty licenseInfo file for project with id " + projectId + " and generator " + outputGenerator, e);
@@ -723,7 +802,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         try {
             final LicenseInfoService.Iface licenseInfoClient = thriftClients.makeLicenseInfoClient();
             LicenseInfoFile licenseInfoFile = licenseInfoClient.getLicenseInfoFile(project, user, outputGenerator,
-                    releaseIdsToSelectedAttachmentIds, excludedLicensesPerAttachmentId, externalIds, fileName);
+                    releaseIdsToSelectedAttachmentIds, excludedLicensesPerAttachmentId, externalIds, fileNameWithOrg);
 
             saveLicenseInfoAttachmentUsages(project, user, filteredSelectedAttachmentIdsWithPath,
                     excludedLicensesPerAttachmentIdWithPath, includeConcludedLicenseList,
@@ -736,10 +815,10 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         }
     }
 
-    private void downloadEmptyLicenseInfo(ResourceRequest request, ResourceResponse response, Project project, User user, String outputGenerator, String fileName) throws TException, IOException {
+    private void downloadEmptyLicenseInfo(ResourceRequest request, ResourceResponse response, Project project, User user, String outputGenerator, String fileNameWithOrg) throws TException, IOException {
         final LicenseInfoService.Iface licenseInfoClient = thriftClients.makeLicenseInfoClient();
         LicenseInfoFile licenseInfoFile = licenseInfoClient.getLicenseInfoFile(project, user, outputGenerator,
-                Collections.emptyMap(), Collections.emptyMap(), "", fileName);
+                Collections.emptyMap(), Collections.emptyMap(), "", fileNameWithOrg);
         sendLicenseInfoResponse(request, response, project, licenseInfoFile);
     }
 
@@ -1485,6 +1564,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             request.setAttribute(CUSTOM_FIELD_PREFERRED_CLEARING_DATE_LIMIT, dateLimit);
             Integer criticalCount = modClient.getOpenCriticalCrCountByGroup(user.getDepartment());
             request.setAttribute(CRITICAL_CR_COUNT, criticalCount);
+            request.setAttribute(PortalConstants.IS_SBOM_IMPORT_EXPORT_ACCESS_USER, SW360Utils.isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(user, SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE));
         } catch(TException e) {
             log.error("Error in getting the projectList from backend ", e);
         }
@@ -1624,6 +1704,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                         total_vuls.addAll(vuls);
                     }
                 }
+                request.setAttribute(PortalConstants.IS_SBOM_IMPORT_EXPORT_ACCESS_USER, SW360Utils.isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(user, SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE));
                 request.setAttribute(PortalConstants.TOTAL_VULNERABILITY_COUNT, total_vuls.size());
                 putDirectlyLinkedReleasesInRequest(request, project);
                 Set<Project> usingProjects = client.searchLinkingProjects(id, user);
@@ -1887,7 +1968,11 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     mappedProjectLinks = mappedProjectLinks.stream()
                             .filter(projectLink -> projectLink.getId().equals(id)).collect(Collectors.toList());
                 }
-
+                long cliCount = mappedProjectLinks.stream().flatMap(pl -> CommonUtils.nullToEmptyCollection(pl.getLinkedReleases()).stream()).filter(rl -> CommonUtils.isNotEmpty(rl.getAttachments())).count();
+                request.setAttribute("isDownloadDisabled", "false");
+                if (cliCount == 0) {
+                    request.setAttribute("isDownloadDisabled", "true");
+                }
                 request.setAttribute(PROJECT_LIST, mappedProjectLinks);
                 request.setAttribute(PortalConstants.RELATIONSHIPS, fetchReleaseRelationships(mappedProjectLinks));
                 request.setAttribute(PortalConstants.PROJECT_RELEASE_TO_RELATION, fetchProjectReleaseToRelation(mappedProjectLinks));
@@ -2303,6 +2388,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     putDirectlyLinkedProjectsInRequest(request, project, user);
                 }
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+                putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
             } catch (TException e) {
                 log.error("Could not fetch linked projects or linked releases in projects view.", e);
                 return;
@@ -2329,6 +2415,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 }
                 request.setAttribute(PROJECT_LIST, projectlink);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+                putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
             } catch(TException e) {
                 log.error("Could not put empty linked projects or linked releases in projects view.", e);
             }
@@ -2360,10 +2447,12 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 request.setAttribute(PROJECT, newProject);
                 putDirectlyLinkedProjectsInRequest(request, newProject, user);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, newProject, user);
+                putDirectlyLinkedPackagesInRequest(request, newProject.getPackageIds());
                 newProject.unsetId();
                 request.setAttribute(USING_PROJECTS, Collections.emptySet());
                 request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
                 request.setAttribute(SOURCE_PROJECT_ID, id);
+                request.setAttribute(PortalConstants.IS_SBOM_IMPORT_EXPORT_ACCESS_USER, SW360Utils.isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(user, SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE));
             } else {
                 Project project = new Project();
                 project.setBusinessUnit(user.getDepartment());
@@ -2373,7 +2462,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 PortletUtils.setCustomFieldsEdit(request, user, project);
                 putDirectlyLinkedProjectsInRequest(request, project, user);
                 putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
-
+                putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
                 request.setAttribute(USING_PROJECTS, Collections.emptySet());
                 request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
             }
@@ -2573,6 +2662,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         request.setAttribute(IS_ERROR_IN_UPDATE_OR_CREATE, true);
         putDirectlyLinkedProjectsInRequest(request, project, user);
         putDirectlyLinkedReleasesWithAccessibilityInRequest(request, project, user);
+        putDirectlyLinkedPackagesInRequest(request, project.getPackageIds());
     }
 
     @UsedAsLiferayAction
@@ -2896,6 +2986,93 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         }
     }
 
+    private void loadLinkedPackages(ResourceRequest request, ResourceResponse response) throws IOException, PortletException {
+        String projectId = request.getResourceParameters().getValue(PortalConstants.DOCUMENT_ID);
+        if (CommonUtils.isNotNullEmptyOrWhitespace(projectId)) {
+            final User user = UserCacheHolder.getUserFromRequest(request);
+            final ProjectService.Iface client = thriftClients.makeProjectClient();
+            Project project;
+            try {
+                project = client.getProjectById(projectId, user);
+                if (CommonUtils.isNotEmpty(project.getPackageIds())) {
+                    final PackageService.Iface packageClient = thriftClients.makePackageClient();
+                    List<Package> packages = packageClient.getPackageWithReleaseByPackageIds(project.getPackageIds());
+                    JSONArray packagesData = getPackageData(packages, user);
+                    final JSONObject jsonResult = createJSONObject();
+                    jsonResult.put("data", packagesData);
+                    try {
+                        writeJSON(request, response, jsonResult);
+                    } catch (IOException e) {
+                        log.error("Problem converting linked packages to JSON! ", e);
+                    }
+                }
+            } catch (TException e) {
+                log.error("Problem fetching project from db: " + projectId, e);
+            }
+        }
+    }
+
+    private void updateReleaseByLinkedPackages(ResourceRequest request, ResourceResponse response) throws IOException, PortletException {
+        String projectId = request.getResourceParameters().getValue(PortalConstants.PROJECT_ID);
+        if (CommonUtils.isNotNullEmptyOrWhitespace(projectId)) {
+            final var user = UserCacheHolder.getUserFromRequest(request);
+            final var projectClient = thriftClients.makeProjectClient();
+            Project project;
+            try {
+                project = projectClient.getProjectById(projectId, user);
+                if (CommonUtils.isNotEmpty(project.getPackageIds())) {
+                    final PackageService.Iface packageClient = thriftClients.makePackageClient();
+                    final var jsonResult = createJSONObject();
+                    final var packages = packageClient.getPackageByIds(project.getPackageIds());
+                    Set<String> releaseIdsFromLinkedPackages = CommonUtils.nullToEmptySet(
+                            packages.stream().filter(pkg -> CommonUtils.isNotNullEmptyOrWhitespace(pkg.getReleaseId()))
+                                    .map(Package::getReleaseId).collect(Collectors.toSet()));
+
+                    final var targetMap = CommonUtils.nullToEmptyMap(project.getReleaseIdToUsage());
+                    final Set<String> missingReleaseIds = Sets.newHashSet();
+                    if (CommonUtils.isNotEmpty(releaseIdsFromLinkedPackages)) {
+                        final var releaseRelation = new ProjectReleaseRelationship(ReleaseRelationship.UNKNOWN, MainlineState.OPEN);
+                        for (String releaseId : releaseIdsFromLinkedPackages) {
+                            if (null == targetMap.putIfAbsent(releaseId, releaseRelation)) {
+                                missingReleaseIds.add(releaseId);
+                            }
+                        }
+                        if (CommonUtils.isNotEmpty(missingReleaseIds)) {
+                            projectClient.updateProject(project, user);
+                        }
+                    }
+                    jsonResult.put("data", String.join("||", missingReleaseIds));
+                    jsonResult.put(SW360Constants.STATUS, SW360Constants.SUCCESS);
+                    try {
+                        writeJSON(request, response, jsonResult);
+                    } catch (IOException e) {
+                        log.error("Problem converting linked packages to JSON! ", e);
+                    }
+                }
+            } catch (TException e) {
+                log.error("Problem fetching project from db: " + projectId, e);
+            }
+        } else {
+            log.error("Project Id cannot be null or empty!");
+        }
+    }
+
+    private void loadSbomImportInfoFromAttachment(ResourceRequest request, ResourceResponse response) throws IOException, PortletException {
+        String attachmentContentId = request.getResourceParameters().getValue(ATTACHMENT_CONTENT_ID);
+        final ProjectService.Iface client = thriftClients.makeProjectClient();
+        try {
+            String importInfo = client.getSbomImportInfoFromAttachmentAsString(attachmentContentId);
+            JSONObject jsonObject = JSONFactoryUtil.createJSONObject(importInfo);
+            writeJSON(request, response, jsonObject);
+        } catch (SW360Exception e) {
+            log.error("Error fetching sbom import info from attachment db: " + attachmentContentId, e);
+        } catch (TException e) {
+            log.error("Error fetching sbom import info from attachment db: " + attachmentContentId, e);
+        } catch (JSONException e) {
+            log.error("An exception occured while parsing sbom import info: " + attachmentContentId, e);
+        }
+    }
+
     private void loadSpdxLicenseInfo(ResourceRequest request, ResourceResponse response) throws IOException, PortletException {
         final User user = UserCacheHolder.getUserFromRequest(request);
         final String releaseId = request.getParameter(PortalConstants.RELEASE_ID);
@@ -3084,6 +3261,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             jsonObject.put("lProjSize", String.valueOf(project.getLinkedProjectsSize()));
             jsonObject.put("lRelsSize", String.valueOf(project.getReleaseIdToUsageSize()));
             jsonObject.put("attsSize", String.valueOf(project.getAttachmentsSize()));
+            jsonObject.put("lPkgSize", String.valueOf(project.getPackageIdsSize()));
             if (isNotEmpty && groupsWithCrDisabled.contains(project.getBusinessUnit().toLowerCase()) && Objects.isNull(project.getClearingRequestId())) {
                 jsonObject.put("isCrDisabledForProjectBU", true);
             }

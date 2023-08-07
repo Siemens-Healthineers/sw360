@@ -52,6 +52,15 @@ public class SW360Constants {
     public static final String SUCCESS = "success";
     public static final String FAILURE = "failure";
     public static final String MESSAGE = "message";
+    public static final String NULL_STRING = "null";
+    public static final String PACKAGE_URL = "package-url";
+    public static final String PURL_ID = "purl.id";
+    public static final String XML_FILE_EXTENSION = "xml";
+    public static final String JSON_FILE_EXTENSION = "json";
+    public static final String PROJECT_IDS = "projectIds";
+    public static final String RELEASE_IDS = "releaseIds";
+    public static final String PACKAGE_IDS = "packageIds";
+
     // Proper values of the "type" member to deserialize to CouchDB
     public static final String TYPE_OBLIGATION = "obligation";
     public static final String TYPE_OBLIGATIONS = "obligations";
@@ -77,6 +86,7 @@ public class SW360Constants {
     public static final String TYPE_SPDX_DOCUMENT = "SPDXDocument";
     public static final String TYPE_SPDX_DOCUMENT_CREATION_INFO = "documentCreationInformation";
     public static final String TYPE_SPDX_PACKAGE_INFO = "packageInformation";
+    public static final String TYPE_PACKAGE = "package";
 
     public static final String SVM_COMPONENT_ID;
     public static final String SVM_MONITORINGLIST_ID;
@@ -86,6 +96,12 @@ public class SW360Constants {
     public static final String SVM_SHORT_STATUS;
     public static final String SVM_SHORT_STATUS_KEY;
     public static final String SVM_SCHEDULER_EMAIL;
+    public static final String DATA_HANDLER_POM_FILE_PATH;
+    public static final UserGroup PACKAGE_PORTLET_WRITE_ACCESS_USER_ROLE;
+    public static final boolean IS_PACKAGE_PORTLET_ENABLED;
+    public static final String TOOL_NAME;
+    public static final String TOOL_VENDOR;
+    public static final UserGroup SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE;
 
     /**
      * Hashmap containing the name field for each type.
@@ -101,6 +117,7 @@ public class SW360Constants {
                     .put(TYPE_COMPONENT, "name")
                     .put(TYPE_RELEASE, "name version")
                     .put(TYPE_PROJECT, "name version")
+                    .put(TYPE_PACKAGE, "name version")
                     .build();
 
     public static final Collection<AttachmentType> LICENSE_INFO_ATTACHMENT_TYPES = Arrays.asList(AttachmentType.COMPONENT_LICENSE_INFO_XML, AttachmentType.COMPONENT_LICENSE_INFO_COMBINED);
@@ -178,6 +195,12 @@ public class SW360Constants {
         SVM_SCHEDULER_EMAIL = props.getProperty("svm.scheduler.email", "");
         SVM_MONITORINGLIST_ID = props.getProperty("svm.monitoringlist.id", "");
         SPDX_DOCUMENT_ENABLED = Boolean.parseBoolean(props.getProperty("spdx.document.enabled", "false"));
+        DATA_HANDLER_POM_FILE_PATH = props.getProperty("datahandler.pom.file.path", "/META-INF/maven/org.eclipse.sw360/datahandler/pom.xml");
+        PACKAGE_PORTLET_WRITE_ACCESS_USER_ROLE = UserGroup.valueOf(props.getProperty("package.portlet.write.access.usergroup", UserGroup.USER.name()));
+        IS_PACKAGE_PORTLET_ENABLED = Boolean.parseBoolean(props.getProperty("package.portlet.enabled", "false"));
+        TOOL_NAME = props.getProperty("sw360.tool.name", "SW360");
+        TOOL_VENDOR = props.getProperty("sw360.tool.vendor", "Eclipse Foundation");
+        SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE = UserGroup.valueOf(props.getProperty("sbom.import.export.access.usergroup", UserGroup.USER.name()));
     }
 
     private static Map.Entry<String, String> pair(TFieldIdEnum field, String displayName){

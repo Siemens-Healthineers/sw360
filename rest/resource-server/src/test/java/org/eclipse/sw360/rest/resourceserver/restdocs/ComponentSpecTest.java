@@ -20,11 +20,8 @@ import org.eclipse.sw360.datahandler.thrift.Visibility;
 import org.eclipse.sw360.datahandler.thrift.VerificationState;
 import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
 import org.eclipse.sw360.datahandler.thrift.RequestSummary;
-import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
-import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentContent;
-import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
-import org.eclipse.sw360.datahandler.thrift.attachments.CheckStatus;
 import org.eclipse.sw360.datahandler.thrift.components.*;
+import org.eclipse.sw360.datahandler.thrift.attachments.*;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectType;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -36,6 +33,7 @@ import org.eclipse.sw360.datahandler.thrift.vendors.Vendor;
 import org.eclipse.sw360.rest.resourceserver.TestHelper;
 import org.eclipse.sw360.rest.resourceserver.attachment.Sw360AttachmentService;
 import org.eclipse.sw360.rest.resourceserver.component.Sw360ComponentService;
+import org.eclipse.sw360.rest.resourceserver.report.SW360ReportService;
 import org.eclipse.sw360.rest.resourceserver.user.Sw360UserService;
 import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
 import org.eclipse.sw360.rest.resourceserver.vendor.Sw360VendorService;
@@ -56,12 +54,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.linkWithRel;
@@ -97,8 +97,13 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
 
     @MockBean
     private Sw360VendorService vendorServiceMock;
+    
+    @MockBean
+    private SW360ReportService sw360ReportServiceMock;
 
     private Component angularComponent;
+
+    private Component angularTargetComponent;
 
     private Attachment attachment;
 
@@ -107,6 +112,9 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
     private Component sBOMComponent;
     private Attachment sBOMAttachment;
     private RequestSummary requestSummary = new RequestSummary();
+
+    private Release release;
+    private Release release2;
 
     @Before
     public void before() throws TException, IOException {
@@ -157,6 +165,9 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         Map<String, String> angularComponentExternalIds = new HashMap<>();
         angularComponentExternalIds.put("component-id-key", "1831A3");
         angularComponentExternalIds.put("ws-component-id", "[\"123\",\"598752\"]");
+        Map<String, String> angularTargetComponentExternalIds = new HashMap<>();
+        angularComponentExternalIds.put("component-id-key", "1831A4");
+        angularComponentExternalIds.put("ws-component-id", "[\"123\",\"598753\"]");
         angularComponent = new Component();
         angularComponent.setId("17653524");
         angularComponent.setName("Angular");
@@ -164,6 +175,13 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         angularComponent.setDescription("Angular is a development platform for building mobile and desktop web applications.");
         angularComponent.setCreatedOn("2016-12-15");
         angularComponent.setCreatedBy("admin@sw360.org");
+        angularComponent.setModifiedBy("admin1@sw360.org");
+        angularComponent.setModifiedOn("2016-12-30");
+        angularComponent.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Linux")));
+        angularComponent.setMainLicenseIds(new HashSet<>(Arrays.asList("123")));
+        angularComponent.setSubscribers(new HashSet<>(Arrays.asList("Mari")));
+        angularComponent.setWiki("http://wiki.ubuntu.com/");
+        angularComponent.setBlog("http://www.javaworld.com/");
         angularComponent.setComponentType(ComponentType.OSS);
         angularComponent.setVendorNames(new HashSet<>(Collections.singletonList("Google")));
         angularComponent.setModerators(new HashSet<>(Arrays.asList("admin@sw360.org", "john@sw360.org")));
@@ -180,8 +198,65 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         angularComponent.setHomepage("https://angular.io");
         angularComponent.setMainLicenseIds(licenseIds);
         angularComponent.setDefaultVendorId("vendorId");
+
+
+        angularTargetComponent = new Component();
+        angularTargetComponent.setId("87654321");
+        angularTargetComponent.setName("Angular");
+        angularTargetComponent.setComponentOwner("John");
+        angularTargetComponent.setDescription("Angular is a development platform for building mobile and desktop web applications.");
+        angularTargetComponent.setCreatedOn("2016-12-15");
+        angularTargetComponent.setCreatedBy("admin@sw360.org");
+        angularTargetComponent.setModifiedBy("admin1@sw360.org");
+        angularTargetComponent.setModifiedOn("2016-12-30");
+        angularTargetComponent.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Linux")));
+        angularTargetComponent.setMainLicenseIds(new HashSet<>(Arrays.asList("123")));
+        angularTargetComponent.setSubscribers(new HashSet<>(Arrays.asList("Mari")));
+        angularTargetComponent.setWiki("http://wiki.ubuntu.com/");
+        angularTargetComponent.setBlog("http://www.javaworld.com/");
+        angularTargetComponent.setComponentType(ComponentType.OSS);
+        angularTargetComponent.setVendorNames(new HashSet<>(Collections.singletonList("Google")));
+        angularTargetComponent.setModerators(new HashSet<>(Arrays.asList("admin@sw360.org", "john@sw360.org")));
+        angularTargetComponent.setOwnerAccountingUnit("4822");
+        angularTargetComponent.setOwnerCountry("DE");
+        angularTargetComponent.setOwnerGroup("AA BB 123 GHV2-DE");
+        angularTargetComponent.setCategories(ImmutableSet.of("java", "javascript", "sql"));
+        angularTargetComponent.setLanguages(ImmutableSet.of("EN", "DE"));
+        angularTargetComponent.setOperatingSystems(ImmutableSet.of("Windows", "Linux"));
+        angularTargetComponent.setAttachments(attachmentList);
+        angularTargetComponent.setExternalIds(angularTargetComponentExternalIds);
+        angularTargetComponent.setMailinglist("test@liferay.com");
+        angularTargetComponent.setAdditionalData(Collections.singletonMap("Key", "Value"));
+        angularTargetComponent.setHomepage("https://angular.io");
+        angularTargetComponent.setMainLicenseIds(licenseIds);
+        angularTargetComponent.setDefaultVendorId("vendorId");
+
         componentList.add(angularComponent);
+        componentList.add(angularTargetComponent);
         componentListByName.add(angularComponent);
+
+        AttachmentDTO attachmentDTO = new AttachmentDTO();
+        attachmentDTO.setAttachmentContentId("");
+        attachmentDTO.setFilename(attachment.getFilename());
+        attachmentDTO.setSha1(attachment.getSha1());
+        attachmentDTO.setAttachmentType(AttachmentType.BINARY_SELF);
+        attachmentDTO.setCreatedBy("admin@sw360.org");
+        attachmentDTO.setCreatedTeam("Clearing Team 1");
+        attachmentDTO.setCreatedComment("please check asap");
+        attachmentDTO.setCreatedOn("2016-12-18");
+        attachmentDTO.setCheckedTeam("Clearing Team 2");
+        attachmentDTO.setCheckedComment("everything looks good");
+        attachmentDTO.setCheckedOn("2016-12-18");
+        attachmentDTO.setCheckStatus(CheckStatus.ACCEPTED);
+
+        UsageAttachment usageAttachment = new UsageAttachment();
+        usageAttachment.setVisible(0);
+        usageAttachment.setRestricted(0);
+
+        attachmentDTO.setUsageAttachment(usageAttachment);
+        List<EntityModel<AttachmentDTO>> atEntityModels = new ArrayList<>();
+        atEntityModels.add(EntityModel.of(attachmentDTO));
+        given(this.attachmentServiceMock.getAttachmentDTOResourcesFromList(any(), any(), any())).willReturn(CollectionModel.of(atEntityModels));
 
         Component springComponent = new Component();
         Map<String, String> springComponentExternalIds = new HashMap<>();
@@ -194,6 +269,13 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         springComponent.setDescription("The Spring Framework provides a comprehensive programming and configuration model for modern Java-based enterprise applications.");
         springComponent.setCreatedOn("2016-12-18");
         springComponent.setCreatedBy("jane@sw360.org");
+        springComponent.setModifiedBy("User@sw360.org");
+        springComponent.setModifiedOn("2016-12-25");
+        springComponent.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Windows")));
+        springComponent.setMainLicenseIds(new HashSet<>(Arrays.asList("222")));
+        springComponent.setSubscribers(new HashSet<>(Arrays.asList("Natan")));
+        springComponent.setWiki("http://wiki.ubuntu.com/");
+        springComponent.setBlog("http://www.javaworld.com/");
         springComponent.setComponentType(ComponentType.OSS);
         springComponent.setVendorNames(new HashSet<>(Collections.singletonList("Pivotal")));
         springComponent.setModerators(new HashSet<>(Arrays.asList("admin@sw360.org", "jane@sw360.org")));
@@ -227,6 +309,7 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                         .setCreatedOn(new SimpleDateFormat("yyyy-MM-dd").format(new Date())));
 
         given(this.componentServiceMock.getComponentsForUser(any())).willReturn(componentList);
+        given(this.sw360ReportServiceMock.getComponentBuffer(any(),anyBoolean())).willReturn(ByteBuffer.allocate(10000));
         given(this.componentServiceMock.getRecentComponents(any())).willReturn(componentList);
         given(this.componentServiceMock.getComponentSubscriptions(any())).willReturn(componentList);
         given(this.componentServiceMock.getMyComponentsForUser(any())).willReturn(componentList);
@@ -242,6 +325,12 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                         .setId("17653524")
                         .setComponentType(ComponentType.OSS)
                         .setExternalIds(Collections.singletonMap("component-id-key", "1831A3"))
+        );
+        given(this.componentServiceMock.convertToEmbeddedWithExternalIds(eq(angularTargetComponent))).willReturn(
+                new Component("Angular")
+                        .setId("87654321")
+                        .setComponentType(ComponentType.OSS)
+                        .setExternalIds(Collections.singletonMap("component-id-key", "1831A4"))
         );
         given(this.componentServiceMock.convertToEmbeddedWithExternalIds(eq(springComponent))).willReturn(
                 new Component("Spring Framework")
@@ -260,7 +349,7 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         given(this.vendorServiceMock.getVendorById("vendorId")).willReturn(vendor);
 
         List<Release> releaseList = new ArrayList<>();
-        Release release = new Release();
+        release = new Release();
         release.setId("3765276512");
         release.setName("Angular 2.3.0");
         release.setCpeid("cpe:/a:Google:Angular:2.3.0:");
@@ -272,7 +361,7 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
         release.setComponentId(springComponent.getId());
         releaseList.add(release);
 
-        Release release2 = new Release();
+        release2 = new Release();
         release2.setId("3765276512");
         release2.setName("Angular 2.3.1");
         release2.setCpeid("cpe:/a:Google:Angular:2.3.1:");
@@ -502,7 +591,15 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:components.[]_embedded.defaultVendor").description("Default vendor of component"),
                                 subsectionWithPath("_embedded.sw360:components.[]defaultVendorId").description("Default vendor of component"),
 
+                                subsectionWithPath("_embedded.sw360:components.[]subscribers").description("The subscribers of component"),
+                                subsectionWithPath("_embedded.sw360:components.[]mainLicenseIds").description("The Main License Ids of component"),
+                                subsectionWithPath("_embedded.sw360:components.[]softwarePlatforms").description("The Software Platforms of component"),
+                                subsectionWithPath("_embedded.sw360:components.[]wiki").description("The wiki of component"),
+                                subsectionWithPath("_embedded.sw360:components.[]blog").description("The blog of component"),
+                                subsectionWithPath("_embedded.sw360:components.[]modifiedOn").description("The date the component was modified"),
+
                                 subsectionWithPath("_embedded.sw360:components.[]categories").description("The component categories"),
+                                subsectionWithPath("_embedded.sw360:components.[]moderators").description("The component moderators"),
                                 subsectionWithPath("_embedded.sw360:components.[]languages").description("The language of the component"),
 
                                 subsectionWithPath("_embedded.sw360:components.[]operatingSystems").description("The OS on which the component operates"),
@@ -665,15 +762,22 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                                 fieldWithPath("componentType").description("The component type, possible values are: " + Arrays.asList(ComponentType.values())),
                                 fieldWithPath("description").description("The component description"),
                                 fieldWithPath("createdOn").description("The date the component was created"),
+                                fieldWithPath("modifiedOn").description("The date the component was modified"),
                                 fieldWithPath("componentOwner").description("The owner name of the component"),
                                 fieldWithPath("ownerAccountingUnit").description("The owner accounting unit of the component"),
                                 fieldWithPath("ownerGroup").description("The owner group of the component"),
                                 fieldWithPath("ownerCountry").description("The owner country of the component"),
                                 fieldWithPath("categories").description("The component categories"),
+                                fieldWithPath("moderators").description("The component moderators"),
                                 fieldWithPath("languages").description("The language of the component"),
                                 subsectionWithPath("externalIds").description("When components are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                                 subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
                                 fieldWithPath("operatingSystems").description("The OS on which the component operates"),
+                                fieldWithPath("softwarePlatforms").description("The Software Platforms of component"),
+                                fieldWithPath("subscribers").description("The subscribers of component"),
+                                fieldWithPath("mainLicenseIds").description("The Main License Ids of component"),
+                                fieldWithPath("wiki").description("The wiki of component"),
+                                fieldWithPath("blog").description("The blog of component"),
                                 fieldWithPath("mailinglist").description("Component mailing lists"),
                                 fieldWithPath("homepage").description("The homepage url of the component"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"),
@@ -800,8 +904,12 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
 
     @Test
     public void should_document_update_component() throws Exception {
-        Component updateComponent = new Component();
+        ComponentDTO updateComponent = new ComponentDTO();
+        AttachmentDTO attachmentDTO = new AttachmentDTO("1231231255", "spring-mvc-4.3.4.RELEASE.jar");
+        Set<AttachmentDTO> attachmentDTOS = new HashSet<>();
+        attachmentDTOS.add(attachmentDTO);
         updateComponent.setName("Updated Component");
+        updateComponent.setAttachmentDTOs(attachmentDTOS);
 
         String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
         mockMvc.perform(patch("/api/components/17653524")
@@ -811,6 +919,113 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                 .accept(MediaTypes.HAL_JSON))
                 .andExpect(status().isOk())
                 .andDo(documentComponentProperties());
+    }
+
+    @Test
+    public void should_document_merge_components() throws Exception {
+
+
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(patch("/api/components/mergecomponents")
+                .contentType(MediaTypes.HAL_JSON)
+                .content(this.objectMapper.writeValueAsString(angularTargetComponent))
+                .header("Authorization", "Bearer " + accessToken)
+                .param("mergeTargetId", "87654321")
+                .param("mergeSourceId", "17653524")
+                .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler.document(
+                        requestParameters(
+                                parameterWithName("mergeSourceId").description("Id of a source component to merge"),
+                                parameterWithName("mergeTargetId").description("Id of a target component to merge")
+                        ),
+                        requestFields(
+                                fieldWithPath("id").description("The Id of the component"),
+                                fieldWithPath("subscribers").description("The subscribers of component"),
+                                fieldWithPath("ownerAccountingUnit").description("The owner accounting unit of the component"),
+                                subsectionWithPath("externalIds").description("When components are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
+                                subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
+                                fieldWithPath("mainLicenseIds").description("The Main License Ids of component"),
+                                fieldWithPath("languages").description("The language of the component"),
+                                fieldWithPath("softwarePlatforms").description("The Software Platforms of component"),
+                                fieldWithPath("operatingSystems").description("The OS on which the component operates"),
+                                fieldWithPath("wiki").description("The wiki of component"),
+                                fieldWithPath("blog").description("The blog of component"),
+                                fieldWithPath("homepage").description("The homepage url of the component"),
+                                fieldWithPath("modifiedOn").description("The date the component was modified"),
+
+                                fieldWithPath("moderators").description("The component moderators"),
+
+                                fieldWithPath("name").description("The updated name of the component"),
+                                fieldWithPath("type").description("The updated name of the component"),
+                                fieldWithPath("createdOn").description("The date the component was created"),
+                                fieldWithPath("componentOwner").description("The owner name of the component"),
+                                fieldWithPath("ownerGroup").description("The owner group of the component"),
+                                fieldWithPath("ownerCountry").description("The owner country of the component"),
+                                fieldWithPath("visbility").description("The visibility type of the component"),
+                                fieldWithPath("defaultVendorId").description("Default vendor id of component"),
+                                fieldWithPath("categories").description("The component categories"),
+                                fieldWithPath("mailinglist").description("Component mailing lists"),
+                                fieldWithPath("setVisbility").description("The visibility of the component"),
+                                fieldWithPath("setBusinessUnit").description("Whether or not a business unit is set for the component"),
+                                fieldWithPath("vendors").description("The vendors list"),
+                                fieldWithPath("description").description("The updated component description"),
+                                fieldWithPath("componentType").description("The updated  component type, possible values are: " + Arrays.asList(ComponentType.values()))
+                        )));
+    }
+
+    @Test
+    public void should_document_split_components() throws Exception {
+
+
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        Component srcComponent = new Component();
+        srcComponent.setId("17653524");
+        srcComponent.setName("Angular");
+        srcComponent.setComponentOwner("John");
+        srcComponent.setDescription("Angular is a development platform for building mobile and desktop web applications.");
+        List<Release> releaseList = new ArrayList<>();
+        releaseList.add(release);
+        Release release2 = new Release();
+        releaseList.add(release2);
+
+        srcComponent.setReleases(releaseList);
+        Component targetComponent = new Component();
+        targetComponent.setId("87654321");
+        targetComponent.setName("Angular");
+        targetComponent.setComponentOwner("John");
+        targetComponent.setDescription("Angular is a development platform for building mobile and desktop web applications.");
+        targetComponent.setReleases(releaseList);
+        Map<String, Object> componentsMap = new HashMap<>();
+        componentsMap.put("srcComponent", srcComponent);
+        componentsMap.put("targetComponent", targetComponent);
+
+                mockMvc.perform(patch("/api/components/splitComponents")
+                .contentType(MediaTypes.HAL_JSON)
+                .content(this.objectMapper.writeValueAsString(componentsMap))
+                .header("Authorization", "Bearer " + accessToken)
+                .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler.document(
+                        requestFields(
+                                fieldWithPath("srcComponent.id").description("The ID of the source component"),
+                                fieldWithPath("srcComponent.name").description("The name of the source component"),
+                                fieldWithPath("srcComponent.description").description("The description of the source component"),
+                                fieldWithPath("srcComponent.type").description("The type of the source component"),
+                                fieldWithPath("srcComponent.componentOwner").description("The owner of the source component"),
+                                fieldWithPath("srcComponent.visbility").description("The visibility of the source component"),
+                                fieldWithPath("srcComponent.setVisbility").description("Flag indicating if the visibility is set"),
+                                fieldWithPath("srcComponent.setBusinessUnit").description("Flag indicating if the business unit is set"),
+                                fieldWithPath("targetComponent.id").description("The ID of the target component"),
+                                fieldWithPath("targetComponent.name").description("The name of the target component"),
+                                fieldWithPath("targetComponent.description").description("The description of the target component"),
+                                fieldWithPath("targetComponent.type").description("The type of the target component"),
+                                fieldWithPath("targetComponent.componentOwner").description("The owner of the target component"),
+                                fieldWithPath("targetComponent.visbility").description("The visibility of the target component"),
+                                fieldWithPath("targetComponent.setVisbility").description("Flag indicating if the visibility is set"),
+                                fieldWithPath("targetComponent.setBusinessUnit").description("Flag indicating if the business unit is set")
+
+                        )));
     }
 
     @Test
@@ -836,9 +1051,20 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                 .andExpect(status().isOk())
                 .andDo(this.documentationHandler.document(
                         responseFields(
-                                subsectionWithPath("_embedded.sw360:attachments").description("An array of <<resources-attachment, Attachments resources>>"),
-                                subsectionWithPath("_embedded.sw360:attachments.[]filename").description("The attachment filename"),
-                                subsectionWithPath("_embedded.sw360:attachments.[]sha1").description("The attachment sha1 value"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes").description("An array of <<resources-attachment, Attachments resources>>"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]attachmentContentId").description("The attachment attachmentContentId"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]filename").description("The attachment filename"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]sha1").description("The attachment sha1"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]attachmentType").description("The attachment attachmentType"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdBy").description("The attachment createdBy"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdTeam").description("The attachment createdTeam"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdComment").description("The attachment createdComment"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdOn").description("The attachment createdOn"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]checkedComment").description("The attachment checkedComment"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]checkStatus").description("The attachment checkStatus"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment").description("The usages in project"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.visible").description("The visible usages in project"),
+                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.restricted").description("The restricted usages in project"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
     }
@@ -946,7 +1172,14 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                         fieldWithPath("ownerCountry").description("The owner country of the component"),
                         subsectionWithPath("externalIds").description("When projects are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                         subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
+                        fieldWithPath("modifiedOn").description("The date the component was modified"),
+                        fieldWithPath("softwarePlatforms").description("The Software Platforms of component"),
+                        fieldWithPath("subscribers").description("The subscribers of component"),
+                        fieldWithPath("mainLicenseIds").description("The Main License Ids of component"),
+                        fieldWithPath("wiki").description("The wiki of component"),
+                        fieldWithPath("blog").description("The blog of component"),
                         fieldWithPath("categories").description("The component categories"),
+                        fieldWithPath("moderators").description("The component moderators"),
                         fieldWithPath("languages").description("The language of the component"),
                         fieldWithPath("mailinglist").description("Component mailing lists"),
                         fieldWithPath("operatingSystems").description("The OS on which the component operates"),
@@ -1096,5 +1329,49 @@ public class ComponentSpecTest extends TestRestDocsSpecBase {
                 .header("Authorization", "Bearer " + accessToken)
                 .queryParam("type", "SPDX");
         this.mockMvc.perform(builder).andExpect(status().isOk()).andDo(this.documentationHandler.document());
+    }
+    
+    @Test
+    public void should_document_get_component_report() throws Exception{
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/reports")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("withlinkedreleases", "true")
+                        .param("mimetype", "xlsx")
+                        .param("mailrequest", "false")
+                        .param("module", "components")
+                        .accept(MediaTypes.HAL_JSON))
+             .andExpect(status().isOk())
+             .andDo(this.documentationHandler.document(
+                     requestParameters(
+                             parameterWithName("withlinkedreleases").description("Projects with linked releases. Possible values are `<true|false>`"),
+                             parameterWithName("mimetype").description("Projects download format. Possible values are `<xls|xlsx>`"),
+                             parameterWithName("mailrequest").description("Downloading project report requirted mail link. Possible values are `<true|false>`"),
+                             parameterWithName("module").description("module represent the project or component. Possible values are `<components|projects>`")
+                     )));
+    }
+    
+    @Test
+    public void should_document_get_component_report_with_mail_req() throws Exception{
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/reports")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("withlinkedreleases", "true")
+                        .param("mimetype", "xlsx")
+                        .param("mailrequest", "true")
+                        .param("module", "components")
+                        .accept(MediaTypes.HAL_JSON))
+             .andExpect(status().isOk())
+             .andDo(this.documentationHandler.document(
+                     requestParameters(
+                             parameterWithName("withlinkedreleases").description("components with linked releases. Possible values are `<true|false>`"),
+                             parameterWithName("mimetype").description("components download format. Possible values are `<xls|xlsx>`"),
+                             parameterWithName("module").description("module represent the project or component. Possible values are `<components|projects>`"),
+                             parameterWithName("mailrequest").description("Downloading components report requirted mail link. Possible values are `<true|false>`")
+                     ),responseFields(
+                             subsectionWithPath("response").description("The response message displayed").optional(),
+                             subsectionWithPath("url").description("The components download path will be displayed").optional()
+                             )
+                     ));
     }
 }

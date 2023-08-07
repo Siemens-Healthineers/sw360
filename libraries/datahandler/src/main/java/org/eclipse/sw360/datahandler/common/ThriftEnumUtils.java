@@ -21,6 +21,7 @@ import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationLevel;
 import org.eclipse.sw360.datahandler.thrift.licenses.ObligationType;
 import org.eclipse.sw360.datahandler.thrift.moderation.DocumentType;
+import org.eclipse.sw360.datahandler.thrift.packages.PackageManager;
 import org.eclipse.sw360.datahandler.thrift.projects.*;
 import org.eclipse.sw360.datahandler.thrift.users.UserAccess;
 import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
@@ -116,7 +117,7 @@ public class ThriftEnumUtils {
             .put(AttachmentType.SECURITY_ASSESSMENT, "Security Assessment")
             .put(AttachmentType.SBOM, "SBOM")
             .put(AttachmentType.INITIAL_SCAN_REPORT, "Initial Scan Report")
-            .put(AttachmentType.INTERNAL_USE_SCAN, "Initial Use Scan")
+            .put(AttachmentType.INTERNAL_USE_SCAN, "Internal Use Scan")
             .build();
 
     // @formatter:off
@@ -313,6 +314,7 @@ public class ThriftEnumUtils {
             .put(ClearingRequestState.IN_PROGRESS, "In Progress")
             .put(ClearingRequestState.CLOSED, "Closed")
             .put(ClearingRequestState.AWAITING_RESPONSE, "Awaiting Response")
+            .put(ClearingRequestState.ON_HOLD, "On Hold")
             .build();
 
     private static final ImmutableMap<ClearingReportStatus, String> MAP_CLEARING_REPORT_STATUS_STRING = ImmutableMap.<ClearingReportStatus, String>builder()
@@ -331,6 +333,55 @@ public class ThriftEnumUtils {
     private static final ImmutableMap<UserAccess, String> MAP_USER_ACCESS_STRING = ImmutableMap.<UserAccess, String>builder()
             .put(UserAccess.READ, "Read")
             .put(UserAccess.READ_WRITE, "Read and Write")
+            .build();
+
+    private static final ImmutableMap<PackageManager, String> MAP_PACKAGE_MANAGER_STRING = ImmutableMap.<PackageManager, String>builder()
+            .put(PackageManager.ALPINE, "Alpine")
+            .put(PackageManager.ALPM, "ALPM")
+            .put(PackageManager.APK, "APK")
+            .put(PackageManager.BITBUCKET, "Bitbucket")
+            .put(PackageManager.CARGO, "Cargo")
+            .put(PackageManager.COCOAPODS, "Cocoapods")
+            .put(PackageManager.COMPOSER, "Composer")
+            .put(PackageManager.CONAN, "Conan")
+            .put(PackageManager.CONDA, "Conda")
+            .put(PackageManager.CPAN, "Cpan")
+            .put(PackageManager.CRAN, "Cran")
+            .put(PackageManager.DEB, "Deb")
+            .put(PackageManager.DOCKER, "Docker")
+            .put(PackageManager.DRUPAL, "Drupal")
+            .put(PackageManager.GEM, "Gem")
+            .put(PackageManager.GENERIC, "Generic")
+            .put(PackageManager.GITHUB, "GitHub")
+            .put(PackageManager.GITLAB, "GitLab")
+            .put(PackageManager.GOLANG, "GoLang")
+            .put(PackageManager.GRADLE, "Gradle")
+            .put(PackageManager.HACKAGE, "Hackage")
+            .put(PackageManager.HEX, "Hex")
+            .put(PackageManager.HUGGINGFACE, "HuggingFace")
+            .put(PackageManager.MAVEN, "Maven")
+            .put(PackageManager.MLFLOW, "MLflow")
+            .put(PackageManager.NPM, "Npm")
+            .put(PackageManager.NUGET, "NuGet")
+            .put(PackageManager.OCI, "Oci")
+            .put(PackageManager.PUB, "Pub")
+            .put(PackageManager.PYPI, "PyPi")
+            .put(PackageManager.RPM, "Rpm")
+            .put(PackageManager.SWID, "Swid")
+            .put(PackageManager.SWIFT, "swift")
+            .put(PackageManager.YARN, "Yarn")
+            .put(PackageManager.YOCTO, "Yocto")
+            .build();
+
+    private static final ImmutableMap<CycloneDxComponentType, String> MAP_CYCLONE_DX_COMPONENT_TYPE_STRING = ImmutableMap.<CycloneDxComponentType, String>builder()
+            .put(CycloneDxComponentType.APPLICATION, "Application")
+            .put(CycloneDxComponentType.CONTAINER, "Container")
+            .put(CycloneDxComponentType.DEVICE, "Device")
+            .put(CycloneDxComponentType.FILE, "File")
+            .put(CycloneDxComponentType.FIRMWARE, "Firmware")
+            .put(CycloneDxComponentType.FRAMEWORK, "Framework")
+            .put(CycloneDxComponentType.LIBRARY, "Library")
+            .put(CycloneDxComponentType.OPERATING_SYSTEM, "Operating System")
             .build();
 
     public static final ImmutableMap<Class<? extends TEnum>, Map<? extends TEnum, String>>
@@ -365,6 +416,8 @@ public class ThriftEnumUtils {
             .put(ObligationType.class, MAP_OBLIGATION_TYPE_STRING)
             .put(ClearingRequestPriority.class, MAP_CLEARING_REQUEST_PRIORITY_STRING)
             .put(UserAccess.class, MAP_USER_ACCESS_STRING)
+            .put(PackageManager.class, MAP_PACKAGE_MANAGER_STRING)
+            .put(CycloneDxComponentType.class, MAP_CYCLONE_DX_COMPONENT_TYPE_STRING)
             .build();
 
     public static String enumToString(TEnum value) {
@@ -383,7 +436,8 @@ public class ThriftEnumUtils {
 
          return null;
      }
-    public static  <T extends Enum<T>> T  enumByString(String in, Class<T> clazz){
+
+     public static  <T extends Enum<T>> T  enumByString(String in, Class<T> clazz){
         Map<? extends TEnum, String> map = MAP_ENUMTYPE_MAP.get(clazz);
         for (T t : clazz.getEnumConstants()) {
             if(map.get(t).equals(in)) return t;

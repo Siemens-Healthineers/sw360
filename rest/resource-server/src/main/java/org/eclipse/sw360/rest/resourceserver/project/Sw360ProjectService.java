@@ -39,6 +39,7 @@ import org.eclipse.sw360.datahandler.thrift.projects.ProjectClearingState;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectData;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectLink;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
+import org.eclipse.sw360.datahandler.thrift.projects.ProjectProjectRelationship;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.rest.resourceserver.Sw360ResourceServer;
 import org.eclipse.sw360.rest.resourceserver.core.AwareOfRestServices;
@@ -257,6 +258,31 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
             }
             return project.getReleaseIdToUsage().keySet();
         }
+    }
+
+    public void addEmbeddedLinkedProject(Project sw360Project, User sw360User, HalResource<Project> projectResource, Set<String> projectIdsInBranch) throws TException {
+        projectIdsInBranch.add(sw360Project.getId());
+        Map<String, ProjectProjectRelationship> linkedProjects = sw360Project.getLinkedProjects();
+		List<String> keys = new ArrayList<>(linkedProjects.keySet());
+		System.out.println("keys " + keys.size());
+        if (keys != null) {
+        	keys.forEach(linkedProjectId -> wrapTException(() -> {
+                if (projectIdsInBranch.contains(linkedProjectId)) {
+                    return;
+                }
+                Project linkedProject = getProjectForUserById(linkedProjectId, sw360User);
+                System.out.println("project " + linkedProject);
+                Project embeddedLinkedProject = rch.convertToEmbeddedLinkedProject(linkedProject);
+                HalResource<Project> halLinkedProject = new HalResource<>(embeddedLinkedProject);
+                Link projectLink = linkTo(ProjectController.class)
+                        .slash("api/projects/" + embeddedLinkedProject.getId()).withSelfRel();
+                halLinkedProject.add(projectLink);
+                addEmbeddedLinkedProject(linkedProject, sw360User, halLinkedProject,
+                        projectIdsInBranch);
+                projectResource.addEmbeddedResource("sw360:linkedProjects", halLinkedProject);
+            }));
+        }
+        projectIdsInBranch.remove(sw360Project.getId());
     }
 
     public void addEmbeddedlinkedRelease(Release sw360Release, User sw360User, HalResource<Release> releaseResource,
@@ -484,14 +510,26 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
     }
 
     /**
-     * Import SBOM using the method on the thrift client.
+     * Import SPDX SBOM using the method on the thrift client.
      * @param user                User uploading the SBOM
      * @param attachmentContentId Id of the attachment uploaded
      * @return RequestSummary
      * @throws TException
      */
-    public RequestSummary importSBOM(User user, String attachmentContentId) throws TException {
+    public RequestSummary importSPDX(User user, String attachmentContentId) throws TException {
         ProjectService.Iface sw360ProjectClient = getThriftProjectClient();
         return sw360ProjectClient.importBomFromAttachmentContent(user, attachmentContentId);
+    }
+
+    /**
+     * Import CycloneDX SBOM using the method on the thrift client.
+     * @param user                User uploading the SBOM
+     * @param attachmentContentId Id of the attachment uploaded
+     * @return RequestSummary
+     * @throws TException
+     */
+    public RequestSummary importCycloneDX(User user, String attachmentContentId, String projectId) throws TException {
+        ProjectService.Iface sw360ProjectClient = getThriftProjectClient();
+        return sw360ProjectClient.importCycloneDxFromAttachmentContent(user, attachmentContentId, CommonUtils.nullToEmptyString(projectId));
     }
 }

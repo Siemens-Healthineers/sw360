@@ -29,14 +29,8 @@ import org.eclipse.sw360.datahandler.thrift.SW360Exception;
 import org.eclipse.sw360.datahandler.thrift.ThriftClients;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
-import org.eclipse.sw360.datahandler.thrift.components.Component;
+import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.components.ComponentService;
-import org.eclipse.sw360.datahandler.thrift.components.ComponentType;
-import org.eclipse.sw360.datahandler.thrift.components.ExternalTool;
-import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcess;
-import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcessStatus;
-import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcessStep;
-import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.fossology.FossologyService;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -55,18 +49,16 @@ import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileCopyUtils;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import static org.eclipse.sw360.datahandler.common.CommonUtils.isNullEmptyOrWhitespace;
+import static org.eclipse.sw360.datahandler.common.CommonUtils.nullToEmptyString;
 import static org.eclipse.sw360.datahandler.common.WrappedException.wrapTException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -118,8 +110,23 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
         return releaseById;
     }
 
-    public void setComponentDependentFieldsInRelease(Release releaseById, User sw360User) {
+    public List<ReleaseLink> getLinkedReleaseRelations(Release release, User user) throws TException {
+        List<ReleaseLink> linkedReleaseRelations = getLinkedReleaseRelationsWithAccessibility(release, user);
+        linkedReleaseRelations = linkedReleaseRelations.stream().filter(Objects::nonNull).sorted(Comparator.comparing(
+                rl -> rl.isAccessible() ? SW360Utils.getVersionedName(nullToEmptyString(rl.getName()), rl.getVersion()) : "~", String.CASE_INSENSITIVE_ORDER)
+        ).collect(Collectors.toList());
+        return linkedReleaseRelations;
+    }
 
+    public List<ReleaseLink> getLinkedReleaseRelationsWithAccessibility(Release release, User user) throws TException {
+        if (release != null && release.getReleaseIdToRelationship() != null) {
+            ComponentService.Iface componentClient = getThriftComponentClient();
+            return componentClient.getLinkedReleaseRelationsWithAccessibility(release.getReleaseIdToRelationship(), user);
+        }
+        return Collections.emptyList();
+    }
+
+    public Release setComponentDependentFieldsInRelease(Release releaseById, User sw360User) {
         String componentId = releaseById.getComponentId();
         if (CommonUtils.isNullEmptyOrWhitespace(componentId)) {
             throw new HttpMessageNotReadableException("ComponentId must be present");
@@ -132,7 +139,7 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
             throw new HttpMessageNotReadableException("No Component found with Id - " + componentId);
         }
         releaseById.setComponentType(componentById.getComponentType());
-
+        return releaseById;
     }
 
     public List<Release> getReleaseSubscriptions(User sw360User) throws TException {
@@ -404,6 +411,7 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
                 new Object[] { releaseId, attachmentSizeinMB, timeIntervalToCheckUnpackScanStatus }));
 
         Callable<ExternalToolProcess> processRunnable = new Callable<ExternalToolProcess>() {
+            @Override
             public ExternalToolProcess call() throws Exception {
                 return fossologyProcess(releaseId, user, uploadDescription);
             }
@@ -557,6 +565,7 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
         FossologyService.Iface sw360FossologyClient = getThriftFossologyClient();
 
         Callable<RequestStatus> unpackStatusRunnable = new Callable<RequestStatus>() {
+            @Override
             public RequestStatus call() throws Exception {
                 return checkUnpackCompletedSuccessfully(sw360FossologyClient, uploadId, releaseId);
             }
@@ -580,6 +589,7 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
         FossologyService.Iface sw360FossologyClient = getThriftFossologyClient();
 
         Callable<Object[]> scanStatusRunnable = new Callable<Object[]>() {
+            @Override
             public Object[] call() throws Exception {
                 return checkScanCompletedSuccessfully(sw360FossologyClient, scanJobId, releaseId);
             }
@@ -655,5 +665,17 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
         }
 
         return fossologyClient;
+    }
+
+    /**
+     * Re-generate Fossology report for release
+     * @param releaseId                Id of Release need to re-generate report
+     * @param user                     Request User
+     * @return RequestStatus
+     * @throws TException
+     */
+    public RequestStatus triggerReportGenerationFossology(String releaseId, User user) throws TException {
+        FossologyService.Iface fossologyClient = getThriftFossologyClient();
+        return fossologyClient.triggerReportGenerationFossology(releaseId, user);
     }
 }

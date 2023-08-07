@@ -193,7 +193,7 @@ public class Sw360ComponentService implements AwareOfRestServices<Component> {
 
             ClearingReport clearingReport = new ClearingReport();
             Set<Attachment> attachments = getAttachmentForClearingReport(release);
-            if (attachments.size() != 0 ) {
+            if (!attachments.equals(Collections.emptySet())) {
                 Set<Attachment> attachmentsAccepted = getAttachmentsStatusAccept(attachments);
                 if(attachmentsAccepted.size() != 0) {
                     clearingReport.setClearingReportStatus(ClearingReportStatus.DOWNLOAD);
@@ -217,6 +217,8 @@ public class Sw360ComponentService implements AwareOfRestServices<Component> {
 
     private Set<Attachment> getAttachmentForClearingReport(Release release){
         final Set<Attachment> attachments = release.getAttachments();
+        if (CommonUtils.isNullOrEmptyCollection(attachments))
+            return Collections.emptySet();
         return attachments.stream().filter(attachment -> AttachmentType.COMPONENT_LICENSE_INFO_XML.equals(attachment.getAttachmentType()) ||
                                                          AttachmentType.CLEARING_REPORT.equals(attachment.getAttachmentType()))
                                    .collect(Collectors.toSet());
@@ -274,5 +276,37 @@ public class Sw360ComponentService implements AwareOfRestServices<Component> {
     public ImportBomRequestPreparation prepareImportSBOM(User user, String attachmentContentId) throws TException {
         ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
         return sw360ComponentClient.prepareImportBom(user, attachmentContentId);
+    }
+
+  public RequestStatus mergeComponents(String componentTargetId, String componentSourceId, Component componentSelection, User user) throws TException {
+        ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
+        RequestStatus requestStatus;
+        requestStatus =  sw360ComponentClient.mergeComponents(componentTargetId, componentSourceId, componentSelection, user);
+
+        if (requestStatus == RequestStatus.IN_USE) {
+            throw new HttpMessageNotReadableException("Component already in use.");
+        } else if (requestStatus == RequestStatus.FAILURE) {
+            throw new HttpMessageNotReadableException("Cannot merge these components");
+        } else if (requestStatus == RequestStatus.ACCESS_DENIED) {
+            throw new RuntimeException("Access denied");
+        }
+
+        return requestStatus;
+  }
+
+    public RequestStatus splitComponents(Component srcComponent, Component targetComponent, User sw360User) throws TException {
+        ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
+        RequestStatus requestStatus;
+        requestStatus = sw360ComponentClient.splitComponent(srcComponent, targetComponent, sw360User);
+
+        if (requestStatus == RequestStatus.IN_USE) {
+            throw new HttpMessageNotReadableException("Component already in use.");
+        } else if (requestStatus == RequestStatus.FAILURE) {
+            throw new HttpMessageNotReadableException("Cannot split these components");
+        } else if (requestStatus == RequestStatus.ACCESS_DENIED) {
+            throw new RuntimeException("Access denied...!");
+        }
+
+        return requestStatus;
     }
 }

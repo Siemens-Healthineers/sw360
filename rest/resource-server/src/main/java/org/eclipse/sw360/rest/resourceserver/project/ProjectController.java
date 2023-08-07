@@ -17,6 +17,9 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang.StringUtils;
@@ -39,6 +42,7 @@ import org.eclipse.sw360.datahandler.thrift.ProjectReleaseRelationship;
 import org.eclipse.sw360.datahandler.thrift.ReleaseRelationship;
 import org.eclipse.sw360.datahandler.thrift.RequestStatus;
 import org.eclipse.sw360.datahandler.thrift.RequestSummary;
+import org.eclipse.sw360.datahandler.thrift.SW360Exception;
 import org.eclipse.sw360.datahandler.thrift.Source;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentContent;
@@ -70,6 +74,8 @@ import org.eclipse.sw360.rest.resourceserver.core.HalResource;
 import org.eclipse.sw360.rest.resourceserver.core.RestControllerHelper;
 import org.eclipse.sw360.rest.resourceserver.license.Sw360LicenseService;
 import org.eclipse.sw360.rest.resourceserver.licenseinfo.Sw360LicenseInfoService;
+import org.eclipse.sw360.rest.resourceserver.packages.PackageController;
+import org.eclipse.sw360.rest.resourceserver.packages.SW360PackageService;
 import org.eclipse.sw360.rest.resourceserver.release.Sw360ReleaseService;
 import org.eclipse.sw360.rest.resourceserver.user.Sw360UserService;
 import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
@@ -81,6 +87,7 @@ import org.springframework.data.rest.webmvc.BasePathAwareController;
 import org.springframework.data.rest.webmvc.RepositoryLinksResource;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.Link;
 import org.springframework.hateoas.server.RepresentationModelProcessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -89,6 +96,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.util.MultiValueMap;
+import org.springframework.hateoas.Link;
+import org.eclipse.sw360.rest.resourceserver.release.ReleaseController;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -110,6 +119,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -147,6 +157,9 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 
     @NonNull
     private final Sw360ProjectService projectService;
+
+    @NonNull
+    private final SW360PackageService packageService;
 
     @NonNull
     private final Sw360UserService userService;
@@ -325,6 +338,29 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
                 mapOfProjects, true, sw360Projects, false);
     }
 
+    @RequestMapping(value = PROJECTS_URL + "/{id}/licenseClearing", method = RequestMethod.GET)
+    public ResponseEntity licenseClearing(@PathVariable("id") String id, @RequestParam(value = "transitive", required = true) String transitive, HttpServletRequest request)
+            throws URISyntaxException, TException {
+
+        final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Project sw360Project = projectService.getProjectForUserById(id, sw360User);
+
+        final Set<String> releaseIds = projectService.getReleaseIds(id, sw360User, transitive);
+        List<Release> releases = releaseIds.stream().map(relId -> wrapTException(() -> {
+            final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+            releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+            return sw360Release;
+        })).collect(Collectors.toList());
+
+        List<EntityModel<Release>> releaseList = releases.stream().map(sw360Release -> wrapTException(() -> {
+            final HalResource<Release> releaseResource = restControllerHelper.addEmbeddedReleaseLinks(sw360Release);
+            return releaseResource;
+        })).collect(Collectors.toList());
+
+        HalResource<Project> userHalResource = createHalLicenseClearing(sw360Project, releaseList);
+        return new ResponseEntity<>(userHalResource, HttpStatus.OK);
+    }
+
     @RequestMapping(value = PROJECTS_URL + "/{id}", method = RequestMethod.GET)
     public ResponseEntity<EntityModel<Project>> getProject(
             @PathVariable("id") String id) throws TException {
@@ -335,13 +371,14 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     }
 
     @RequestMapping(value = PROJECTS_URL + "/{id}/linkedProjects", method = RequestMethod.GET)
-    public ResponseEntity<CollectionModel<EntityModel>> getLinkedProject(
-            Pageable pageable,
-            @PathVariable("id") String id,
-            HttpServletRequest request) throws TException, URISyntaxException, PaginationParameterException, ResourceClassNotFoundException {
+    public ResponseEntity<CollectionModel<EntityModel>> getLinkedProject(Pageable pageable,
+            @PathVariable("id") String id,@RequestParam(value = "transitive", required = false) String transitive, HttpServletRequest request)
+            throws TException, URISyntaxException, PaginationParameterException, ResourceClassNotFoundException {
 
         User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Project sw360Proj = projectService.getProjectForUserById(id, sw360User);
+        final Set<String> projectIdsInBranch = new HashSet<>();
+        boolean isTransitive = Boolean.parseBoolean(transitive);
 
         Map<String, ProjectProjectRelationship> linkedProjects = sw360Proj.getLinkedProjects();
         List<String> keys = new ArrayList<>(linkedProjects.keySet());
@@ -355,8 +392,14 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 
         final List<EntityModel<Project>> projectResources = paginationResult.getResources().stream()
                 .map(sw360Project -> wrapTException(() -> {
-                    final Project embeddedProject = restControllerHelper.convertToEmbeddedProject(sw360Project);
+                    final Project embeddedProject = restControllerHelper.convertToEmbeddedLinkedProject(sw360Project);
                     final HalResource<Project> projectResource = new HalResource<>(embeddedProject);
+                    System.out.println("before " + isTransitive);
+                    if (isTransitive) {
+                        System.out.println("after " + isTransitive);
+                        projectService.addEmbeddedLinkedProject(sw360Project, sw360User, projectResource,
+                            projectIdsInBranch);
+                    }
                     return projectResource;
                 })).collect(Collectors.toList());
 
@@ -466,6 +509,28 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             throws URISyntaxException, TException {
         RequestStatus patchReleasesStatus = addOrPatchReleasesToProject(id, releaseURIs, true);
         if (patchReleasesStatus == RequestStatus.SENT_TO_MODERATOR) {
+            return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = PROJECTS_URL + "/{id}/link/packages", method = RequestMethod.PATCH)
+    public ResponseEntity<?> linkPackages(@PathVariable("id") String id,
+            @RequestBody Set<String> packagesInRequestBody) throws URISyntaxException, TException {
+        RequestStatus linkPackageStatus = linkOrUnlinkPackages(id, packagesInRequestBody, true);
+        if (linkPackageStatus == RequestStatus.SENT_TO_MODERATOR) {
+            return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
+        }
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = PROJECTS_URL + "/{id}/unlink/packages", method = RequestMethod.PATCH)
+    public ResponseEntity<?> patchPackages(@PathVariable("id") String id,
+            @RequestBody Set<String> packagesInRequestBody) throws URISyntaxException, TException {
+        RequestStatus patchPackageStatus = linkOrUnlinkPackages(id, packagesInRequestBody, false);
+        if (patchPackageStatus == RequestStatus.SENT_TO_MODERATOR) {
             return new ResponseEntity<>(RESPONSE_BODY_FOR_MODERATION_REQUEST, HttpStatus.ACCEPTED);
         }
         return new ResponseEntity<>(HttpStatus.CREATED);
@@ -832,17 +897,18 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         String outputGeneratorClassNameWithVariant = generatorClassName+"::"+variant;
         final OutputFormatInfo outputFormatInfo = licenseInfoService.getOutputFormatInfoForGeneratorClass(generatorClassName);
         final String filename = String.format("%s-%s%s-%s.%s", Strings.nullToEmpty(variant).equals("DISCLOSURE") ? "LicenseInfo" : "ProjectClearingReport", projectName,
-			StringUtils.isBlank(projectVersion) ? "" : "-" + projectVersion, timestamp,
-			outputFormatInfo.getFileExtension());
+            StringUtils.isBlank(projectVersion) ? "" : "-" + projectVersion, timestamp,
+            outputFormatInfo.getFileExtension());
 
-        String fileName = "";
+        String fileNameWithOrg = "";
         if (CommonUtils.isNotNullEmptyOrWhitespace(template) && CommonUtils.isNotNullEmptyOrWhitespace(REPORT_FILENAME_MAPPING)) {
             Map<String, String> orgToTemplate = Arrays.stream(REPORT_FILENAME_MAPPING.split(","))
                     .collect(Collectors.toMap(k -> k.split(":")[0], v -> v.split(":")[1]));
-            fileName = orgToTemplate.get(template);
+            // fileName = orgToTemplate.get(template);
+            fileNameWithOrg = orgToTemplate.get(template) + "::" + template;
         }
 
-        final LicenseInfoFile licenseInfoFile = licenseInfoService.getLicenseInfoFile(sw360Project, sw360User, outputGeneratorClassNameWithVariant, selectedReleaseAndAttachmentIds, excludedLicensesPerAttachments, externalIds, fileName);
+        final LicenseInfoFile licenseInfoFile = licenseInfoService.getLicenseInfoFile(sw360Project, sw360User, outputGeneratorClassNameWithVariant, selectedReleaseAndAttachmentIds, excludedLicensesPerAttachments, externalIds, fileNameWithOrg);
         byte[] byteContent = licenseInfoFile.bufferForGeneratedOutput().array();
         response.setContentType(outputFormatInfo.getMimeType());
         response.setHeader("Content-Disposition", String.format("attachment; filename=\"%s\"", filename));
@@ -1028,42 +1094,110 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     @PreAuthorize("hasAuthority('WRITE')")
     @RequestMapping(value = PROJECTS_URL + "/import/SBOM", method = RequestMethod.POST, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<?> importSBOM(@RequestParam(value = "type", required = true) String type,
-                                                  @RequestBody MultipartFile file) throws TException {
+            @RequestBody MultipartFile file) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Attachment attachment = null;
         final RequestSummary requestSummary;
-        if (!type.equalsIgnoreCase("SPDX")) {
-            return new ResponseEntity<String>("Invalid SBOM file type. It currently only supports SPDX(.rdf/.xml) files.",
+        String projectId = null;
+        Map<String, String> messageMap = new HashMap<>();
+
+        if (!(type.equalsIgnoreCase("SPDX") || type.equalsIgnoreCase("CycloneDX"))) {
+            return new ResponseEntity<String>("Invalid SBOM file type. Only SPDX(.rdf/.xml) and CycloneDX(.json/.xml) files are supported.",
                     HttpStatus.BAD_REQUEST);
         }
+
         try {
             attachment = attachmentService.uploadAttachment(file, new Attachment(), sw360User);
-            try {
-                requestSummary = projectService.importSBOM(sw360User, attachment.getAttachmentContentId());
-            } catch (Exception e) {
-                log.error("Failed to import SBOM", e.getMessage());
-                throw new RuntimeException(e.getMessage());
-            }
         } catch (IOException e) {
             log.error("failed to upload attachment", e);
             throw new RuntimeException("failed to upload attachment", e);
         }
 
-        String projectId = requestSummary.getMessage();
+        if (type.equalsIgnoreCase("SPDX")) {
+            requestSummary = projectService.importSPDX(sw360User, attachment.getAttachmentContentId());
 
-        if (!(requestSummary.requestStatus == RequestStatus.SUCCESS && CommonUtils.isNotNullEmptyOrWhitespace(projectId))) {
-            return new ResponseEntity<String>("Invalid SBOM file", HttpStatus.BAD_REQUEST);
+            if (!(requestSummary.getRequestStatus() == RequestStatus.SUCCESS)) {
+                return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+            }
+            projectId = requestSummary.getMessage();
+        } else {
+            requestSummary = projectService.importCycloneDX(sw360User, attachment.getAttachmentContentId(), "");
+
+            if (requestSummary.getRequestStatus() == RequestStatus.FAILURE) {
+                return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+            }
+            String jsonMessage = requestSummary.getMessage();
+            messageMap = new Gson().fromJson(jsonMessage, Map.class);
+            projectId = messageMap.get("projectId");
+
+            if (requestSummary.getRequestStatus() == RequestStatus.DUPLICATE) {
+                return new ResponseEntity<String>("A project with same name and version already exists. The projectId is: "
+                        + projectId, HttpStatus.CONFLICT);
+            }
         }
         Project project = projectService.getProjectForUserById(projectId, sw360User);
-        HttpStatus status = HttpStatus.OK;
         HalResource<Project> halResource = createHalProject(project, sw360User);
-        return new ResponseEntity<HalResource<Project>>(halResource, status);
+        return new ResponseEntity<HalResource<Project>>(halResource, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = PROJECTS_URL + "/{id}/import/SBOM", method = RequestMethod.POST, consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<?> importSBOMonProject(@PathVariable(value = "id", required = true) String id,
+                                                  @RequestBody MultipartFile file) throws TException {
+        final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Attachment attachment = null;
+        final RequestSummary requestSummary;
+        String projectId = null;
+        Map<String, String> messageMap = new HashMap<>();
+
+        try {
+            attachment = attachmentService.uploadAttachment(file, new Attachment(), sw360User);
+        } catch (IOException e) {
+            log.error("failed to upload attachment", e);
+            throw new RuntimeException("failed to upload attachment", e);
+        }
+
+        requestSummary = projectService.importCycloneDX(sw360User, attachment.getAttachmentContentId(), id);
+
+        if (requestSummary.getRequestStatus() == RequestStatus.FAILURE) {
+            return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+        String jsonMessage = requestSummary.getMessage();
+        messageMap = new Gson().fromJson(jsonMessage, Map.class);
+        projectId = messageMap.get("projectId");
+
+        if (requestSummary.getRequestStatus() == RequestStatus.DUPLICATE) {
+            return new ResponseEntity<String>(
+                    "A project with same name and version already exists. The projectId is: " + projectId,
+                    HttpStatus.CONFLICT);
+        }
+
+        Project project = projectService.getProjectForUserById(projectId, sw360User);
+        HalResource<Project> halResource = createHalProject(project, sw360User);
+        return new ResponseEntity<HalResource<Project>>(halResource, HttpStatus.OK);
     }
 
     @Override
     public RepositoryLinksResource process(RepositoryLinksResource resource) {
         resource.add(linkTo(ProjectController.class).slash("api" + PROJECTS_URL).withRel("projects"));
         return resource;
+    }
+
+    private HalResource<Project> createHalLicenseClearing(Project sw360Project, List<EntityModel<Release>> releases) {
+        Project sw360 = new Project();
+        Map<String, ProjectReleaseRelationship> releaseIdToUsage = sw360Project.getReleaseIdToUsage();
+        sw360.setReleaseIdToUsage(sw360Project.getReleaseIdToUsage());
+        sw360.setLinkedProjects(sw360Project.getLinkedProjects());
+        sw360.unsetState();
+        sw360.unsetProjectType();
+        sw360.unsetVisbility();
+        sw360.unsetSecurityResponsibles();
+        HalResource<Project> halProject = new HalResource<>(sw360);
+
+        if (releaseIdToUsage != null) {
+            restControllerHelper.addEmbeddedProjectReleases(halProject, releases);
+        }
+        return halProject;
     }
 
     private HalResource<Project> createHalProject(Project sw360Project, User sw360User) throws TException {
@@ -1101,9 +1235,13 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 
         if (sw360Project.getVendor() != null) {
             Vendor vendor = sw360Project.getVendor();
-            HalResource<Vendor> vendorHalResource = restControllerHelper.addEmbeddedVendor(vendor.getFullname());
+            Vendor vendorHalResource = restControllerHelper.convertToEmbeddedVendor(vendor);
             halProject.addEmbeddedResource("sw360:vendors", vendorHalResource);
             sw360Project.setVendor(null);
+        }
+
+        if (sw360Project.getPackageIdsSize() > 0) {
+            restControllerHelper.addEmbeddedPackages(halProject, sw360Project.getPackageIds(), packageService);
         }
 
         return halProject;
@@ -1158,9 +1296,36 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         return projectService.updateProject(project, sw360User);
     }
 
+    private RequestStatus linkOrUnlinkPackages(String id, Set<String> packagesInRequestBody, boolean link)
+            throws URISyntaxException, TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Project project = projectService.getProjectForUserById(id, sw360User);
+        Set<String> packageIds = new HashSet<>();
+        packageIds = project.getPackageIds();
+
+        if (link) {
+            packageIds.addAll(packagesInRequestBody);
+        } else {
+            packageIds.removeAll(packagesInRequestBody);
+        }
+
+        project.setPackageIds(packageIds);
+        return projectService.updateProject(project, sw360User);
+    }
+
     private HalResource<Project> createHalProjectResourceWithAllDetails(Project sw360Project, User sw360User) {
         HalResource<Project> halProject = new HalResource<>(sw360Project);
         halProject.addEmbeddedResource("createdBy", sw360Project.getCreatedBy());
+
+        Set<String> packageIds = sw360Project.getPackageIds();
+
+        if (packageIds != null) {
+            for (String id : sw360Project.getPackageIds()) {
+                Link packageLink = linkTo(ProjectController.class)
+                        .slash("api" + PackageController.PACKAGES_URL + "/" + id).withRel("packages");
+                halProject.add(packageLink);
+            }
+        }
 
         List<String> obsoleteFields = List.of("homepage", "wiki");
         for (Entry<Project._Fields, String> field : mapOfFieldsTobeEmbedded.entrySet()) {
@@ -1209,4 +1374,33 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         }
         return null;
     }
+
+    @RequestMapping(value = PROJECTS_URL + "/projectcount", method = RequestMethod.GET)
+    public void getUserProjectCount(HttpServletResponse response) throws TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        try {
+            JsonObject resultJson = new JsonObject();
+            resultJson.addProperty("status", "success");
+            resultJson.addProperty("count", projectService.getMyAccessibleProjectCounts(sw360User));
+            response.getWriter().write(resultJson.toString());
+        }catch (IOException e) {
+            throw new SW360Exception(e.getMessage());
+        }
+    }
+    @RequestMapping(value = PROJECTS_URL + "/{id}/summaryAdministration", method = RequestMethod.GET)
+    public ResponseEntity<EntityModel<Project>> getAdministration(
+            @PathVariable("id") String id) throws TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        Project sw360Project = projectService.getProjectForUserById(id, sw360User);
+        Map<String, String> sortedExternalURLs = CommonUtils.getSortedMap(sw360Project.getExternalUrls(), true);
+        sw360Project.setExternalUrls(sortedExternalURLs);
+        sw360Project.setReleaseIdToUsage(null);
+        sw360Project.setLinkedProjects(null);
+        HalResource<Project> userHalResource = createHalProject(sw360Project, sw360User);
+        sw360Project.unsetLinkedProjects();
+        sw360Project.unsetReleaseIdToUsage();
+
+        return new ResponseEntity<>(userHalResource, HttpStatus.OK);
+    }
+
 }

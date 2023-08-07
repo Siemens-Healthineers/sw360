@@ -72,6 +72,7 @@ enum ClearingRequestState {
     IN_PROGRESS = 4,
     CLOSED = 5,
     AWAITING_RESPONSE = 6
+    ON_HOLD = 7
 }
 
 enum ClearingRequestPriority {
@@ -150,6 +151,17 @@ enum ClearingReportStatus {
     NO_STATUS = 0,
     NO_REPORT = 1,
     DOWNLOAD = 2
+}
+
+enum CycloneDxComponentType {
+    APPLICATION = 0,
+    CONTAINER = 1,
+    DEVICE = 2,
+    FILE = 3,
+    FIRMWARE = 4,
+    FRAMEWORK = 5,
+    LIBRARY = 6,
+    OPERATING_SYSTEM = 7,
 }
 
 struct ConfigContainer {

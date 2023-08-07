@@ -130,6 +130,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.eclipse.sw360</groupId>
             <artifactId>datahandler</artifactId>
             <version>${project.version}</version>
@@ -215,6 +219,10 @@
             <groupId>javax.servlet.jsp.jstl</groupId>
             <artifactId>jstl-api</artifactId>
             <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.package-url</groupId>
+            <artifactId>packageurl-java</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>

@@ -135,12 +135,6 @@
             </core_rt:forEach>
         }
 
-        function decodeHTMLentities(str) {
-            return str.replace(/&#(\d+);/g, function(match, dec) {
-                 return String.fromCharCode(dec);
-            });
-        }
-
 		$(document).ready(function(){
 		    $("#user_department").after(prepareKeyDatalist()).attr("list","grpsKeyList")
 		})

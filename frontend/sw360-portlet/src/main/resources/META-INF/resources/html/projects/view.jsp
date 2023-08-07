@@ -9,6 +9,7 @@
   ~ SPDX-License-Identifier: EPL-2.0
   --%>
 <%@ page import="com.liferay.portal.kernel.portlet.PortletURLFactoryUtil" %>
+<%@ page import="org.eclipse.sw360.datahandler.common.SW360Constants" %>
 <%@ page import="org.eclipse.sw360.datahandler.thrift.projects.Project" %>
 <%@ page import="org.eclipse.sw360.portal.common.PortalConstants" %>
 <%@ page import="javax.portlet.PortletRequest" %>
@@ -34,11 +35,13 @@
 <jsp:useBean id="name" class="java.lang.String" scope="request"/>
 <jsp:useBean id="state" class="java.lang.String" scope="request"/>
 <jsp:useBean id="exactMatchCheckBox" class="java.lang.String" scope="request"/>
+<jsp:useBean id="isSbomImportExportAccessUser" type="java.lang.Boolean" scope="request"/>
 
 <core_rt:set var="stateAutoC" value='<%=PortalConstants.STATE%>'/>
 <core_rt:set var="projectTypeAutoC" value='<%=PortalConstants.PROJECT_TYPE%>'/>
 <core_rt:set var="FOSSOLOGY_CONNECTION_ENABLED" value="<%=FossologyConnectionHelper.getInstance().isFossologyConnectionEnabled()%>"/>
 <core_rt:set var="pageName"  value="<%= request.getParameter("pagename") %>" />
+<core_rt:set var="isPackagePortletEnabled" value='<%=SW360Constants.IS_PACKAGE_PORTLET_ENABLED%>' scope="request"/>
 
 <portlet:resourceURL var="exportProjectsURL">
     <portlet:param name="<%=PortalConstants.ACTION%>" value="<%=PortalConstants.EXPORT_TO_EXCEL%>"/>
@@ -165,8 +168,20 @@
                     <div class="btn-toolbar" role="toolbar">
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-primary" onclick="window.location.href='<%=addProjectURL%>'"><liferay-ui:message key="add.project" /></button>
-                            <button type="button" class="btn btn-secondary" data-action="import-spdx-bom"><liferay-ui:message key="import.spdx.bom" /></button>
-                        </div>
+									<button type="button" ${isSbomImportExportAccessUser ? '' : 'disabled'}
+									class="btn btn-secondary dropdown-toggle"
+										data-toggle="dropdown" aria-haspopup="true"
+										aria-expanded="false">
+										<liferay-ui:message key="import.sbom" />
+										<clay:icon symbol="caret-bottom" />
+									</button>
+									<div class="dropdown-menu" id="importSbom">
+										<!--<a class="dropdown-item import" href="#" data-type="spdx"><liferay-ui:message key="spdx" /></a>-->
+										<a class="dropdown-item import" href="#" data-type="cycloneDx"><liferay-ui:message
+												key="cyclonedx" /></a>
+									</div>
+									<else>
+						</div>
                         <div id="btnExportGroup" class="btn-group" role="group">
                             <button id="btnExport" type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <liferay-ui:message key="export.spreadsheet" />
@@ -218,6 +233,7 @@
                         <ul>
                             <li data-hide="hasNoLinkedProjects"><span data-name="linkedProjects"></span> <liferay-ui:message key="linked.projects" /></li>
                             <li data-hide="hasNoLinkedReleases"><span data-name="linkedReleases"></span> <liferay-ui:message key="linked.releases" /></li>
+                            <li data-hide="hasNoLinkedPackages"><span data-name="linkedPackages"></span> <liferay-ui:message key="linked.packages" /></li>
                             <li data-hide="hasNoAttachments"><span data-name="attachments"></span> <liferay-ui:message key="attachments" /></li>
                         </ul>
                     </div>
@@ -269,7 +285,7 @@
             });
             $('#projectsTable').on('click', 'svg.delete', function(event) {
                 var data = $(event.currentTarget).data();
-                deleteProject(data.projectId, data.projectName, data.linkedProjectsCount, data.linkedReleasesCount, data.projectAttachmentCount);
+                deleteProject(data.projectId, data.projectName, data.linkedProjectsCount, data.linkedReleasesCount, data.projectAttachmentCount, data.linkedPackagesCount);
             });
             $('#projectsTable').on('click', 'svg.disabledClearingRequest', function(event) {
                 var disabledBtnData = $(event.currentTarget).data();
@@ -361,6 +377,7 @@
                         'data-linked-projects-count': row.lProjSize,
                         'data-linked-releases-count': row.lRelsSize,
                         'data-project-attachment-count': row.attsSize,
+                        'data-linked-packages-count': row.lPkgSize,
                     });
 
                 $deleteAction.append($('<title>Delete</title><use href="/o/org.eclipse.sw360.liferay-theme/images/clay/icons.svg#trash"/>'));
@@ -382,6 +399,7 @@
                         'data-project-name': row.name,
                         'data-linked-projects-count': row.lProjSize,
                         'data-linked-releases-count': row.lRelsSize,
+                        'data-linked-packages-count': row.lPkgSize,
                     }).append('<title><liferay-ui:message key="create.clearing.request" /></title>');
                 }
 
@@ -570,7 +588,7 @@
             }
 
             // delete action
-            function deleteProject(projectId, name, linkedProjectsSize, linkedReleasesSize, attachmentsSize) {
+            function deleteProject(projectId, name, linkedProjectsSize, linkedReleasesSize, attachmentsSize, linkedPackagesSize) {
                 var $dialog;
 
                 function deleteProjectInternal(callback) {
@@ -610,10 +628,12 @@
                     name: name,
                     linkedProjects: linkedProjectsSize,
                     linkedReleases: linkedReleasesSize,
+                    linkedPackages: linkedPackagesSize,
                     attachments: attachmentsSize,
-                    hasNoDependencies: linkedProjectsSize == 0 && linkedReleasesSize == 0 && attachmentsSize == 0,
+                    hasNoDependencies: linkedProjectsSize == 0 && linkedReleasesSize == 0 && attachmentsSize == 0 && linkedPackagesSize == 0,
                     hasNoLinkedProjects: linkedProjectsSize == 0,
                     hasNoLinkedReleases: linkedReleasesSize == 0,
+                    hasNoLinkedPackages: linkedPackagesSize == 0,
                     hasNoAttachments: attachmentsSize == 0
                 }, function(submit, callback) {
                     deleteProjectInternal(callback);
