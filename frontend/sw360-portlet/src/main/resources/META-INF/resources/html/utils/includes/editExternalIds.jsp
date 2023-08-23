@@ -99,6 +99,7 @@
                 '</svg>' +
                 '</td>' +
                 '</tr>';
+            console.log(newRowAsString);
             $('#externalIdsTable tr:last').after(newRowAsString);
         }
 
