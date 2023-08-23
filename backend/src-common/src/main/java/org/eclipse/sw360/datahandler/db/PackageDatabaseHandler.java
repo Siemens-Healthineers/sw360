@@ -13,9 +13,12 @@ import static org.eclipse.sw360.datahandler.common.CommonUtils.isNullEmptyOrWhit
 import static org.eclipse.sw360.datahandler.common.SW360Assert.assertNotNull;
 import static org.eclipse.sw360.datahandler.common.SW360Assert.fail;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +51,7 @@ import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.packages.PackageManager;
 import org.eclipse.sw360.datahandler.thrift.users.User;
+import org.jetbrains.annotations.NotNull;
 
 import com.cloudant.client.api.CloudantClient;
 import com.cloudant.client.api.model.Response;
@@ -70,6 +74,8 @@ public class PackageDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private final ProjectRepository projectRepository;
     private final ComponentDatabaseHandler componentDatabaseHandler;
     private final DatabaseHandlerUtil databaseHandlerUtil;
+
+    private SvmConnector svmConnector;
 
     private static final Logger log = LogManager.getLogger(CycloneDxBOMImporter.class);
 
@@ -444,5 +450,74 @@ public class PackageDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
     public Map<PaginationData, List<Package>> getPackagesWithPagination(PaginationData pageData) {
           return packageRepository.getPackagesWithPagination(pageData);
+    }
+
+    public RequestStatus updatePackagesWithSvmTrackingFeedback(Set<String> packageIds) {
+        try {
+            Map<String, Map<String, Object>> componentMappings = getSvmConnector().fetchComponentMappings();
+            List<Package> packages = packageRepository.getPackagesIgnoringNotFound(packageIds);
+
+            packages.forEach(p -> {
+                Map<String, String> externalIds = p.isSetExternalIds() ? p.getExternalIds() : new HashMap<>();
+                Map<String, String> additionalData = p.isSetAdditionalData() ? p.getAdditionalData() : new HashMap<>();
+
+                Map<String, Object> packageSVMData = componentMappings.get(p.getId());
+                if (!CommonUtils.isNullOrEmptyMap(packageSVMData)) {
+                    Package originalPackageData = p.deepCopy();
+                    Object svmComponentId = packageSVMData.get(SW360Constants.SVM_COMPONENT_ID_KEY);
+                    Object shortStatus = packageSVMData.get(SW360Constants.SVM_SHORT_STATUS_KEY);
+                    boolean isChanged = false;
+                    if (svmComponentId != null) {
+                        String previousValue = externalIds.get(SW360Constants.SVM_COMPONENT_ID);
+                        if (previousValue == null || !previousValue.equals(svmComponentId.toString())) {
+                            externalIds.put(SW360Constants.SVM_COMPONENT_ID, svmComponentId.toString());
+                            p.setExternalIds(externalIds);
+                            isChanged = true;
+                        }
+                    }
+
+                    if (shortStatus != null && CommonUtils.isNotNullEmptyOrWhitespace(shortStatus.toString())) {
+                        String previousValue = additionalData.get(SW360Constants.SVM_SHORT_STATUS);
+                        if (previousValue == null || !previousValue.equals(shortStatus.toString())) {
+                            additionalData.put(SW360Constants.SVM_SHORT_STATUS, shortStatus.toString());
+                            p.setAdditionalData(additionalData);
+                            isChanged = true;
+                        }
+                    }
+
+                    if (isChanged) {
+                        databaseHandlerUtil.addChangeLogs(p, originalPackageData, SW360Constants.SVM_SCHEDULER_EMAIL,
+                                Operation.UPDATE, attachmentConnector, Lists.newArrayList(), null, null);
+                    }
+                }
+            });
+            List<Response> documentOperationResults = packageRepository.executeBulk(packages);
+            documentOperationResults = documentOperationResults.stream().filter(pkg -> pkg.getError() != null || pkg.getStatusCode() != HttpStatus.SC_CREATED)
+                    .collect(Collectors.toList());
+            if (documentOperationResults.isEmpty()) {
+                log.info(String.format("SVMTF: updated %d packages", packages.size()));
+            } else {
+                log.error("SVMTF: Failed saving packages: " + documentOperationResults);
+                return RequestStatus.FAILURE;
+            }
+        } catch (IOException | SW360Exception e) {
+            log.error(e);
+            return RequestStatus.FAILURE;
+        }
+
+        return RequestStatus.SUCCESS;
+    }
+
+    @NotNull
+    private SvmConnector getSvmConnector() {
+        if (svmConnector == null) {
+            svmConnector = new SvmConnector();
+        }
+        return svmConnector;
+    }
+
+    public PackageDatabaseHandler setSvmConnector(SvmConnector svmConnector) {
+        this.svmConnector = svmConnector;
+        return this;
     }
 }

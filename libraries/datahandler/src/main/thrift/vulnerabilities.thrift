@@ -10,6 +10,7 @@
 include "sw360.thrift"
 include "users.thrift"
 include "components.thrift"
+include "package.thrift"
 
 namespace java org.eclipse.sw360.datahandler.thrift.vulnerabilities
 namespace php sw360.thrift.vulnerabilities
@@ -21,6 +22,7 @@ typedef sw360.RequestStatus RequestStatus
 typedef sw360.VerificationState VerificationState
 typedef sw360.VerificationStateInfo VerificationStateInfo
 typedef components.Release Release
+typedef package.Package Package
 
 struct ReleaseVulnerabilityRelation{
     // Basic information
@@ -108,6 +110,9 @@ struct VulnerabilityApiDTO{
 
     //additional info for Releases
     37: optional set<Release> releases;
+
+    //additional info for Packages
+    38: optional set<Package> packages;
 }
 
 struct VulnerabilityDTO{
@@ -277,6 +282,12 @@ service VulnerabilityService {
       **/
     list<VulnerabilityDTO> getVulnerabilitiesByComponentId(1: string componentId, 2: User user);
 
+    /**
+      * if the user is valid: returns a list with all vulnerability linked to the package with id packageId as DTOs
+      * returns empty list if user is not valid
+      **/
+    list<VulnerabilityDTO> getVulnerabilitiesByPackageId(1: string packageId, 2: User user);
+
      /**
        * see getVulnerabilitiesByReleaseId for all releases that are directly linked to the project with projectId
        **/
@@ -293,6 +304,11 @@ service VulnerabilityService {
     list<VulnerabilityDTO> getVulnerabilitiesByComponentIdWithoutIncorrect(1: string componentId, 2: User user);
 
     /**
+      * see getVulnerabilitiesByPackageId, but except vulnerabilities marked as incorrect for that package
+      **/
+    list<VulnerabilityDTO> getVulnerabilitiesByPackageIdWithoutIncorrect(1: string packageId, 2: User user);
+
+    /*
       * see getVulnerabilitiesByProjectId, but except vulnerabilities marked as incorrect for the respective release
       **/
     list<VulnerabilityDTO> getVulnerabilitiesByProjectIdWithoutIncorrect(1: string projectId, 2: User user);

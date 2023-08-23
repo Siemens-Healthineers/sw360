@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.thrift.TException;
 import org.eclipse.sw360.common.utils.BackendUtils;
 import org.eclipse.sw360.components.summary.SummaryType;
@@ -1295,7 +1296,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
         return projects;
     }
-    
+
     public Project fillClearingStateSummaryIncludingSubprojectsForSingleProject(Project project, User user) {
         final Map<String, Project> allProjectsIdMap = getRefreshedAllProjectsIdMap();
 
@@ -1591,8 +1592,8 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             }).map(entry -> entry.getKey()).collect(Collectors.toSet());
             List<Release> projectReleases = nullToEmptyMap(p.getReleaseIdToUsage()).keySet().stream()
                     .map(releaseMap::get).filter(Objects::nonNull).collect(Collectors.toList());
-            List<Package> projectPackages = nullToEmptySet(p.getPackageIds()).stream()
-                    .map(packageMap::get).filter(Objects::nonNull).collect(Collectors.toList());
+            Set<Package> projectPackages = nullToEmptySet(p.getPackageIds()).stream()
+                    .map(packageMap::get).filter(Objects::nonNull).collect(Collectors.toSet());
 
             JsonObject json = new JsonObject();
             json.addProperty("application_id", p.getId());
@@ -1649,7 +1650,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             log.warn(String.format("Parent component of release %s (%s) with id %s was not found", r.getName(), r.getId(), r.getComponentId()));
         } else {
             json.add("urls", getUrlsJson(r, c));
+<<<<<<< HEAD
             json.addProperty("description", c.getDescription());
+=======
+            json.addProperty("description", StringEscapeUtils.escapeJson(c.getDescription()));
+>>>>>>> e2839140b ((feat):SVM Vulnerability Monitoring at Package level and External Id, Additional Data fields added to Packages)
         }
         json.add("cpe_items", getReleaseCpeIdsJson(r));
 
@@ -1668,6 +1673,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         json.addProperty("version", p.getVersion());
         json.add("urls", getUrlsJsonForPackage(p));
         json.addProperty("description", p.getDescription());
+<<<<<<< HEAD
+=======
+        json.add("cpe_items", new JsonArray());
+        json.addProperty("vendor", "");
+>>>>>>> e2839140b ((feat):SVM Vulnerability Monitoring at Package level and External Id, Additional Data fields added to Packages)
 
         return json;
     }
@@ -1684,6 +1694,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     private JsonArray serializeReleasesandPackagesToJson(List<Release> releases, Map<String, Component> componentMap,
+<<<<<<< HEAD
             List<Package> projectPackages) {
         JsonArray serializedReleasesandPackages = new JsonArray();
         List<Package> nonOrphanPackages = new ArrayList<>();
@@ -1713,6 +1724,27 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             } else {
                 Component c = componentMap.get(r.getComponentId());
 
+=======
+            Set<Package> projectPackages) {
+        JsonArray serializedReleasesandPackages = new JsonArray();
+        List<String> releaseIds = new ArrayList<>();
+
+        for (Package p : projectPackages) {
+            if (isNotNullEmptyOrWhitespace(p.getReleaseId())) {
+                releaseIds.add(p.getReleaseId());
+            } else {
+                log.warn(String.format("Sending orphan package %s (%s) to SVM",
+                        p.getName(), p.getId()));
+            }
+                JsonObject json = new JsonObject();
+                serializedReleasesandPackages.add(createJsonObjectForPackage(json, p));
+        }
+
+        for (Release r : releases) {
+            if (!releaseIds.contains(r.getId())) {
+                JsonObject json = new JsonObject();
+                Component c = componentMap.get(r.getComponentId());
+>>>>>>> e2839140b ((feat):SVM Vulnerability Monitoring at Package level and External Id, Additional Data fields added to Packages)
                 serializedReleasesandPackages.add(createJsonObjectForRelease(json, r, c));
             }
         }

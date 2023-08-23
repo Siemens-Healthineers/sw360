@@ -124,7 +124,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private final PackageRepository packageRepository;
     private DatabaseHandlerUtil dbHandlerUtil;
     private BulkDeleteUtil bulkDeleteUtil;
-    
+
     private final AttachmentConnector attachmentConnector;
     private SvmConnector svmConnector;
     private final SpdxDocumentDatabaseHandler spdxDocumentDatabaseHandler;
@@ -179,7 +179,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         attachmentConnector = new AttachmentConnector(httpClient, attachmentDbName, durationOf(30, TimeUnit.SECONDS));
         DatabaseConnectorCloudant dbChangeLogs = new DatabaseConnectorCloudant(httpClient, DatabaseSettings.COUCH_DB_CHANGE_LOGS);
         this.dbHandlerUtil = new DatabaseHandlerUtil(dbChangeLogs);
-        
+
         this.bulkDeleteUtil = new BulkDeleteUtil(this, componentRepository, releaseRepository, projectRepository, moderator, releaseModerator,
                 attachmentConnector, attachmentDatabaseHandler, dbHandlerUtil);
 
@@ -1441,11 +1441,11 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             updateReleaseDependentFieldsForComponent(component, containedRelease);
         }
     }
-    
+
     public BulkOperationNode deleteBulkRelease(String releaseId, User user, boolean isPreview) throws SW360Exception  {
         return bulkDeleteUtil.deleteBulkRelease(releaseId, user, isPreview);
     }
-    
+
     public BulkDeleteUtil getBulkDeleteUtil() {
         return bulkDeleteUtil;
     }
@@ -2634,7 +2634,18 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     public RequestStatus updateReleasesWithSvmTrackingFeedback() {
         try {
             Map<String, Map<String, Object>> componentMappings = getSvmConnector().fetchComponentMappings();
-            List<Release> releases = releaseRepository.getReleasesIgnoringNotFound(componentMappings.keySet());
+            Set<String> releaseIds = new HashSet<>();
+            Set<String> packageIds = new HashSet<>();
+            ThriftClients thriftClients = new ThriftClients();
+
+            for (String id: componentMappings.keySet()) {
+                if (getReleaseById(id) != null) {
+                    releaseIds.add(id);
+                } else {
+                    packageIds.add(id);
+                }
+            }
+            List<Release> releases = releaseRepository.getReleasesIgnoringNotFound(releaseIds);
             releases.forEach(r -> {
                 Map<String, String> externalIds = r.isSetExternalIds() ? r.getExternalIds() : new HashMap<>();
                 Map<String, String> additionalData = r.isSetAdditionalData() ? r.getAdditionalData() : new HashMap<>();
@@ -2672,13 +2683,18 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             List<Response> documentOperationResults = releaseRepository.executeBulk(releases);
             documentOperationResults = documentOperationResults.stream().filter(res -> res.getError() != null || res.getStatusCode() != HttpStatus.SC_CREATED)
                     .collect(Collectors.toList());
+
+            if (SW360Constants.IS_PACKAGE_PORTLET_ENABLED && !packageIds.isEmpty()) {
+                thriftClients.makePackageClient().updatePackagesWithSvmTrackingFeedback(packageIds);
+            }
+
             if (documentOperationResults.isEmpty()) {
                 log.info(String.format("SVMTF: updated %d releases", releases.size()));
             } else {
                 log.error("SVMTF: Failed saving releases: " + documentOperationResults);
                 return RequestStatus.FAILURE;
             }
-        } catch (IOException | SW360Exception e) {
+        } catch (IOException | TException e) {
             log.error(e);
             return RequestStatus.FAILURE;
         }
@@ -2982,6 +2998,11 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
     public List<Release> getReleaseByIds(List<String> ids) {
         return releaseRepository.getFullDocsByListIds(SummaryType.SHORT, ids);
+    }
+
+    public Release getReleaseById(String id) {
+        Release release = releaseRepository.get(id);
+        return release;
     }
 
     public List<ReleaseNode> getReleaseRelationNetworkOfRelease(Release release, User user) {

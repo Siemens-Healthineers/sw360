@@ -396,6 +396,49 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         include("/html/components/ajax/departmentSearch.jsp", request, response, PortletRequest.RESOURCE_PHASE);
     }
 
+    private void putProjectPackagesIntoRequest(PortletRequest request, Project project, User user)
+            throws TException {
+        ProjectService.Iface projectClient = thriftClients.makeProjectClient();
+        Map<Package,Set<String>> packageToProjects = new HashMap<>();
+
+        createPackageProjectsMap(project, packageToProjects);
+
+        if (project.getLinkedProjects() != null) {
+            for (String projectId : project.getLinkedProjects().keySet()) {
+                Project linkedProject = projectClient.getProjectById(projectId, user);
+
+                createPackageProjectsMap(linkedProject, packageToProjects);
+            }
+        }
+
+        request.setAttribute(PortalConstants.LINKED_PACKAGE_DATA, packageToProjects);
+        }
+
+    private void createPackageProjectsMap(Project project, Map<Package, Set<String>> packageToProjects)
+            throws TException {
+        PackageService.Iface client = thriftClients.makePackageClient();
+
+        if (project.getPackageIds() != null) {
+            for (String packageId : project.getPackageIds()) {
+                try {
+                    Package pkg = client.getPackageById(packageId);
+
+                    if (packageToProjects.containsKey(pkg)) {
+                        Set<String> projectNames = packageToProjects.get(pkg);
+                        projectNames.add(printName(project));
+                    } else {
+                        Set<String> projectNames = new HashSet<>();
+                        projectNames.add(printName(project));
+                        packageToProjects.put(pkg, projectNames);
+                    }
+                } catch (TException e) {
+                    log.error("Error in getting the package from backend for packageId " + packageId, e);
+                }
+            }
+        }
+    }
+
+
     private void prepareVulnerabilitiesView(ResourceRequest request, ResourceResponse response) {
         User user = UserCacheHolder.getUserFromRequest(request);
         ProjectService.Iface client = thriftClients.makeProjectClient();
@@ -1774,6 +1817,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 int allUsingProjectCount = client.getCountByProjectId(id);
                 request.setAttribute(ALL_USING_PROJECTS_COUNT, allUsingProjectCount);
                 putReleasesAndProjectIntoRequest(request, id, user);
+                putProjectPackagesIntoRequest(request, project, user);
                 putVulnerabilitiesInRequest(request, id, user);
                 putAttachmentUsagesInRequest(request, id);
                 request.setAttribute(

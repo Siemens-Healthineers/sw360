@@ -42,6 +42,7 @@
             <div id="detailTab" class="list-group" data-initial-tab="${selectedTab}" role="tablist">
                 <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-Summary'}">active</core_rt:if>" href="#tab-Summary" data-toggle="list" role="tab"><liferay-ui:message key="summary" /></a>
                 <a class="list-group-item list-group-item-action <core_rt:if test="${selectedTab == 'tab-ChangeLogs'}">active</core_rt:if>" href="#tab-ChangeLogs" data-toggle="list" role="tab"><liferay-ui:message key="change.log" /></a>
+                <%@include file="/html/utils/includes/vulnerabilityTab.jspf" %>
             </div>
         </div>
         <div class="col">
@@ -65,6 +66,20 @@
                                     <liferay-ui:message key="changes" /></a>
                             </div>
                         </div>
+                        <div class="list-group-companion" data-belong-to="tab-Vulnerabilities">
+                                <div class="btn-group" role="group">
+                                    <button id="btnShowVulnerabilityCount" type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <liferay-ui:message key="show" /> <span data-name="count"></span>
+                                        <clay:icon symbol="caret-bottom" />
+                                    </button>
+                                    <div class="dropdown-menu" aria-labelledby="btnExport">
+                                        <a class="dropdown-item" data-type="200">200</a>
+                                        <a class="dropdown-item" data-type="500">500</a>
+                                        <a class="dropdown-item" data-type="1000">1000</a>
+                                        <a class="dropdown-item" data-type="-1"><liferay-ui:message key="all" /></a>
+                                    </div>
+                                </div>
+                            </div>
                     </div>
                 </div>
                 <div class="col portlet-title text-truncate" title="${sw360:printPackageName(pkg)}">
@@ -82,6 +97,9 @@
                         </div>
                         <div id="tab-ChangeLogs" class="tab-pane <core_rt:if test="${selectedTab == 'tab-ChangeLogs'}">active show</core_rt:if>">
                             <jsp:include page="/html/changelogs/elementView.jsp" />
+                        </div>
+                        <div id="tab-Vulnerabilities" class="tab-pane <core_rt:if test="${selectedTab == 'tab-Vulnerabilities'}">active show</core_rt:if>">
+                            <%@include file="/html/packages/Vulnerabilities.jspf" %>
                         </div>
                     </div>
                 </div>
