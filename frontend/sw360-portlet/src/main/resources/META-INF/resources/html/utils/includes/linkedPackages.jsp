@@ -104,7 +104,7 @@ AUI().use('liferay-portlet-url', function () {
         function createLinkedPackagesTable(packagesJsonData) {
             if (isProjectPortlet) {
                 var columns = [
-                    {title: "<liferay-ui:message key='vendor' />", data : "vendor", defaultContent: "", width: "15%" },
+                    {title: "<liferay-ui:message key='manufacturer' />", data : "vendor", defaultContent: "", width: "15%" },
                     {title: "<liferay-ui:message key='package.name.with.version' />", data : "name", render: {display: renderPackageNameLink}, width: "30%" },
                     {title: "<liferay-ui:message key='release.name.with.version' />", data : "relName", defaultContent: "<liferay-ui:message key='no.linked.release' />", render: {display: renderReleaseNameLink}, width: "20%"},
                     {title: "<liferay-ui:message key='release.clearing.state' />", data : "relCS", defaultContent: "<liferay-ui:message key='not.applicable' />", render: {display: renderReleaseCS}, className: 'noSearch filter', width: "10%" },
@@ -115,7 +115,7 @@ AUI().use('liferay-portlet-url', function () {
                 printColumns = [0, 1, 2, 3, 4, 5];
             } else {
                 var columns = [
-                    {title: "<liferay-ui:message key='vendor' />", data : "vendor", defaultContent: "", width: "20%" },
+                    {title: "<liferay-ui:message key='manufacturer' />", data : "vendor", defaultContent: "", width: "20%" },
                     {title: "<liferay-ui:message key='package.name.with.version' />", data : "name", render: {display: renderPackageNameLink}, width: "40%" },
                     {title: "<liferay-ui:message key='licenses' />", data: "lics", defaultContent: "", render: {display: renderLicenseLink}, width: "20%" },
                     {title: "<liferay-ui:message key='package.manager' />", data: "pkgMgr", className: 'noSearch filter', width: "15%"},
