@@ -123,8 +123,6 @@ public class PortalConstants {
     public static final String PAGENAME_EDIT_PACKAGE = "editPackage";
     public static final String LOAD_RELEASE_INFO = "loadReleaseInfo";
     public static final String ORPHAN_PACKAGE_CHECKBOX = "orphanPackageCheckBox";
-    public static final String PACKAGE_EXTERNAL_IDS;
-    public static final Set<String> PACKAGE_EXTERNAL_ID_KEYS;
 
     //! Specialized keys for licenses
     public static final String LICENSES_PORTLET_NAME = PORTLET_NAME_PREFIX + "licenses";
@@ -814,8 +812,6 @@ public class PortalConstants {
         RELEASE_ROLES = props.getProperty("custommap.release.roles", "Committer,Contributor,Expert");
         RELEASE_EXTERNAL_IDS = props.getProperty("custommap.release.externalIds", "[]");
         RELEASE_EXTERNAL_ID_KEYS = CommonUtils.splitToSet(props.getProperty("release.externalkeys", "org.maven.id,com.github.id,com.gitlab.id,purl.id"));
-        PACKAGE_EXTERNAL_IDS = props.getProperty("custommap.pkg.externalIds", "[]");
-        PACKAGE_EXTERNAL_ID_KEYS = CommonUtils.splitToSet(props.getProperty("package.externalkeys", "org.maven.id,com.github.id,com.gitlab.id,purl.id"));
         PROJECTIMPORT_HOSTS = props.getProperty("projectimport.hosts", "");
         PREFERRED_COUNTRY_CODES = props.getProperty("preferred.country.codes", "DE,AT,CH,US");
         MAINLINE_STATE_ENABLED_FOR_USER = Boolean.parseBoolean(props.getProperty("mainline.state.enabled.for.user", "false"));

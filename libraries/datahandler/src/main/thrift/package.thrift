@@ -48,8 +48,6 @@ struct Package {
     19: optional Vendor vendor, // Supplier or Manufacturer
     20: optional string vendorId,
     30: optional Release release // only used for Linked packages UI in project details page.
-    31: optional  map<string, string> externalIds,
-    32: optional map<string, string> additionalData,
 }
 
 enum PackageManager {
