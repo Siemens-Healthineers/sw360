@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.collect.Sets;
 import org.apache.thrift.TException;
 import org.eclipse.sw360.datahandler.thrift.*;
 import org.eclipse.sw360.datahandler.thrift.attachments.*;
@@ -69,8 +70,14 @@ import org.eclipse.sw360.rest.resourceserver.attachment.AttachmentInfo;
 import org.eclipse.sw360.rest.resourceserver.attachment.Sw360AttachmentService;
 import org.eclipse.sw360.rest.resourceserver.license.Sw360LicenseService;
 import org.eclipse.sw360.rest.resourceserver.packages.SW360PackageService;
+import org.eclipse.sw360.rest.resourceserver.licenseinfo.Sw360LicenseInfoService;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfo;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoParsingResult;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoRequestStatus;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseNameWithText;
 import org.eclipse.sw360.rest.resourceserver.release.Sw360ReleaseService;
 import org.eclipse.sw360.rest.resourceserver.user.Sw360UserService;
+import org.eclipse.sw360.rest.resourceserver.vendor.Sw360VendorService;
 import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
 import org.junit.Before;
 import org.junit.Test;
@@ -115,8 +122,15 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
     private Sw360AttachmentService attachmentServiceMock;
 
     @MockBean
+    private Sw360VendorService sw360VendorService;
+
+    @MockBean
     private Sw360LicenseService licenseServiceMock;
-    private Release release, release3;
+
+    @MockBean
+    private Sw360LicenseInfoService licenseInfoMockService;
+
+    private Release release, release3, releaseTest;
     private Attachment attachment;
     Component component;
     private Project project;
@@ -124,6 +138,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
 
     private final String releaseId = "3765276512";
     private final String attachmentSha1 = "da373e491d3863477568896089ee9457bc316783";
+    private final String attachmentId = "11112222";
 
     @Before
     public void before() throws TException, IOException {
@@ -169,6 +184,8 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         given(this.attachmentServiceMock.uploadAttachment(any(), any(), any())).willReturn(attachment);
         given(this.attachmentServiceMock.filterAttachmentsToRemove(any(), any(), any())).willReturn(Collections.singleton(attachment));
         given(this.attachmentServiceMock.updateAttachment(any(), any(), any(), any())).willReturn(att2);
+        given(this.sw360VendorService.getVendorById(any())).willReturn(new Vendor("TV", "Test Vendor", "http://testvendor.com"));
+        given(this.attachmentServiceMock.isAttachmentExist(eq("1231231254"))).willReturn(true);
 
         Map<String, Set<String>> externalIds = new HashMap<>();
         externalIds.put("mainline-id-component", new HashSet<>(Arrays.asList("1432", "4876")));
@@ -185,7 +202,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         component.setDescription("Angular is a development platform for building mobile and desktop web applications.");
         component.setCreatedOn("2016-12-15");
         component.setCreatedBy("admin@sw360.org");
-        component.setComponentType(ComponentType.OSS);
+        component.setComponentType(ComponentType.COTS);
         component.setVendorNames(new HashSet<>(Collections.singletonList("Google")));
         component.setModerators(new HashSet<>(Arrays.asList("admin@sw360.org", "john@sw360.org")));
         usedByComponent.add(component);
@@ -221,6 +238,10 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         clearingInformation.setComponentClearingReportIsSet(false);
         clearingInformation.setExternalUrl("https://external.url");
 
+        COTSDetails cotsDetails1 = new COTSDetails().setClearingDeadline("2016-12-18").setContainsOSS(true)
+                .setCotsResponsible("admin@sw360.org").setLicenseClearingReportURL("http://licenseclearingreporturl.com")
+                .setOssInformationURL("http://ossinformationurl.com").setUsedLicense("MIT");
+
         release.setId(releaseId);
         owner.setReleaseId(release.getId());
         release.setName("Spring Core 4.3.4");
@@ -250,6 +271,8 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         release.setSoftwarePlatforms(new HashSet<>(Arrays.asList("Java SE", ".NET")));
         release.setEccInformation(eccInformation);
         release.setClearingInformation(clearingInformation);
+        release.setCotsDetails(cotsDetails1);
+        release.setComponentType(ComponentType.COTS);
 
         Set<String> licenseIds = new HashSet<>();
         licenseIds.add("MIT");
@@ -410,6 +433,12 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         given(this.licenseServiceMock.getLicenseById("GPL-2.0-or-later")).willReturn(
                 new License("GNU General Public License 2.0").setText("GNU General Public License 2.0 Text")
                         .setShortname("GPL-2.0-or-later").setId(UUID.randomUUID().toString()));
+        given(this.licenseServiceMock.getLicenseById("ML1")).willReturn(
+                new License("Main license 1 name").setText("Main license 1 Text")
+                        .setShortname("ML1").setId("ML1"));
+        given(this.licenseServiceMock.getLicenseById("ML2")).willReturn(
+                new License("Main license 2 name").setText("Main license 2 Text")
+                        .setShortname("ML2").setId("ML2"));
         ExternalToolProcess fossologyProcess = new ExternalToolProcess();
         fossologyProcess.setAttachmentId("5345ab789");
         fossologyProcess.setAttachmentHash("535434657567");
@@ -513,6 +542,11 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         given(this.vulnerabilityServiceMock.getVulnerabilityDTOByExternalId(any(), any())).willReturn(vulUpdates);
         given(this.vulnerabilityServiceMock.getVulnerabilitiesByReleaseId(any(), any())).willReturn(vulDtos);
         given(this.vulnerabilityServiceMock.updateReleaseVulnerabilityRelation(any(), any())).willReturn(RequestStatus.SUCCESS);
+
+        releaseTest = new Release();
+        releaseTest.setId("12121212");
+        releaseTest.setName("Test Load SPDX");
+        releaseTest.setVersion("1.0");
     }
     @Test
     public void should_document_get_releases() throws Exception {
@@ -564,16 +598,19 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:releases.[]name").description("The name of the release, optional"),
                                 subsectionWithPath("_embedded.sw360:releases.[]version").description("The version of the release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]createdBy").description("Email of the release creator"),
-                                subsectionWithPath("_embedded.sw360:releases.[]cpeId").description("CpeId of the release"),
+                                subsectionWithPath("_embedded.sw360:releases.[]cpeid").description("CpeId of the release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]clearingState").description("The clearing of the release, possible values are " + Arrays.asList(ClearingState.values())),
                                 subsectionWithPath("_embedded.sw360:releases.[]releaseDate").description("The date of this release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]createdOn").description("The creation date of the internal sw360 release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]mainlineState").description("the mainline state of the release, possible values are: " + Arrays.asList(MainlineState.values())),
+                                subsectionWithPath("_embedded.sw360:releases.[]contributors").description("the contributors of the release"),
+                                subsectionWithPath("_embedded.sw360:releases.[]moderators").description("the moderators of the release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]sourceCodeDownloadurl").description("the source code download url of the release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]binaryDownloadurl").description("the binary download url of the release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]externalIds").description("When releases are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                                 subsectionWithPath("_embedded.sw360:releases.[]eccInformation").description("The eccInformation of this release"),
                                 subsectionWithPath("_embedded.sw360:releases.[]additionalData").description("A place to store additional data used by external tools").optional(),
+                                subsectionWithPath("_embedded.sw360:releases.[]releaseIdToRelationship").description("Release Id To Relationship of Release").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]languages").description("The language of the component"),
                                 subsectionWithPath("_embedded.sw360:releases.[]mainLicenseIds").description("An array of all main licenses").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]otherLicenseIds").description("An array of all other licenses associated with the release").optional(),
@@ -605,7 +642,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                         responseFields(
                                 subsectionWithPath("_embedded.sw360:releases.[]name").description("The name of the release, optional"),
                                 subsectionWithPath("_embedded.sw360:releases.[]version").description("The version of the release"),
-                                subsectionWithPath("_embedded.sw360:releases.[]cpeId").description("The cpeId of the release, optional"),
+                                subsectionWithPath("_embedded.sw360:releases.[]cpeid").description("The cpeId of the release, optional"),
                                 subsectionWithPath("_embedded.sw360:releases.[]releaseDate").description("The releaseDate of the release, optional"),
                                 subsectionWithPath("_embedded.sw360:releases").description("An array of <<resources-releases, Releases resources>>"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
@@ -664,9 +701,8 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 fieldWithPath("name").description("The name of the release, optional"),
                                 fieldWithPath("version").description("The version of the release"),
                                 fieldWithPath("createdBy").description("Email of the release creator"),
-                                fieldWithPath("cpeId").description("CpeId of the release"),
+                                fieldWithPath("cpeid").description("CpeId of the release"),
                                 fieldWithPath("clearingState").description("The clearing of the release, possible values are " + Arrays.asList(ClearingState.values())),
-                                fieldWithPath("cpeId").description("The CPE id"),
                                 fieldWithPath("releaseDate").description("The date of this release"),
                                 fieldWithPath("createdOn").description("The creation date of the internal sw360 release"),
                                 fieldWithPath("componentType").description("The componentType of the release, possible values are " + Arrays.asList(ComponentType.values())),
@@ -689,6 +725,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:modifiedBy").description("A release modifiedBy with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:createdBy").description("A release createdBy with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:attachments").description("An array of all release attachments and link to their <<resources-attachment-get,Attachment resource>>"),
+                                subsectionWithPath("_embedded.sw360:cotsDetails").description("Cots details information of release has component type = COTS "),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
     }
@@ -732,9 +769,23 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
 
     @Test
     public void should_document_update_release() throws Exception {
-        Release updateRelease = new Release();
-        release.setName("Updated release");
-        release.setComponentType(ComponentType.OSS);
+        Map<String, Object> updateRelease = new HashMap<>();
+        updateRelease.put("name", "Updated release");
+        updateRelease.put("componentType", ComponentType.OSS.toString());
+
+        Map<String, String> attachmentData = new HashMap<>();
+        attachmentData.put("sha1", "da373e491d3863477568896089ee9457bc316783");
+        attachmentData.put("attachmentType",AttachmentType.BINARY_SELF.toString());
+        attachmentData.put("attachmentContentId", "1231231254");
+        attachmentData.put("createdTeam", "Clearing Team 1");
+        attachmentData.put("createdComment", "please check asap");
+        attachmentData.put("createdOn", "2022-08-19");
+        attachmentData.put("createdBy", "admin@sw360.org");
+        attachmentData.put("checkedComment", "everything looks good");
+        attachmentData.put("checkedTeam", "Clearing Team 2");
+        attachmentData.put("checkedOn", "2016-12-18");
+        updateRelease.put("attachments", Collections.singletonList(attachmentData));
+
         String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
         mockMvc.perform(patch("/api/releases/" + releaseId)
                 .contentType(MediaTypes.HAL_JSON)
@@ -1001,13 +1052,13 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                         fieldWithPath("name").description("The name of the release, optional"),
                         fieldWithPath("version").description("The version of the release"),
                         fieldWithPath("createdBy").description("Email of the release creator"),
-                        fieldWithPath("cpeId").description("CpeId of the release"),
+                        fieldWithPath("cpeid").description("CpeId of the release"),
                         fieldWithPath("clearingState").description("The clearing of the release, possible values are " + Arrays.asList(ClearingState.values())),
-                        fieldWithPath("cpeId").description("The CPE id"),
                         fieldWithPath("releaseDate").description("The date of this release"),
                         fieldWithPath("componentType").description("The componentType of the release, possible values are " + Arrays.asList(ComponentType.values())),
                         fieldWithPath("createdOn").description("The creation date of the internal sw360 release"),
                         fieldWithPath("mainlineState").description("the mainline state of the release, possible values are: " + Arrays.asList(MainlineState.values())),
+                        fieldWithPath("contributors").description("the contributors of the release"),
                         fieldWithPath("sourceCodeDownloadurl").description("the source code download url of the release"),
                         subsectionWithPath("eccInformation").description("The eccInformation of this release"),
                         fieldWithPath("binaryDownloadurl").description("the binary download url of the release"),
@@ -1119,4 +1170,122 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                         subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"))));
     }
 
+    @Test
+    public void should_document_write_spdx_licenses_info_into_release() throws Exception {
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+
+        Map<String, List<String>> spdxLicenses= new HashMap<>();
+        spdxLicenses.put("mainLicenseIds", List.of("ML1", "ML2"));
+        spdxLicenses.put("otherLicenseIds", List.of("OL1", "OL2"));
+
+        this.mockMvc.perform(post("/api/releases/" + release.getId() + "/spdxLicenses")
+                        .contentType(MediaTypes.HAL_JSON)
+                        .content(this.objectMapper.writeValueAsString(spdxLicenses))
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler.document(
+                        requestFields(
+                                fieldWithPath("mainLicenseIds").description("The main license ids need to write into release"),
+                                fieldWithPath("otherLicenseIds").description("The other license ids need to write into release")
+                        ),
+                        responseFields(
+                                fieldWithPath("name").description("The name of the release, optional"),
+                                fieldWithPath("version").description("The version of the release"),
+                                fieldWithPath("createdBy").description("Email of the release creator"),
+                                fieldWithPath("cpeid").description("CpeId of the release"),
+                                fieldWithPath("clearingState").description("The clearing of the release, possible values are " + Arrays.asList(ClearingState.values())),
+                                fieldWithPath("releaseDate").description("The date of this release"),
+                                fieldWithPath("componentType").description("The componentType of the release, possible values are " + Arrays.asList(ComponentType.values())),
+                                fieldWithPath("createdOn").description("The creation date of the internal sw360 release"),
+                                fieldWithPath("mainlineState").description("the mainline state of the release, possible values are: " + Arrays.asList(MainlineState.values())),
+                                fieldWithPath("contributors").description("the contributors of the release"),
+                                fieldWithPath("sourceCodeDownloadurl").description("the source code download url of the release"),
+                                subsectionWithPath("eccInformation").description("The eccInformation of this release"),
+                                fieldWithPath("binaryDownloadurl").description("the binary download url of the release"),
+                                fieldWithPath("otherLicenseIds").description("An array of all other licenses associated with the release"),
+                                subsectionWithPath("externalIds").description("When releases are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
+                                subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
+                                subsectionWithPath("clearingInformation").description("Clearing information of release"),
+                                fieldWithPath("languages").description("The language of the component"),
+                                subsectionWithPath("_embedded.sw360:licenses").description("An array of all main licenses with their fullName and link to their <<resources-license-get,License resource>>"),
+                                subsectionWithPath("_embedded.sw360:packages").description("An array of all the linked packages and link to their <<resources-package-get,Package resource>>"),
+                                fieldWithPath("operatingSystems").description("The OS on which the release operates"),
+                                fieldWithPath("softwarePlatforms").description("The software platforms of the component"),
+                                subsectionWithPath("_embedded.sw360:moderators").description("An array of all release moderators with email and link to their <<resources-user-get,User resource>>"),
+                                subsectionWithPath("_embedded.sw360:attachments").description("An array of all release attachments and link to their <<resources-attachment-get,Attachment resource>>"),
+                                subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
+                        )));
+    }
+
+    @Test
+    public void should_document_load_spdx_licenses_info_from_isr() throws Exception {
+        mockLicensesInfo(AttachmentType.INITIAL_SCAN_REPORT);
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/releases/" + releaseTest.getId() + "/spdxLicensesInfo?attachmentId=" + attachmentId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void should_document_load_spdx_licenses_info_from_clx_or_cli() throws Exception {
+        mockLicensesInfo(AttachmentType.COMPONENT_LICENSE_INFO_COMBINED);
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/releases/" + releaseTest.getId() + "/spdxLicensesInfo?attachmentId=" + attachmentId)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk());
+    }
+
+    public void mockLicensesInfo(AttachmentType attachmentType) throws TException{
+        Set<Attachment> listAttachment = new HashSet<>();
+        Attachment attachmentTest = new Attachment();
+
+        attachmentTest.setSha1(attachmentSha1);
+        attachmentTest.setAttachmentType(attachmentType);
+        attachmentTest.setCreatedOn("2016-12-18");
+        attachmentTest.setCreatedBy("admin@sw360.org");
+        attachmentTest.setFilename("SPDX_filename.rdf");
+        attachmentTest.setAttachmentContentId(attachmentId);
+        listAttachment.add(attachmentTest);
+        listAttachment.add(attachment);
+        releaseTest.setAttachments(listAttachment);
+
+        List<LicenseInfoParsingResult> licenseInfoResults = new ArrayList<>();
+        LicenseInfoParsingResult licenseInfoParsingResult = new LicenseInfoParsingResult();
+        licenseInfoParsingResult.setStatus(LicenseInfoRequestStatus.SUCCESS);
+        licenseInfoParsingResult.setRelease(releaseTest);
+        LicenseInfo licenseInfo = new LicenseInfo();
+        licenseInfo.setFilenames(Collections.singletonList("SPDX_filename.rdf"));
+        LicenseNameWithText license1 = new LicenseNameWithText();
+        license1.setLicenseName("MIT");
+        license1.setLicenseText("MIT Text");
+        license1.setLicenseSpdxId("MIT");
+
+        LicenseNameWithText license2 = new LicenseNameWithText();
+        license2.setLicenseName("RSA-Security");
+        license2.setLicenseText("License by Nomos.");
+        license2.setLicenseSpdxId("RSA-Security");
+
+        if (AttachmentType.INITIAL_SCAN_REPORT.equals(attachmentType)) {
+            license1.setSourceFiles(Sets.newHashSet(
+                    "test-3.2.tar.gz/test-3.2/sample",
+                    "test-3.2.tar.gz/test-3.2/support/sys/cron",
+                    "test-3.2.tar.gz/test-3.2/support/README")
+            );
+            license2.setSourceFiles(Sets.newHashSet(
+                    "test-3.2.tar.gz/test-3.2/support/md5.h")
+            );
+        } else {
+            licenseInfo.setConcludedLicenseIds(Sets.newHashSet("GPL", "BSD-3-Clause"));
+        }
+
+        licenseInfo.setLicenseNamesWithTexts(Sets.newHashSet(license1, license2));
+
+        licenseInfoParsingResult.setLicenseInfo(licenseInfo);
+        licenseInfoResults.add(licenseInfoParsingResult);
+        boolean includeConcludedLicense = AttachmentType.INITIAL_SCAN_REPORT.equals(attachmentType);
+        given(this.releaseServiceMock.getReleaseForUserById(eq(releaseTest.getId()), any())).willReturn(releaseTest);
+        given(this.licenseInfoMockService.getLicenseInfoForAttachment(any(), any(), any(), eq(includeConcludedLicense))).willReturn(licenseInfoResults);
+    }
 }

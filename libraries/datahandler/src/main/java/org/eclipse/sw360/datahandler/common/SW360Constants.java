@@ -87,7 +87,20 @@ public class SW360Constants {
     public static final String TYPE_SPDX_DOCUMENT_CREATION_INFO = "documentCreationInformation";
     public static final String TYPE_SPDX_PACKAGE_INFO = "packageInformation";
     public static final String TYPE_PACKAGE = "package";
+    public static final String PLEASE_ENABLE_FLEXIBLE_PROJECT_RELEASE_RELATIONSHIP = "Please enable flexible project " +
+            "release relationship configuration to use this function (enable.flexible.project.release.relationship = true)";
 
+    public static final String RDF_FILE_EXTENSION = ".rdf";
+    public static final String MAIN_LICENSE_FILES = "LICENSE.*|License.*|license|license.txt|license.html|COPYING.*|Copying.*|copying|copying.txt|copying.html";
+    public static final String LICENSE_PREFIX = "license";
+    public static final String CONCLUDED_LICENSE_IDS = "Concluded License Ids";
+    public static final String LICENSE_IDS = "licenseIds";
+    public static final String MAIN_LICENSE_ID = "Main License Id";
+    public static final String OTHER_LICENSE = "otherLicense";
+    public static final String OTHER_LICENSE_IDS = "Other License Ids";
+    public static final String OTHER_LICENSE_IDS_KEY = "otherLicenseIds";
+    public static final String POSSIBLE_MAIN_LICENSE_IDS = "Possible Main License Ids";
+    public static final String TOTAL_FILE_COUNT = "totalFileCount";
     public static final String SVM_COMPONENT_ID;
     public static final String SVM_MONITORINGLIST_ID;
     public static final Boolean SPDX_DOCUMENT_ENABLED;
@@ -102,6 +115,7 @@ public class SW360Constants {
     public static final String TOOL_NAME;
     public static final String TOOL_VENDOR;
     public static final UserGroup SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE;
+    public static final boolean ENABLE_FLEXIBLE_PROJECT_RELEASE_RELATIONSHIP;
 
     /**
      * Hashmap containing the name field for each type.
@@ -201,6 +215,8 @@ public class SW360Constants {
         TOOL_NAME = props.getProperty("sw360.tool.name", "SW360");
         TOOL_VENDOR = props.getProperty("sw360.tool.vendor", "Eclipse Foundation");
         SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE = UserGroup.valueOf(props.getProperty("sbom.import.export.access.usergroup", UserGroup.USER.name()));
+        ENABLE_FLEXIBLE_PROJECT_RELEASE_RELATIONSHIP = Boolean.parseBoolean(
+                System.getProperty("RunTestFlexibleRelationship", props.getProperty("enable.flexible.project.release.relationship", "false")));
     }
 
     private static Map.Entry<String, String> pair(TFieldIdEnum field, String displayName){

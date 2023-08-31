@@ -262,7 +262,7 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
         if (!CommonUtils.isNullOrEmptyCollection(attachmentDTOS)) {
             Set<Attachment> attachments = new HashSet<>();
             for (AttachmentDTO attachmentDTO: attachmentDTOS) {
-                attachments.add(restControllerHelper.convertToAttachment(attachmentDTO));
+                attachments.add(restControllerHelper.convertToAttachment(attachmentDTO, user));
             }
             sw360Component.setAttachments(attachments);
         } else {
@@ -319,7 +319,10 @@ public class ComponentController implements RepresentationModelProcessor<Reposit
             component.setVendorNames(vendors);
         }
 
-        component.setBusinessUnit(user.getDepartment());
+        if (CommonUtils.isNullEmptyOrWhitespace(component.getBusinessUnit())) {
+            component.setBusinessUnit(user.getDepartment());
+        }
+
         Component sw360Component = componentService.createComponent(component, user);
         HalResource<Component> halResource = createHalComponent(sw360Component, user);
 

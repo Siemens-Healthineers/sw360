@@ -149,6 +149,11 @@ COPY --from=sw360clucenebuild /couchdb-lucene.war /couchdb-lucene.war
 
 FROM maven:3.9-eclipse-temurin-11 as sw360build
 
+ARG COUCHDB_HOST=localhost
+
+# Thanks to Liferay, we need fix the java version
+ENV _JAVA_OPTIONS='-Djdk.util.zip.disableZip64ExtraFieldValidation=true'
+
 WORKDIR /build
 
 SHELL ["/bin/bash", "-c"]
@@ -181,9 +186,12 @@ RUN --mount=type=bind,target=/build/sw360,rw \
     && set -a \
     && source /run/secrets/sw360 \
     && envsubst < scripts/docker-config/couchdb.properties.template | tee scripts/docker-config/etc_sw360/couchdb.properties \
+    && envsubst < scripts/docker-config/couchdb-lucene.ini | tee third-party/couchdb-lucene/src/main/resources/couchdb-lucene.ini \
     && set +a \
     && cp scripts/docker-config/etc_sw360/couchdb.properties build-configuration/resources/ \
     && cp -a scripts/docker-config/etc_sw360 /etc/sw360 \
+    && mkdir /etc/sw360/manager \
+    && envsubst < scripts/docker-config/manager/tomcat-users.xml | tee /etc/sw360/manager/tomcat-users.xml \
     && mvn clean package \
     -P deploy \
     -Dtest=org.eclipse.sw360.rest.resourceserver.restdocs.* \
@@ -212,7 +220,13 @@ COPY --from=sw360build /etc/sw360 /etc/sw360
 # Runtime image
 FROM base AS runtime
 
+ARG DEBUG
+ARG USERNAME=sw360
+
 WORKDIR /app/
+
+# Make sw360 dir owned byt the user
+RUN chown -R $USERNAME:$USERNAME /app/sw360
 
 USER $USERNAME
 
@@ -234,6 +248,16 @@ RUN dos2unix /app/sw360/tomcat/conf/catalina.properties \
 # Copy liferay/sw360 config files
 COPY --chown=$USERNAME:$USERNAME ./scripts/docker-config/portal-ext.properties /app/sw360/portal-ext.properties
 COPY --chown=$USERNAME:$USERNAME ./scripts/docker-config/entry_point.sh /app/entry_point.sh
+
+# Tomcat manager for debugging portlets
+COPY --chown=$USERNAME:$USERNAME --from=tomcat:9.0.56-jdk11 /usr/local/tomcat/webapps.dist/manager /app/sw360/tomcat/webapps/manager
+RUN --mount=type=bind,target=/build/sw360,rw \
+    if [  DEBUG ]; then \
+    cp /etc/sw360/manager/tomcat-users.xml /app/sw360/tomcat/conf/tomcat-users.xml ; \
+    cp /build/sw360/scripts/docker-config/manager/context.xml /app/sw360/tomcat/webapps/manager/META-INF/context.xml ; \
+    else \
+    mv /app/sw360/tomcat/webapps/manager /app/sw360/tomcat/webapps/manager.disabled ; \
+    fi
 
 STOPSIGNAL SIGINT
 
