@@ -9,8 +9,6 @@
  */
 package org.eclipse.sw360.portal.portlets.packages;
 
-import java.util.HashMap;
-
 import javax.portlet.PortletRequest;
 
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
@@ -24,16 +22,7 @@ public class PackagePortletUtils {
 
     public static void updatePackageFromRequest(PortletRequest request, Package pkg) {
         for (Package._Fields field : Package._Fields.values()) {
-            switch (field) {
-                case EXTERNAL_IDS:
-                    pkg.setExternalIds(PortletUtils.getExternalIdMapFromRequest(request));
-                    break;
-                case ADDITIONAL_DATA:
-                    pkg.setAdditionalData(PortletUtils.getAdditionalDataMapFromRequest(request));
-                    break;
-                default:
                     setFieldValue(request, pkg, field);
-            }
         }
     }
 

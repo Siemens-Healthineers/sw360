@@ -222,11 +222,6 @@
                                     </td>
                                 </tr>
                             </table>
-                            <core_rt:set var="externalIdsSet" value="${pkg.externalIds.entrySet()}"/>
-                            <core_rt:set var="externalIdKeys" value="<%=PortalConstants.PACKAGE_EXTERNAL_ID_KEYS%>"/>
-                            <%@include file="/html/utils/includes/editExternalIds.jsp" %>
-                            <core_rt:set var="additionalDataSet" value="${pkg.additionalData.entrySet()}"/>
-                            <%@include file="/html/utils/includes/editAdditionalData.jsp" %>
                         </div>
                         </form>
                     </div>

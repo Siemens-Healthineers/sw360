@@ -439,11 +439,7 @@ public class JacksonCustomizations {
                 "releaseId",
                 "setRelease",
                 "packageType",
-                "setPackageType",
-                "externalIdsSize",
-                "setExternalIds",
-                "additionalDataSize",
-                "setAdditionalData"
+                "setPackageType"
         })
         static abstract class PackageMixin extends Package {
         }
