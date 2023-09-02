@@ -10,7 +10,7 @@
 #
 # -----------------------------------------------------------------------------
 
-name: SW360
+name: SW360 Build and Test
 
 on:
   pull_request:
@@ -42,6 +42,7 @@ jobs:
 
     - name: Set environment variables
       run: |
+        echo _JAVA_OPTIONS= '-Djdk.util.zip.disableZip64ExtraFieldValidation=true' >> $GITHUB_ENV      
         cat .versions >> $GITHUB_ENV
 
     - name: Setup CouchDB

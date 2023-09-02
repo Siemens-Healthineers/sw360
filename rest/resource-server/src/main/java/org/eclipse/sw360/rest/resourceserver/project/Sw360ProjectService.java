@@ -60,6 +60,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PreDestroy;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -246,9 +247,9 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
         return getAllRequiredProjects(projectData, sw360User);
     }
 
-    public Set<String> getReleaseIds(String projectId, User sw360User, String transitive) throws TException {
+    public Set<String> getReleaseIds(String projectId, User sw360User, boolean transitive) throws TException {
         ProjectService.Iface sw360ProjectClient = getThriftProjectClient();
-        if (Boolean.parseBoolean(transitive)) {
+        if (transitive) {
             List<ReleaseClearingStatusData> releaseClearingStatusData = sw360ProjectClient.getReleaseClearingStatuses(projectId, sw360User);
             return releaseClearingStatusData.stream().map(r -> r.release.getId()).collect(Collectors.toSet());
         } else {
@@ -354,7 +355,8 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
         return linkedProjects.stream().map(projectLinkMapper).collect(Collectors.toList());
     }
 
-    public Set<Release> getReleasesFromProjectIds(List<String> projectIds, String transitive, final User sw360User, Sw360ReleaseService releaseService) {
+    public Set<Release> getReleasesFromProjectIds(List<String> projectIds, boolean transitive, final User sw360User,
+                                                  Sw360ReleaseService releaseService) {
         final List<Callable<List<Release>>> callableTasksToGetReleases = new ArrayList<Callable<List<Release>>>();
 
         projectIds.stream().forEach(id -> {
@@ -531,5 +533,18 @@ public class Sw360ProjectService implements AwareOfRestServices<Project> {
     public RequestSummary importCycloneDX(User user, String attachmentContentId, String projectId) throws TException {
         ProjectService.Iface sw360ProjectClient = getThriftProjectClient();
         return sw360ProjectClient.importCycloneDxFromAttachmentContent(user, attachmentContentId, CommonUtils.nullToEmptyString(projectId));
+    }
+
+    /**
+     * Get Projects are using release in dependencies (enable.flexible.project.release.relationship = true)
+     * @param releaseId                Id of release
+     * @return List<Project>
+     */
+    public List<Project> getProjectsUsedReleaseInDependencyNetwork(String releaseId) {
+        return SW360Utils.getUsingProjectByReleaseIds(Collections.singleton(releaseId), null);
+    }
+
+    public void syncReleaseRelationNetworkAndReleaseIdToUsage(Project project, User user) throws TException {
+        SW360Utils.syncReleaseRelationNetworkAndReleaseIdToUsage(project, user);
     }
 }
