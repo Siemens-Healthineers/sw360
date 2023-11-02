@@ -34,6 +34,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.Sets;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.LogManager;
@@ -50,6 +51,7 @@ import org.eclipse.sw360.datahandler.thrift.RequestStatus;
 import org.eclipse.sw360.datahandler.thrift.Source;
 import org.eclipse.sw360.datahandler.thrift.VerificationState;
 import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
+import org.eclipse.sw360.datahandler.thrift.RestrictedResource;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentType;
@@ -58,6 +60,7 @@ import org.eclipse.sw360.datahandler.thrift.components.ReleaseLink;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfo;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoParsingResult;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseNameWithText;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoParsingResult;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
 import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcess;
@@ -165,10 +168,6 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
             sw360Releases.addAll(releaseService.getReleasesForUser(sw360User));
         }
 
-        for(Release release: sw360Releases) {
-            releaseService.setComponentDependentFieldsInRelease(release, sw360User);
-        }
-
         sw360Releases = sw360Releases.stream()
                 .filter(release -> name == null || name.isEmpty() || release.getName().equalsIgnoreCase(name))
                 .collect(Collectors.toList());
@@ -179,6 +178,15 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
                 }
             }
         }
+        
+        if (CommonUtils.isNotNullEmptyOrWhitespace(sha1) || CommonUtils.isNotNullEmptyOrWhitespace(name)) {
+            for(Release release: sw360Releases) {
+                releaseService.setComponentDependentFieldsInRelease(release, sw360User);
+            }
+        } else {
+            releaseService.setComponentDependentFieldsInRelease(sw360Releases, sw360User);
+        }
+        
         PaginationResult<Release> paginationResult = restControllerHelper.createPaginationResult(request, pageable, sw360Releases, SW360Constants.TYPE_RELEASE);
 
         List<EntityModel> releaseResources = new ArrayList<>();
@@ -286,6 +294,10 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
                     Component embeddedComponent = restControllerHelper.convertToEmbeddedComponent(c);
                     resources.add(EntityModel.of(embeddedComponent));
                 });
+
+        RestrictedResource restrictedResource = new RestrictedResource();
+        restrictedResource.setProjects(releaseService.countProjectsByReleaseId(id) - sw360Projects.size());
+        resources.add(EntityModel.of(restrictedResource));
 
         CollectionModel<EntityModel> finalResources = restControllerHelper.createResources(resources);
         HttpStatus status = finalResources == null ? HttpStatus.NO_CONTENT : HttpStatus.OK;
@@ -459,11 +471,11 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
     }
 
     @GetMapping(value = RELEASES_URL + "/{id}/attachments")
-    public ResponseEntity<CollectionModel<EntityModel<AttachmentDTO>>> getReleaseAttachment1s(
+    public ResponseEntity<CollectionModel<EntityModel<Attachment>>> getReleaseAttachments(
             @PathVariable("id") String id) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         final Release sw360Release = releaseService.getReleaseForUserById(id, sw360User);
-        final CollectionModel<EntityModel<AttachmentDTO>> resources = attachmentService.getAttachmentDTOResourcesFromList(sw360User, sw360Release.getAttachments(), Source.releaseId(sw360Release.getId()));
+        final CollectionModel<EntityModel<Attachment>> resources = attachmentService.getAttachmentResourcesFromList(sw360Release.getAttachments());
         return new ResponseEntity<>(resources, HttpStatus.OK);
     }
 
@@ -848,6 +860,34 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
 
         release.setPackageIds(packageIds);
         return releaseService.updateRelease(release, sw360User);
+    }
+
+    @GetMapping(value = RELEASES_URL + "/{id}/assessmentSummaryInfo")
+    public ResponseEntity loadAssessmentSummaryInfo(
+            @PathVariable("id") String id) throws TException {
+        User user = restControllerHelper.getSw360UserFromAuthentication();
+        Release release = releaseService.getReleaseForUserById(id, user);
+        final boolean INCLUDE_CONCLUDED_LICENSE = true;
+
+        Map<String, String> assessmentSummaryMap = new HashMap<>();
+        List<String> cliAttachmentIds = release.getAttachments().stream()
+                .filter(att -> att.getAttachmentType().equals(AttachmentType.COMPONENT_LICENSE_INFO_XML))
+                .map(Attachment::getAttachmentContentId).collect(Collectors.toList());
+        if (cliAttachmentIds.size() != 1) {
+            return new ResponseEntity<>("Number of CLI attachments must be 1", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        List<LicenseInfoParsingResult> licenseInfoResult = sw360LicenseInfoService.getLicenseInfoForAttachment(release,
+                user, cliAttachmentIds.get(0), INCLUDE_CONCLUDED_LICENSE);
+
+        if (CommonUtils.isNotEmpty(licenseInfoResult) && Objects.nonNull(licenseInfoResult.get(0).getLicenseInfo())) {
+            assessmentSummaryMap = licenseInfoResult.get(0).getLicenseInfo().getAssessmentSummary();
+        }
+
+        if (CommonUtils.isNullOrEmptyMap(assessmentSummaryMap)) {
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        }
+
+        return new ResponseEntity<>(assessmentSummaryMap, HttpStatus.OK);
     }
 
     @Override

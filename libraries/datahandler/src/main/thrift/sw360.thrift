@@ -82,6 +82,11 @@ enum ClearingRequestPriority {
     CRITICAL = 3,
 }
 
+enum ClearingRequestType {
+    DEEP = 0,
+    HIGH = 1
+}
+
 enum Visibility {
     PRIVATE = 0,
     ME_AND_MODERATORS = 1,
@@ -250,4 +255,8 @@ union Source {
   1: string projectId
   2: string componentId
   3: string releaseId
+}
+
+struct RestrictedResource {
+    1: optional i32 projects,
 }

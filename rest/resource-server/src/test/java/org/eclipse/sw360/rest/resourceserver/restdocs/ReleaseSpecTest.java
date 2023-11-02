@@ -54,6 +54,9 @@ import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcess;
 import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcessStatus;
 import org.eclipse.sw360.datahandler.thrift.components.ExternalToolProcessStep;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfo;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoParsingResult;
+import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseInfoRequestStatus;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.packages.PackageManager;
@@ -186,6 +189,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         given(this.attachmentServiceMock.updateAttachment(any(), any(), any(), any())).willReturn(att2);
         given(this.sw360VendorService.getVendorById(any())).willReturn(new Vendor("TV", "Test Vendor", "http://testvendor.com"));
         given(this.attachmentServiceMock.isAttachmentExist(eq("1231231254"))).willReturn(true);
+        given(this.attachmentServiceMock.getAttachmentResourcesFromList(any())).willReturn(CollectionModel.of(attachmentResources));
 
         Map<String, Set<String>> externalIds = new HashMap<>();
         externalIds.put("mainline-id-component", new HashSet<>(Arrays.asList("1432", "4876")));
@@ -418,6 +422,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         when(this.releaseServiceMock.createRelease(any(), any())).then(invocation ->
                 new Release("Test Release", "1.0", component.getId())
                         .setId("1234567890"));
+        given(this.releaseServiceMock.countProjectsByReleaseId(eq(release.getId()))).willReturn(2);
 
         given(this.userServiceMock.getUserByEmailOrExternalId("admin@sw360.org")).willReturn(
                 new User("admin@sw360.org", "sw360").setId("123456789"));
@@ -618,6 +623,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:releases.[]softwarePlatforms").description("The software platforms of the component"),
                                 subsectionWithPath("_embedded.sw360:releases.[]vendor").description("The Id of the vendor").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]clearingInformation").description("Clearing information of release").optional(),
+                                subsectionWithPath("_embedded.sw360:releases.[]cotsDetails").description("Cots Details of release").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]_embedded.sw360:moderators").description("An array of all release moderators with email"),
                                 subsectionWithPath("_embedded.sw360:releases.[]_embedded.sw360:attachments").description("An array of all release attachments").optional(),
                                 subsectionWithPath("_embedded.sw360:releases.[]_embedded.sw360:cotsDetails").description("An cotsDetails of the release").optional(),
@@ -719,13 +725,14 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 fieldWithPath("operatingSystems").description("The OS on which the release operates"),
                                 fieldWithPath("softwarePlatforms").description("The software platforms of the component"),
                                 subsectionWithPath("clearingInformation").description("Clearing information of release"),
+                                subsectionWithPath("cotsDetails").description("Cots Details of release"),
                                 subsectionWithPath("_embedded.sw360:moderators").description("An array of all release moderators with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:subscribers").description("An array of all release subscribers with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:contributors").description("An array of all release contributors with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:modifiedBy").description("A release modifiedBy with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:createdBy").description("A release createdBy with email and link to their <<resources-user-get,User resource>>"),
                                 subsectionWithPath("_embedded.sw360:attachments").description("An array of all release attachments and link to their <<resources-attachment-get,Attachment resource>>"),
-                                subsectionWithPath("_embedded.sw360:cotsDetails").description("Cots details information of release has component type = COTS "),
+                                subsectionWithPath("_embedded.sw360:cotsDetail").description("Cots detail information of release has component type = COTS "),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
     }
@@ -762,6 +769,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("_embedded.sw360:projects.[]version").description("The project version"),
                                 subsectionWithPath("_embedded.sw360:projects.[]projectType").description("The project type, possible values are: " + Arrays.asList(ProjectType.values())),
                                 subsectionWithPath("_embedded.sw360:projects").description("An array of <<resources-projects, Projects resources>>"),
+                                subsectionWithPath("_embedded.sw360:restrictedResources.[]projects").description("Number of restricted projects"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
     }
@@ -799,27 +807,22 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
     @Test
     public void should_document_get_release_attachment_info() throws Exception {
         String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
-        mockMvc.perform(get("/api/releases/" + release3.getId() + "/attachments")
+        mockMvc.perform(get("/api/releases/" + release.getId() + "/attachments")
                 .header("Authorization", "Bearer " + accessToken)
                 .accept(MediaTypes.HAL_JSON))
                 .andExpect(status().isOk())
                 .andDo(this.documentationHandler.document(
                         responseFields(
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes").description("An array of <<resources-attachment, Attachments resources>>"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]attachmentContentId").description("The attachment attachmentContentId"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]filename").description("The attachment filename"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]sha1").description("The attachment sha1"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]attachmentType").description("The attachment attachmentType"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdBy").description("The attachment createdBy"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdTeam").description("The attachment createdTeam"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdComment").description("The attachment createdComment"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]createdOn").description("The attachment createdOn"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]checkedComment").description("The attachment checkedComment"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]checkStatus").description("The attachment checkStatus"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment").description("The usages in project"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.visible").description("The visible usages in project"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.restricted").description("The restricted usages in project"),
-                                subsectionWithPath("_embedded.sw360:attachmentDTOes.[]usageAttachment.projectUsages").description("The name of project usages"),
+                                subsectionWithPath("_embedded.sw360:attachments").description("An array of <<resources-attachment, Attachments resources>>"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]filename").description("The attachment filename"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]sha1").description("The attachment sha1 value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]attachmentType").description("The attachmentType value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]createdBy").description("The attachment createdby value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]createdTeam").description("The attachment createdteam value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]createdComment").description("The attachment createdComment value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]createdOn").description("The attachment createdon value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]checkedComment").description("The attachment checkedComment value"),
+                                subsectionWithPath("_embedded.sw360:attachments.[]checkStatus").description("The attachment checkStatus value"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources")
                         )));
     }
@@ -1066,6 +1069,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                         subsectionWithPath("externalIds").description("When releases are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                         subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
                         subsectionWithPath("clearingInformation").description("Clearing information of release"),
+                        subsectionWithPath("cotsDetails").description("Cots Details of release"),
                         fieldWithPath("languages").description("The language of the component"),
                         subsectionWithPath("_embedded.sw360:licenses").description("An array of all main licenses with their fullName and link to their <<resources-license-get,License resource>>"),
                         subsectionWithPath("_embedded.sw360:packages").description("An array of all the linked packages and link to their <<resources-package-get,Package resource>>"),
@@ -1206,6 +1210,7 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
                                 subsectionWithPath("externalIds").description("When releases are imported from other tools, the external ids can be stored here. Store as 'Single String' when single value, or 'Array of String' when multi-values"),
                                 subsectionWithPath("additionalData").description("A place to store additional data used by external tools"),
                                 subsectionWithPath("clearingInformation").description("Clearing information of release"),
+                                subsectionWithPath("cotsDetails").description("Cots Details of release"),
                                 fieldWithPath("languages").description("The language of the component"),
                                 subsectionWithPath("_embedded.sw360:licenses").description("An array of all main licenses with their fullName and link to their <<resources-license-get,License resource>>"),
                                 subsectionWithPath("_embedded.sw360:packages").description("An array of all the linked packages and link to their <<resources-package-get,Package resource>>"),
@@ -1287,5 +1292,54 @@ public class ReleaseSpecTest extends TestRestDocsSpecBase {
         boolean includeConcludedLicense = AttachmentType.INITIAL_SCAN_REPORT.equals(attachmentType);
         given(this.releaseServiceMock.getReleaseForUserById(eq(releaseTest.getId()), any())).willReturn(releaseTest);
         given(this.licenseInfoMockService.getLicenseInfoForAttachment(any(), any(), any(), eq(includeConcludedLicense))).willReturn(licenseInfoResults);
+    }
+
+    @Test
+    public void should_document_load_release_assessment_summary_information() throws Exception {
+        Release releaseWithAssessment = new Release();
+        releaseWithAssessment.setId("333333");
+        releaseWithAssessment.setName("Test Load Assessment Summary");
+        releaseWithAssessment.setVersion("1.0");
+
+        Attachment attachmentTest = new Attachment();
+
+        attachmentTest.setSha1(attachmentSha1);
+        attachmentTest.setAttachmentType(AttachmentType.COMPONENT_LICENSE_INFO_XML);
+        attachmentTest.setCreatedOn("2016-12-18");
+        attachmentTest.setCreatedBy("admin@sw360.org");
+        attachmentTest.setFilename("CLI_filename.xml");
+        attachmentTest.setAttachmentContentId("attachmentId");
+        Set<Attachment> listAttachment = Collections.singleton(attachmentTest);
+        releaseWithAssessment.setAttachments(listAttachment);
+
+        Map<String, String> assessmentSummaryMap = new HashMap<>();
+        assessmentSummaryMap.put("GeneralAssessment", "General Assessment");
+        assessmentSummaryMap.put("CriticalFilesFound", "Critical Files Found");
+        assessmentSummaryMap.put("#text", "\n  ");
+        assessmentSummaryMap.put("AdditionalNotes", "Additional Notes");
+        assessmentSummaryMap.put("UsageRestrictionsFound", "None");
+        assessmentSummaryMap.put("ExportRestrictionsFound", "Export Restrictions Found");
+        assessmentSummaryMap.put("DependencyNotes", "Dependency Notes");
+
+        LicenseInfo licenseInfo = new LicenseInfo();
+        licenseInfo.setFilenames(Collections.singletonList("SPDX_filename.rdf"));
+        licenseInfo.setAssessmentSummary(assessmentSummaryMap);
+
+        LicenseInfoParsingResult licenseInfoParsingResult = new LicenseInfoParsingResult();
+        licenseInfoParsingResult.setStatus(LicenseInfoRequestStatus.SUCCESS);
+        licenseInfoParsingResult.setRelease(releaseWithAssessment);
+        licenseInfoParsingResult.setLicenseInfo(licenseInfo);
+
+        List<LicenseInfoParsingResult> licenseInfoResults = new ArrayList<>();
+        licenseInfoResults.add(licenseInfoParsingResult);
+
+        given(this.releaseServiceMock.getReleaseForUserById(eq(releaseWithAssessment.getId()), any())).willReturn(releaseWithAssessment);
+        given(this.licenseInfoMockService.getLicenseInfoForAttachment(any(), any(), any(), eq(true))).willReturn(licenseInfoResults);
+
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        mockMvc.perform(get("/api/releases/" + releaseWithAssessment.getId() + "/assessmentSummaryInfo")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .accept(MediaTypes.HAL_JSON))
+                .andExpect(status().isOk());
     }
 }

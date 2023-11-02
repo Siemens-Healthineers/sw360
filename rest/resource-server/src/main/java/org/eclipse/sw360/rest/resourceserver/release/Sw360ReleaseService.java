@@ -34,6 +34,7 @@ import org.eclipse.sw360.datahandler.thrift.components.*;
 import org.eclipse.sw360.datahandler.thrift.components.ComponentService;
 import org.eclipse.sw360.datahandler.thrift.fossology.FossologyService;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
+import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.rest.resourceserver.Sw360ResourceServer;
 import org.eclipse.sw360.rest.resourceserver.attachment.Sw360AttachmentService;
@@ -143,6 +144,31 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
         return releaseById;
     }
 
+    public List<Release> setComponentDependentFieldsInRelease(List<Release> releases, User sw360User) {
+        Map<String, Component> componentIdMap;
+
+        try {
+            ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
+            List<Component> components = sw360ComponentClient.getComponentSummary(sw360User);
+            componentIdMap = components.stream().collect(Collectors.toMap(Component::getId, c -> c));
+        } catch (TException e) {
+            throw new HttpMessageNotReadableException("No Components found");
+        }
+        
+        for (Release release : releases) {
+            String componentId = release.getComponentId();
+            if (CommonUtils.isNullEmptyOrWhitespace(componentId)) {
+                throw new HttpMessageNotReadableException("ComponentId must be present");
+            }
+            if (!componentIdMap.containsKey(componentId)) {
+            	throw new HttpMessageNotReadableException("No Component found with Id - " + componentId);
+            }
+            Component component = componentIdMap.get(componentId);
+            release.setComponentType(component.getComponentType());
+        }
+        return releases;
+    }
+    
     public List<Release> getReleaseSubscriptions(User sw360User) throws TException {
         ComponentService.Iface sw360ComponentClient = getThriftComponentClient();
         return sw360ComponentClient.getSubscribedReleases(sw360User);
@@ -685,5 +711,15 @@ public class Sw360ReleaseService implements AwareOfRestServices<Release> {
     public RequestStatus triggerReportGenerationFossology(String releaseId, User user) throws TException {
         FossologyService.Iface fossologyClient = getThriftFossologyClient();
         return fossologyClient.triggerReportGenerationFossology(releaseId, user);
+    }
+
+    /**
+     * Count the number of projects are using the release that has releaseId
+     * @param releaseId              Id of release
+     * @return int                    Number of project
+     * @throws TException
+     */
+    public int countProjectsByReleaseId(String releaseId) {
+        return projectService.countProjectsByReleaseIds(Collections.singleton(releaseId));
     }
 }

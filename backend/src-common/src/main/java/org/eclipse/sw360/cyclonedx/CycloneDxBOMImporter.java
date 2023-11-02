@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -147,16 +148,7 @@ public class CycloneDxBOMImporter {
                         .filter(ref -> ExternalReference.Type.VCS.equals(ref.getType()))
                         .map(ExternalReference::getUrl)
                         .map(String::toLowerCase)
-                        .map(url -> url.replaceAll(SCHEMA_PATTERN, "$1"))
-                        .map(url -> THIRD_SLASH_PATTERN.matcher(url))
-                        .filter(matcher -> matcher.find())
-                        .map(matcher -> matcher.group())
-                        .map(url -> FIRST_SLASH_PATTERN.matcher(url))
-                        .filter(matcher -> matcher.find())
-                        .map(matcher -> matcher.group(1))
-                        .map(url -> StringUtils.substringBefore(url, HASH))
                         .map(url -> StringUtils.removeEnd(url, DOT_GIT))
-                        .map(url -> url.replaceAll(SLASH, DOT))
                         .map(url -> new AbstractMap.SimpleEntry<>(url, comp)))
                 .collect(Collectors.groupingBy(e -> e.getKey(),
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
@@ -512,14 +504,11 @@ public class CycloneDxBOMImporter {
 
                 // update components specific fields
                 comp = componentDatabaseHandler.getComponent(compAddSummary.getId(), user);
-                if (null != bomComp.getType() && null == comp.getCdxComponentType()) {
+                if (AddDocumentRequestStatus.SUCCESS.equals(compAddSummary.getRequestStatus()) && (null != bomComp.getType() && null == comp.getCdxComponentType())) {
                     comp.setCdxComponentType(getCdxComponentType(bomComp.getType()));
                 }
-                StringBuilder description = new StringBuilder();
-                if (CommonUtils.isNullEmptyOrWhitespace(comp.getDescription()) && CommonUtils.isNotNullEmptyOrWhitespace(bomComp.getDescription())) {
-                    description.append(bomComp.getDescription().trim());
-                } else if (CommonUtils.isNotNullEmptyOrWhitespace(bomComp.getDescription())) {
-                    description.append(" || ").append(bomComp.getDescription().trim());
+                if (AddDocumentRequestStatus.SUCCESS.equals(compAddSummary.getRequestStatus()) && (CommonUtils.isNullEmptyOrWhitespace(comp.getDescription()) && CommonUtils.isNotNullEmptyOrWhitespace(bomComp.getDescription()))) {
+                    comp.setDescription(bomComp.getDescription().trim());
                 }
                 if (CommonUtils.isNotEmpty(comp.getMainLicenseIds())) {
                     comp.getMainLicenseIds().addAll(licenses);
@@ -535,7 +524,7 @@ public class CycloneDxBOMImporter {
                         comp.setWiki(CommonUtils.nullToEmptyString(extRef.getUrl()));
                     }
                 }
-                comp.setDescription(description.toString());
+
                 RequestStatus updateStatus = componentDatabaseHandler.updateComponent(comp, user, true);
                 if (RequestStatus.SUCCESS.equals(updateStatus)) {
                     log.info("updating component successfull: " + comp.getName());
@@ -577,7 +566,6 @@ public class CycloneDxBOMImporter {
             Component comp = createComponent(entry.getKey());
             Release release = new Release();
             String relName = "";
-            StringBuilder description = new StringBuilder();
             AddDocumentRequestSummary compAddSummary;
             try {
                 compAddSummary = componentDatabaseHandler.addComponent(comp, user.getEmail());
@@ -624,20 +612,18 @@ public class CycloneDxBOMImporter {
 
                     // update components specific fields
                     comp = componentDatabaseHandler.getComponent(compAddSummary.getId(), user);
-                    if (null != bomComp.getType() && null == comp.getCdxComponentType()) {
+                    if (AddDocumentRequestStatus.SUCCESS.equals(compAddSummary.getRequestStatus()) && (null != bomComp.getType() && null == comp.getCdxComponentType())) {
                         comp.setCdxComponentType(getCdxComponentType(bomComp.getType()));
                     }
-                    if (CommonUtils.isNullEmptyOrWhitespace(comp.getDescription()) && CommonUtils.isNotNullEmptyOrWhitespace(bomComp.getDescription())) {
-                        description.append(bomComp.getDescription().trim());
-                    } else if (CommonUtils.isNotNullEmptyOrWhitespace(bomComp.getDescription())) {
-                        description.append(" || ").append(bomComp.getDescription().trim());
+                    if (AddDocumentRequestStatus.SUCCESS.equals(compAddSummary.getRequestStatus()) && (CommonUtils.isNullEmptyOrWhitespace(comp.getDescription()) && CommonUtils.isNotNullEmptyOrWhitespace(bomComp.getDescription()))) {
+                        comp.setDescription(bomComp.getDescription().trim());
                     }
                     if (CommonUtils.isNotEmpty(comp.getMainLicenseIds())) {
                         comp.getMainLicenseIds().addAll(licenses);
                     } else {
                         comp.setMainLicenseIds(licenses);
                     }
-                    comp.setDescription(description.toString());
+
                     RequestStatus updateStatus = componentDatabaseHandler.updateComponent(comp, user, true);
                     if (RequestStatus.SUCCESS.equals(updateStatus)) {
                         log.info("updating component successfull: " + comp.getName());
@@ -791,10 +777,13 @@ public class CycloneDxBOMImporter {
     }
 
     // Create Component for Package
-    private Component createComponent(String name) {
+    private Component createComponent(String vcsUrl) {
+        String name = getComponentNameFromVCS(vcsUrl);
         Component component = new Component();
-        component.setName(name);
+        component.setName(CommonUtils.nullToEmptyString(name.trim()));
         component.setComponentType(ComponentType.OSS);
+        component.setVcs(vcsUrl);
+
         return component;
     }
 
@@ -907,6 +896,22 @@ public class CycloneDxBOMImporter {
         } else {
             return name;
         }
+    }
+
+    private String getComponentNameFromVCS(String vcsUrl){
+        String compName = vcsUrl.replaceAll(SCHEMA_PATTERN, "$1");
+        Matcher thirdSlashMatcher = THIRD_SLASH_PATTERN.matcher(compName);
+        if (thirdSlashMatcher.find()) {
+            compName = thirdSlashMatcher.group();
+            Matcher firstSlashMatcher = FIRST_SLASH_PATTERN.matcher(compName);
+            if (firstSlashMatcher.find()) {
+                compName = firstSlashMatcher.group(1);
+                compName = StringUtils.substringBefore(compName, HASH);
+                compName = compName.replaceAll(SLASH, ".");
+            }
+        }
+
+        return compName;
     }
 
     private Package createPackage(org.cyclonedx.model.Component componentFromBom, Release release, Set<String> licenses) {
