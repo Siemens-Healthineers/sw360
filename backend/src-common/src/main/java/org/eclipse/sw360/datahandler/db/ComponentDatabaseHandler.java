@@ -123,7 +123,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private final UserRepository userRepository;
     private final PackageRepository packageRepository;
     private DatabaseHandlerUtil dbHandlerUtil;
-
+    private BulkDeleteUtil bulkDeleteUtil;
+    
     private final AttachmentConnector attachmentConnector;
     private SvmConnector svmConnector;
     private final SpdxDocumentDatabaseHandler spdxDocumentDatabaseHandler;
@@ -178,6 +179,9 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         attachmentConnector = new AttachmentConnector(httpClient, attachmentDbName, durationOf(30, TimeUnit.SECONDS));
         DatabaseConnectorCloudant dbChangeLogs = new DatabaseConnectorCloudant(httpClient, DatabaseSettings.COUCH_DB_CHANGE_LOGS);
         this.dbHandlerUtil = new DatabaseHandlerUtil(dbChangeLogs);
+        
+        this.bulkDeleteUtil = new BulkDeleteUtil(this, componentRepository, releaseRepository, projectRepository, moderator, releaseModerator,
+                attachmentConnector, attachmentDatabaseHandler, dbHandlerUtil);
 
         // Create the spdx document database handler
         this.spdxDocumentDatabaseHandler = new SpdxDocumentDatabaseHandler(httpClient, DatabaseSettings.COUCH_DB_SPDX);
@@ -439,7 +443,16 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
      * Add new release to the database
      */
     public AddDocumentRequestSummary addComponent(Component component, String user) throws SW360Exception {
-        if(isDuplicate(component, true)) {
+        if(isDuplicateUsingVcs(component.getVcs(), true)){
+            final AddDocumentRequestSummary addDocumentRequestSummary = new AddDocumentRequestSummary()
+                    .setRequestStatus(AddDocumentRequestStatus.DUPLICATE);
+            Set<String> duplicates = componentRepository.getComponentIdsByVCS(component.getVcs(), true);
+            if (duplicates.size() == 1) {
+                duplicates.forEach(addDocumentRequestSummary::setId);
+            }
+            return addDocumentRequestSummary;
+
+        }else if(isDuplicate(component, true)) {
             final AddDocumentRequestSummary addDocumentRequestSummary = new AddDocumentRequestSummary()
                     .setRequestStatus(AddDocumentRequestStatus.DUPLICATE);
             Set<String> duplicates = componentRepository.getComponentIdsByName(component.getName(), true);
@@ -577,6 +590,14 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             return false;
         }
         Set<String> duplicates = componentRepository.getComponentIdsByName(componentName, caseInsenstive);
+        return duplicates.size()>0;
+    }
+
+    private boolean isDuplicateUsingVcs(String vcsUrl, boolean caseInsenstive){
+        if (isNullEmptyOrWhitespace(vcsUrl)) {
+            return false;
+        }
+        Set<String> duplicates = componentRepository.getComponentIdsByVCS(vcsUrl, caseInsenstive);
         return duplicates.size()>0;
     }
 
@@ -1419,6 +1440,14 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             if (containedRelease.getId().equals(skipThisReleaseId)) continue;
             updateReleaseDependentFieldsForComponent(component, containedRelease);
         }
+    }
+    
+    public BulkOperationNode deleteBulkRelease(String releaseId, User user, boolean isPreview) throws SW360Exception  {
+        return bulkDeleteUtil.deleteBulkRelease(releaseId, user, isPreview);
+    }
+    
+    public BulkDeleteUtil getBulkDeleteUtil() {
+        return bulkDeleteUtil;
     }
 
     public RequestStatus mergeReleases(String mergeTargetId, String mergeSourceId, Release mergeSelection,

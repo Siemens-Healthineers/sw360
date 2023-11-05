@@ -217,12 +217,14 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
                         responseFields(
                                 fieldWithPath("_embedded.sw360:packages.[]name").description("The name of the package"),
                                 fieldWithPath("_embedded.sw360:packages.[]version").description("The version of the package"),
+                                fieldWithPath("_embedded.sw360:packages.[]packageType").description("The package type, possible values are: " + Arrays.asList(CycloneDxComponentType.values())),
                                 fieldWithPath("_embedded.sw360:packages.[]createdOn").description("The date of creation of the package"),
                                 fieldWithPath("_embedded.sw360:packages.[]packageManager").description("The type of package manager"),
                                 fieldWithPath("_embedded.sw360:packages.[]purl").description("Package URL"),
                                 fieldWithPath("_embedded.sw360:packages.[]vcs").description("VCS(Version Control System) is the URL of the source code"),
                                 fieldWithPath("_embedded.sw360:packages.[]homepageUrl").description("URL of the package website"),
                                 fieldWithPath("_embedded.sw360:packages.[]licenseIds").description("The associated licenses").optional(),
+                                fieldWithPath("_embedded.sw360:packages.[]releaseId").description("The associated release").optional(),
                                 fieldWithPath("_embedded.sw360:packages.[]description").description("Description of the package"),
                                 subsectionWithPath("_embedded.sw360:packages.[]_embedded.sw360:release").description("The release to which the package is linked").optional(),
                                 subsectionWithPath("_embedded.sw360:packages.[]_embedded.createdBy").description("The user who created this component"),
@@ -250,12 +252,14 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
                         responseFields(
                                 fieldWithPath("name").description("The name of the package"),
                                 fieldWithPath("version").description("The version of the package"),
+                                fieldWithPath("packageType").description("The package type, possible values are: " + Arrays.asList(CycloneDxComponentType.values())),
                                 fieldWithPath("createdOn").description("The date of creation of the package"),
                                 fieldWithPath("packageManager").description("The type of package manager"),
                                 fieldWithPath("purl").description("Package URL"),
                                 fieldWithPath("vcs").description("VCS(Version Control System) is the URL of the source code"),
                                 fieldWithPath("homepageUrl").description("URL of the package website"),
                                 fieldWithPath("licenseIds").description("The associated licenses"),
+                                fieldWithPath("releaseId").description("The associated release"),
                                 fieldWithPath("description").description("Description of the package"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"),
                                 subsectionWithPath("_embedded.sw360:release").description("The release to which the package is linked"),
@@ -349,11 +353,12 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
 
         pkg.put("name", "angular-sanitize");
         pkg.put("version", "1.8.2");
+        pkg.put("packageType", CycloneDxComponentType.LIBRARY);
         pkg.put("purl", "pkg:npm/angular-sanitize@1.8.2");
         pkg.put("vcs", "git+https://github.com/angular/angular.js.git");
         pkg.put("homepageUrl", "https://github.com/angular/angular-sanitize");
         pkg.put("licenseIds", licenseIds);
-        pkg.put("releaseId", "69da0e106074ab7b3856df5fbc3e");
+        pkg.put("releaseId", "98745");
         pkg.put("description", "Sanitizes a html string by stripping all potentially dangerous tokens.");
 
         String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
@@ -368,6 +373,7 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
                         requestFields(
                                 fieldWithPath("name").description("The name of the package"),
                                 fieldWithPath("version").description("The version of the package"),
+                                fieldWithPath("packageType").description("The package type, possible values are: " + Arrays.asList(CycloneDxComponentType.values())),
                                 fieldWithPath("purl").description("Package URL"),
                                 fieldWithPath("vcs").description("VCS(Version Control System) is the URL of the source code"),
                                 fieldWithPath("homepageUrl").description("URL of the package website"),
@@ -378,12 +384,14 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
                         responseFields(
                                 fieldWithPath("name").description("The name of the package"),
                                 fieldWithPath("version").description("The version of the package"),
+                                fieldWithPath("packageType").description("The package type, possible values are: " + Arrays.asList(CycloneDxComponentType.values())),
                                 fieldWithPath("createdOn").description("The date of creation of the package"),
                                 fieldWithPath("packageManager").description("The type of package manager"),
                                 fieldWithPath("purl").description("Package URL"),
                                 fieldWithPath("vcs").description("VCS(Version Control System) is the URL of the source code"),
                                 fieldWithPath("homepageUrl").description("URL of the package website"),
                                 fieldWithPath("licenseIds").description("The associated licenses"),
+                                fieldWithPath("releaseId").description("The associated release"),
                                 fieldWithPath("description").description("Description of the package"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"),
                                 subsectionWithPath("_embedded.sw360:release").description("The release to which the package is linked"),
@@ -411,12 +419,14 @@ public class PackageSpecTest extends TestRestDocsSpecBase {
                         responseFields(
                                 fieldWithPath("name").description("The name of the package"),
                                 fieldWithPath("version").description("The version of the package"),
+                                fieldWithPath("packageType").description("The package type, possible values are: " + Arrays.asList(CycloneDxComponentType.values())),
                                 fieldWithPath("createdOn").description("The date of creation of the package"),
                                 fieldWithPath("packageManager").description("The type of package manager"),
                                 fieldWithPath("purl").description("Package URL"),
                                 fieldWithPath("vcs").description("VCS(Version Control System) is the URL of the source code"),
                                 fieldWithPath("homepageUrl").description("URL of the package website"),
                                 fieldWithPath("licenseIds").description("The associated licenses"),
+                                fieldWithPath("releaseId").description("The associated release"),
                                 fieldWithPath("description").description("Description of the package"),
                                 subsectionWithPath("_links").description("<<resources-index-links,Links>> to other resources"),
                                 subsectionWithPath("_embedded.sw360:release").description("The release to which the package is linked"),
