@@ -286,11 +286,6 @@ require(['jquery', 'modules/autocomplete', 'modules/dialog', 'modules/listgroup'
                   '<portlet:namespace/>FULLNAME', '<portlet:namespace/>SHORTNAME', '<portlet:namespace/>URL', fillVendorInfo);
     });
 
-    $('#ProjectRolesInfo input.edit-department').on('click',function(){
-    	departmentsearch.openSearchDialog('<portlet:namespace/>what', '<portlet:namespace/>where',
-                '<portlet:namespace/>DEPARTMENTID', '<portlet:namespace/>PRIORITY',fillDepartmentInfo);
-    })
-
     $('#formSubmit').click(
         function () {
             <core_rt:choose>
