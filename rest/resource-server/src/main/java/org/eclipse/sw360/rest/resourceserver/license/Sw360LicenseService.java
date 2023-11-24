@@ -10,12 +10,16 @@
 
 package org.eclipse.sw360.rest.resourceserver.license;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+
+import org.apache.commons.lang.StringUtils;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.THttpClient;
 import org.apache.thrift.transport.TTransportException;
+import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.common.SW360Utils;
 import org.eclipse.sw360.datahandler.permissions.PermissionUtils;
 import org.eclipse.sw360.datahandler.resourcelists.ResourceClassNotFoundException;
@@ -25,6 +29,7 @@ import org.eclipse.sw360.datahandler.thrift.SW360Exception;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
 import org.eclipse.sw360.datahandler.thrift.licenses.Obligation;
 import org.eclipse.sw360.datahandler.thrift.licenses.LicenseService;
+import org.eclipse.sw360.datahandler.thrift.licenses.LicenseType;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
 import org.eclipse.sw360.exporter.LicsExporter;
@@ -34,6 +39,7 @@ import org.eclipse.sw360.importer.LicsImporter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.rest.webmvc.ResourceNotFoundException;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileCopyUtils;
@@ -60,6 +66,7 @@ public class Sw360LicenseService {
     @Value("${sw360.thrift-server-url:http://localhost:8080}")
     private String thriftServerUrl;
     private static String CONTENT_TYPE = "application/zip";
+    LicenseType lType = new LicenseType();
 
     public List<License> getLicenses() throws TException {
         LicenseService.Iface sw360LicenseClient = getThriftLicenseClient();
@@ -125,6 +132,23 @@ public class Sw360LicenseService {
             checkObligationLevel(obligations, sw360User);
             license.setObligationDatabaseIds(obligationIds);
             license.setObligations(obligations);
+        }
+        return sw360LicenseClient.updateLicense(license, sw360User, sw360User);
+    }
+
+    public RequestStatus updateLicense(License license, User sw360User) throws TException {
+        LicenseService.Iface sw360LicenseClient = getThriftLicenseClient();
+        if (null != license){
+            Set<String> obligationIds = license.getObligationDatabaseIds();
+            if (CommonUtils.isNullOrEmptyCollection(obligationIds)) {
+                license.unsetObligations();
+            } else {
+                List<String> obligationIdList = new ArrayList<>(obligationIds);
+                List<Obligation> obligations = sw360LicenseClient.getObligationsByIds(obligationIdList);
+                checkObligationLevel(obligations, sw360User);
+                license.setObligationDatabaseIds(obligationIds);
+                license.setObligations(obligations);
+            }
         }
         return sw360LicenseClient.updateLicense(license, sw360User, sw360User);
     }
@@ -213,11 +237,11 @@ public class Sw360LicenseService {
     }
 
     public void uploadLicense(User sw360User, MultipartFile file, boolean overwriteIfExternalIdMatches, boolean overwriteIfIdMatchesEvenWithoutExternalIdMatch) throws IOException, TException {
-		final HashMap<String, InputStream> inputMap = new HashMap<>();
+        final HashMap<String, InputStream> inputMap = new HashMap<>();
 
-		if (!PermissionUtils.isUserAtLeast(UserGroup.ADMIN, sw360User)) {
-			throw new HttpMessageNotReadableException("Unable to upload license file. User is not admin");
-		}
+        if (!PermissionUtils.isUserAtLeast(UserGroup.ADMIN, sw360User)) {
+            throw new HttpMessageNotReadableException("Unable to upload license file. User is not admin");
+        }
         try {
             InputStream inputStream = file.getInputStream();
             ZipTools.extractZipToInputStreamMap(inputStream, inputMap);
@@ -231,6 +255,7 @@ public class Sw360LicenseService {
             }
         }
 	}
+
     public RequestSummary importOsadlInformation(User sw360User) throws TException {
         LicenseService.Iface sw360LicenseClient = getThriftLicenseClient();
         if (PermissionUtils.isUserAtLeast(UserGroup.ADMIN, sw360User)) {
@@ -240,4 +265,24 @@ public class Sw360LicenseService {
             throw new HttpMessageNotReadableException("Unable to import All Spdx license. User is not admin");
         }
     }
+
+    public RequestStatus addLicenseType(User sw360User, String licenseType, HttpServletRequest request) throws TException {
+        LicenseService.Iface sw360LicenseClient = getThriftLicenseClient();
+        if (StringUtils.isNotEmpty(licenseType)) {
+             lType.setLicenseType(licenseType);
+        }
+        else {
+              throw new HttpMessageNotReadableException("license type is empty");
+        }
+        try {
+            if (PermissionUtils.isUserAtLeast(UserGroup.ADMIN, sw360User)) {
+                RequestStatus status = sw360LicenseClient.addLicenseType(lType, sw360User);
+            } else {
+                throw new HttpMessageNotReadableException("Unable to create License Type. User is not admin");
+            }
+         } catch ( Exception e) {
+                 throw new TException(e.getMessage());
+         }
+         return RequestStatus.SUCCESS;
+     }
 }
