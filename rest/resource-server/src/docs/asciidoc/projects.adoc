@@ -323,7 +323,7 @@ include::{snippets}/should_document_get_linked_projects/http-response.adoc[]
 include::{snippets}/should_document_get_linked_projects/links.adoc[]
 
 
-[[resources-project-get-linked-projects]]
+[[resources-project-get-linked-projects-transitive]]
 ==== Listing linked projects (transitive)
 
 A `GET` request will get linked projects of a single project. +
@@ -406,6 +406,9 @@ include::{snippets}/should_document_get_project_releases_transitive/links.adoc[]
 A `GET` request will get all releases with ECC information of a single project.
 This works also with the transitive request parameter (&transitive=true)
 
+===== Request parameter
+include::{snippets}/should_document_get_project_releases_ecc_information/request-parameters.adoc[]
+
 ===== Response structure
 include::{snippets}/should_document_get_project_releases_ecc_information/response-fields.adoc[]
 
@@ -418,6 +421,16 @@ include::{snippets}/should_document_get_project_releases_ecc_information/http-re
 ===== Links
 include::{snippets}/should_document_get_project_releases_ecc_information/links.adoc[]
 
+[[resources-project-get-license-clearing-information-information]]
+==== Project's license clearing count
+
+A `GET` request will get license clearing count of a project.
+
+===== Example request
+include::{snippets}/should_document_get_license_clearing_information/curl-request.adoc[]
+
+===== Example response
+include::{snippets}/should_document_get_license_clearing_information/http-response.adoc[]
 
 [[resources-projects-create]]
 ==== Creating a project

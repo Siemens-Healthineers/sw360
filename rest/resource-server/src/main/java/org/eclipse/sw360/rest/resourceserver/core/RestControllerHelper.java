@@ -63,6 +63,7 @@ import org.eclipse.sw360.rest.resourceserver.license.Sw360LicenseService;
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.EmbeddedModerationRequest;
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.ModerationRequestController;
 import org.eclipse.sw360.rest.resourceserver.moderationrequest.Sw360ModerationRequestService;
+import org.eclipse.sw360.rest.resourceserver.obligation.Sw360ObligationService;
 import org.eclipse.sw360.rest.resourceserver.project.EmbeddedProject;
 import org.eclipse.sw360.rest.resourceserver.vulnerability.VulnerabilityController;
 import org.eclipse.sw360.rest.resourceserver.project.EmbeddedProjectDTO;
@@ -138,6 +139,9 @@ public class RestControllerHelper<T> {
 
     @NonNull
     private final Sw360LicenseService licenseService;
+
+    @NonNull
+    private final Sw360ObligationService obligationService;
 
     @NonNull
     private final ResourceComparatorGenerator<T> resourceComparatorGenerator = new ResourceComparatorGenerator<>();
@@ -428,6 +432,21 @@ public class RestControllerHelper<T> {
         }
     }
 
+    public Release convertToEmbeddedReleaseAttachments(Release release) {
+        Release embeddedRelease = new Release();
+        embeddedRelease.setId(release.getId());
+        embeddedRelease.setName(release.getName());
+        embeddedRelease.setVersion(release.getVersion());
+        embeddedRelease.setAttachments(release.getAttachments());
+        embeddedRelease.setType(null);
+        return embeddedRelease;
+    }
+
+    public void addEmbeddedProjectAttachmentUsage(HalResource halResource, List<EntityModel<Release>> releases, List<Map<String, Object>> attachmentUsageMap) {
+        halResource.addEmbeddedResource("sw360:release", releases);
+        halResource.addEmbeddedResource("sw360:attachmentUsages", attachmentUsageMap);
+    }
+
     public HalResource<Vendor> addEmbeddedVendor(String vendorFullName) {
         Vendor embeddedVendor = convertToEmbeddedVendor(vendorFullName);
         HalResource<Vendor> halVendor = new HalResource<>(embeddedVendor);
@@ -528,12 +547,10 @@ public class RestControllerHelper<T> {
     }
 
     public HalResource<Release> addEmbeddedReleaseLinks(Release release) {
-        final Release embeddedRelease = convertToEmbeddedLinkedRelease(release);
-        final HalResource<Release> releaseResource = new HalResource<>(embeddedRelease);
+        final HalResource<Release> releaseResource = new HalResource<>(release);
         Link releaseLink = linkTo(ReleaseController.class)
-                .slash("api/releases/" + embeddedRelease.getId()).withSelfRel();
+                .slash("api/releases/" + release.getId()).withSelfRel();
         releaseResource.add(releaseLink);
-
         return releaseResource;
     }
 
@@ -668,6 +685,38 @@ public class RestControllerHelper<T> {
         }
     }
 
+    public License mapLicenseRequestToLicense(License licenseRequestBody, License licenseUpdate) {
+        for (License._Fields field : License._Fields.values()) {
+            Object fieldValue = licenseRequestBody.getFieldValue(field);
+            if (fieldValue != null) {
+                switch (field) {
+                    case OBLIGATION_DATABASE_IDS:
+                        isObligationValid(licenseRequestBody.getObligationDatabaseIds());
+                        break;
+                    default:
+                }
+                licenseUpdate.setFieldValue(field, fieldValue);
+            }
+        }
+        return licenseUpdate;
+    }
+
+    private void isObligationValid(Set<String> obligationIds) {
+        List <String> obligationIncorrect = new ArrayList<>();
+        if (CommonUtils.isNotEmpty(obligationIds)) {
+            for (String obligationId : obligationIds) {
+                try {
+                    obligationService.getObligationById(obligationId);
+                } catch (Exception e) {
+                    obligationIncorrect.add(obligationId);
+                }
+            }
+        }
+        if (!obligationIncorrect.isEmpty()) {
+            throw new HttpMessageNotReadableException("Obligation with ids " + obligationIncorrect + " does not exist in SW360 database.");
+        }
+    }
+
     public ProjectReleaseRelationship updateProjectReleaseRelationship(
             ProjectReleaseRelationship actualProjectReleaseRelationship,
             ProjectReleaseRelationship requestBodyProjectReleaseRelationship) {
@@ -692,6 +741,7 @@ public class RestControllerHelper<T> {
         embeddedProject.setVersion(project.getVersion());
         embeddedProject.setVisbility(project.getVisbility());
         embeddedProject.setBusinessUnit(project.getBusinessUnit());
+        embeddedProject.setEnableSvm(project.isEnableSvm());
         embeddedProject.setType(null);
         return embeddedProject;
     }
@@ -706,6 +756,8 @@ public class RestControllerHelper<T> {
         embeddedProject.setVersion(project.getVersion());
         embeddedProject.setReleaseIdToUsage(project.getReleaseIdToUsage());
         embeddedProject.setLinkedProjects(project.getLinkedProjects());
+        embeddedProject.setEnableSvm(project.isEnableSvm());
+        embeddedProject.setEnableVulnerabilitiesDisplay(project.isEnableVulnerabilitiesDisplay());
         embeddedProject.setType(null);
         return embeddedProject;
     }
@@ -870,7 +922,10 @@ public class RestControllerHelper<T> {
     public Obligation convertToEmbeddedObligation(Obligation obligation) {
         Obligation embeddedObligation = new Obligation();
         embeddedObligation.setTitle(obligation.getTitle());
+        embeddedObligation.setObligationType(obligation.getObligationType());
         embeddedObligation.setId(obligation.getId());
+        embeddedObligation.setWhitelist(obligation.getWhitelist());
+        embeddedObligation.setText(obligation.getText());
         embeddedObligation.setType(null);
         return embeddedObligation;
     }
@@ -1310,5 +1365,27 @@ public class RestControllerHelper<T> {
             }
             addEmbeddedFields("sw360:cotsDetail", cotsDetailsHalResource, halResource);
         }
+    }
+
+    public void addEmbeddedProjectResponsible(HalResource<Project> halResource, String projectResponsible) {
+        User sw360User = getUserByEmail(projectResponsible);
+        if(sw360User!=null) {
+            addEmbeddedUser(halResource, sw360User, "projectResponsible");
+        }
+    }
+
+    public void addEmbeddedSecurityResponsibles (HalResource<Project> halResource, Set<String> securityResponsibles) {
+        for (String securityResponsible : securityResponsibles) {
+            User sw360User = getUserByEmail(securityResponsible);
+            if(sw360User!=null) {
+                addEmbeddedUser(halResource, sw360User, "securityResponsibles");
+            }
+        }
+    }
+
+    public void addEmbeddedClearingTeam(HalResource<Project> userHalResource, String clearingTeam, String resource) {
+        User sw360User = getUserByEmail(clearingTeam);
+        if(sw360User!=null)
+            addEmbeddedUser(userHalResource, sw360User, resource);
     }
 }
