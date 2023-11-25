@@ -61,9 +61,8 @@ public class DisplayDepartmentEdit extends NameSpaceAwareTag {
         display.append(String.format("<input type=\"hidden\" value=\"\"  id=\"%s\" name=\"%s%s\"/>", id, namespace, id))
                 .append("<div class=\"form-group has-feedback\">")
                 .append(String.format(
-                        "<input type=\"text\" class=\"form-control edit-department clickable\" placeholder=\"" + LanguageUtil.get(resourceBundle, "click.to.set.department") + "\" id=\"%sDisplay\" required=\"\"/>",
+                        "<input type=\"text\" class=\"form-control edit-department\" readonly placeholder=\"" + LanguageUtil.get(resourceBundle, "click.to.set.department") + "\" id=\"%sDisplay\" required=\"\"/>",
                         id))
-                .append("<span class=\"glyphicon glyphicon-remove-circle form-control-feedback clearSelection\" id=\"clearDepartment\"/>")
                 .append("</div>");
         display.append("</div>");
     }
@@ -74,9 +73,8 @@ public class DisplayDepartmentEdit extends NameSpaceAwareTag {
         display.append(String.format("<input type=\"hidden\" value=\"%s\"  id=\"%s\" name=\"%s%s\"/>", departmentId, id, namespace, id))
                 .append("<div class=\"form-group has-feedback\">")
                 .append(String.format(
-                        "<input type=\"text\" class=\"form-control edit-department clickable\" value=\"%s\" id=\"%sDisplay\" required=\"\"/>",
+                        "<input type=\"text\" class=\"form-control edit-department\" readonly value=\"%s\" id=\"%sDisplay\" required=\"\"/>",
                         departmentId, id))
-                .append("<span class=\"glyphicon glyphicon-remove-circle form-control-feedback clearSelection\" id=\"clearDepartment\"/>")
                 .append("</div>");
         display.append("</div>");
     }
