@@ -373,6 +373,16 @@
                                     statusDiv.append("<div class='alert alert-info'><liferay-ui:message key="list.of.packages.without.vcs.information" />: <b>" + $(invalidCompList).find('li').length +
                                             "</b> <small>(<liferay-ui:message key="not.linked.to.any.release" />)</small> " + cpBtn[0].outerHTML + " " + invalidCompList[0].outerHTML + "</div>")
                                 }
+                                if (data.nonPkgManagedCompWithoutVCS && data.nonPkgManagedCompWithoutVCS.length) {
+                                    nonPkgManagedCompWithoutVCS = $('<ul/>');
+                                    data.nonPkgManagedCompWithoutVCS.split('||').forEach(function(comp, index) {
+                                        nonPkgManagedCompWithoutVCS.append('<li>' + comp + '</li>');
+                                    });
+                                    var cpBtn = $(copyBtn).clone();
+                                    $(cpBtn).attr('id', 'copyToClipboard_ic');
+                                    statusDiv.append("<div class='alert alert-danger'><liferay-ui:message key="list.of.non.package.managed.components.with.missing.or.incorrect.VCS.information" />: <b>" + $(nonPkgManagedCompWithoutVCS).find('li').length +
+                                            "</b> <small>(<liferay-ui:message key="not.imported" />)</small> " + cpBtn[0].outerHTML + " " + nonPkgManagedCompWithoutVCS[0].outerHTML + "</div>")
+                                }
                                 if (data.dupComp && data.dupComp.length) {
                                     compList = $('<ul/>');
                                     data.dupComp.split('||').forEach(function(comp, index) {
