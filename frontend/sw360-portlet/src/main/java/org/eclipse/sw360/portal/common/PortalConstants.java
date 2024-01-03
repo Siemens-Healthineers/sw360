@@ -704,6 +704,7 @@ public class PortalConstants {
     public static  final String UPDATE_VULNERABILITY_VERIFICATION = "updateVulnerabilityVerification";
     public static  final String LOAD_VULNERABILITIES_PROJECT = "loadVulnerabilitiesProject";
     public static  final String UPDATE_VULNERABILITIES_PACKAGE = "updateVulnerabilitiesPackage";
+    public static  final String REMOVE_VULNERABILITY = "removeVulnerability";
 
     public static final String LIST_VULNERABILITY_WITH_VIEW_SIZE_FRIENDLY_URL = "listVulnerabilityWithViewSizeFriendlyUrl";
     public static final String UPDATE_PROJECT_VULNERABILITIES_URL = "updateProjectVulnerabilitiesURL";

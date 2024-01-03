@@ -71,13 +71,17 @@ public class ErrorMessages {
     public static final String ERROR_VENDOR = "Error: Invalid vendor Name or Url.";
     public static final String ERROR_BULK_DELETING = "Error while bulk deleting";
     public static final String ERROR_BULK_DELETING_IN_BACKEND = "Error while bulk deleting in backend.";
-    
+
     public static final String PACKAGE_NOT_ADDED = "Package could not be added.";
     public static final String PACKAGE_DUPLICATE = "A package with the same name and version already exists.";
     public static final String PACKAGE_NAME_VERSION_ERROR = "Name and version of the package cannot contain only space characters.";
     public static final String PACKAGE_UPDATE_ACCESS_DENIED = "You do not have permission to update this Package! Package creator or all users with " + SW360Constants.PACKAGE_PORTLET_WRITE_ACCESS_USER_ROLE.name() + " & above role can update the Packages.";
     public static final String INVALID_PURL_OR_LINKED_RELEASE = "Invalid purl or linked release";
     public static final String INVALID_LINKED_DOCUMENT = "Invalid linked document id";
+
+    public static final String ERROR_VULNERABILITY_USED_BY_RELEASE = "Can not remove vulnerability because it is used by releases";
+    public static final String ERROR_VULNERABILITY_DELETE = "Error when delete vulnerability";
+    public static final String ERROR_ADD_VULNERABILITY = "Error when add vulnerability";
 
     public static final String ERROR_VULNERABILITY_USED_BY_RELEASE = "Can not remove vulnerability because it is used by releases";
     public static final String ERROR_VULNERABILITY_DELETE = "Error when delete vulnerability";
@@ -134,6 +138,10 @@ public class ErrorMessages {
             .add(ERROR_USER_ACTIVATE_DEACTIVATE)
             .add(OBLIGATION_NOT_ADDED)
             .add(OBLIGATION_NOT_UPDATED)
+            .add(ERROR_VULNERABILITY_USED_BY_RELEASE)
+            .add(ERROR_VULNERABILITY_DELETE)
+            .add(ERROR_ADD_VULNERABILITY)
+            .add(ERROR_UPDATE_VULNERABILITY)
             .add(VENDOR_DUPLICATE)
             .add(ERROR_VENDOR)
             .add(ERROR_BULK_DELETING)

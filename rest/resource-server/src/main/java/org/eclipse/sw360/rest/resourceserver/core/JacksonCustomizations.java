@@ -1419,6 +1419,72 @@ public class JacksonCustomizations {
             @JsonProperty("id")
             abstract public String getId();
         }
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
+        @JsonIgnoreProperties({
+                "id",
+                "revision",
+                "type",
+                "priorityToolTip",
+                "intComponentId",
+                "intComponentName",
+                "releaseVulnerabilityRelation",
+                "matchedBy",
+                "usedNeedle",
+                "setType",
+                "setId",
+                "setRevision",
+                "setIntReleaseName",
+                "setLastExternalUpdate",
+                "setIntComponentId",
+                "setIntComponentName",
+                "referencesSize",
+                "setPriorityToolTip",
+                "setCveReferences",
+                "setIntReleaseId",
+                "cveReferencesSize",
+                "setDescription",
+                "setReleaseVulnerabilityRelation",
+                "setImpact",
+                "setMatchedBy",
+                "setLegalNotice",
+                "setUsedNeedle",
+                "setReferences",
+                "setPriority",
+                "setAction",
+                "impactSize",
+                "setExternalId",
+                "setPublishDate",
+                "setTitle",
+                "setLastUpdateDate",
+                "setPriorityText",
+                "cveReferencesIterator",
+                "setCveFurtherMetaDataPerSource",
+                "setAssignedExtComponentIds",
+                "referencesIterator",
+                "setVulnerableConfiguration",
+                "setExtendedDescription",
+                "vulnerableConfigurationSize",
+                "assignedExtComponentIdsSize",
+                "assignedExtComponentIdsIterator",
+                "vendorAdvisoriesIterator",
+                "vendorAdvisoriesSize",
+                "setVendorAdvisories",
+                "cveFurtherMetaDataPerSourceSize",
+                "setCvss",
+                "setCwe",
+                "releasesIterator",
+                "setIsSetCvss",
+                "setCvssTime",
+                "setAccess",
+                "accessSize",
+                "releasesSize",
+                "setReleases"
+        })
+        public static abstract class VulnerabilityApiDTOMixin extends VulnerabilityApiDTO {
+            @Override
+            @JsonProperty("id")
+            abstract public String getId();
+        }
 
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
         @JsonIgnoreProperties({
