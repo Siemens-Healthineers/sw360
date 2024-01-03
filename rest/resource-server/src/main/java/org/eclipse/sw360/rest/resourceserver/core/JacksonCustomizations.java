@@ -640,7 +640,12 @@ public class JacksonCustomizations {
                 "homepageUrlIsSet",
                 "hashIsSet",
                 "packageManagerIsSet",
-                "typeIsSet"
+                "typeIsSet",
+                "setPackageType",
+                "externalIdsSize",
+                "setExternalIds",
+                "additionalDataSize",
+                "setAdditionalData"
         })
         static abstract class PackageMixin extends Package {
         }

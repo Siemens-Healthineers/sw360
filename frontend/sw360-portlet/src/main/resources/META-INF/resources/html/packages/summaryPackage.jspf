@@ -99,6 +99,14 @@
                 <td><liferay-ui:message key="modified.by" />:</td>
                 <td><sw360:DisplayUserEmail email="${pkg.modifiedBy}"/></td>
             </tr>
+            <tr>
+                 <td>External ids:</td>
+                 <td><sw360:DisplayMap value="${pkg.externalIds}"/></td>
+            </tr>
+            <tr>
+                <td>Additional Data:</td>
+                <td><sw360:DisplayMap value="${pkg.additionalData}"/></td>
+            </tr>
         </tbody>
     </table>
 
