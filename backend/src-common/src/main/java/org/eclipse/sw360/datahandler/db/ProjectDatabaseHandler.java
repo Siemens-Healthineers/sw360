@@ -1583,11 +1583,17 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         Map<String, Release> releaseMap = componentDatabaseHandler.getAllReleasesIdMap();
         componentDatabaseHandler.fillVendors(releaseMap.values());
         Map<String, Component> componentMap = componentDatabaseHandler.getAllComponentsIdMap();
+        Map<String, Package> packageMap = packageDatabaseHandler.getAllPackagesIdMap();
         for (Project p : projects) {
             Set<String> linkedProjectIds = nullToEmptyMap(p.getLinkedProjects()).entrySet().stream().filter(entry -> {
                 ProjectProjectRelationship projectProjectRelationship = entry.getValue();
                 return projectProjectRelationship != null && projectProjectRelationship.isEnableSvm();
             }).map(entry -> entry.getKey()).collect(Collectors.toSet());
+            List<Release> projectReleases = nullToEmptyMap(p.getReleaseIdToUsage()).keySet().stream()
+                    .map(releaseMap::get).filter(Objects::nonNull).collect(Collectors.toList());
+            List<Package> projectPackages = nullToEmptySet(p.getPackageIds()).stream()
+                    .map(packageMap::get).filter(Objects::nonNull).collect(Collectors.toList());
+
             JsonObject json = new JsonObject();
             json.addProperty("application_id", p.getId());
             json.addProperty("application_name", p.getName());
@@ -1597,11 +1603,13 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             json.add("children_application_ids",
                     p.isConsiderReleasesFromExternalList() ? new JsonArray()
                             : stringCollectionToJsonArray(linkedProjectIds));
-            json.add("components",
-                    p.isConsiderReleasesFromExternalList() ? new JsonArray()
-                            : serializeReleasesToJson(nullToEmptyMap(p.getReleaseIdToUsage()).keySet().stream()
-                                    .map(releaseMap::get).filter(Objects::nonNull).collect(Collectors.toList()),
-                                    componentMap));
+            if (SW360Constants.IS_PACKAGE_PORTLET_ENABLED) {
+                json.add("components", p.isConsiderReleasesFromExternalList() ? new JsonArray()
+                        : projectPackages.isEmpty() ? serializeReleasesToJson(projectReleases, componentMap)
+                                : serializeReleasesandPackagesToJson(projectReleases, componentMap, projectPackages));
+            } else {
+                json.add("components", p.isConsiderReleasesFromExternalList() ? new JsonArray() : serializeReleasesToJson(projectReleases, componentMap));
+            }
 
             Set<String> externalIdValueSet = new TreeSet<>();
             String externalIdValues = p.getExternalIds() == null ? null
@@ -1629,28 +1637,86 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return jsonArray;
     }
 
+    private JsonObject createJsonObjectForRelease(JsonObject json, Release r, Component c) {
+        Map<String, String> externalIds = CommonUtils.nullToEmptyMap(r.getExternalIds());
+        json.addProperty("external_component_id", r.getId());
+        putExternalIdToJsonAsInteger(json, "svm_component_id", externalIds.get(SW360Constants.SVM_COMPONENT_ID));
+        putExternalIdToJsonAsInteger(json, "swml_component_id", externalIds.get(SW360Constants.MAINLINE_COMPONENT_ID));
+        json.addProperty("vendor", Optional.ofNullable(r.getVendor()).map(Vendor::getShortname).orElse(""));
+        json.addProperty("name", r.getName());
+        json.addProperty("version", r.getVersion());
+        if (c == null) {
+            log.warn(String.format("Parent component of release %s (%s) with id %s was not found", r.getName(), r.getId(), r.getComponentId()));
+        } else {
+            json.add("urls", getUrlsJson(r, c));
+            json.addProperty("description", c.getDescription());
+        }
+        json.add("cpe_items", getReleaseCpeIdsJson(r));
+
+        return json;
+    }
+
+    private JsonObject createJsonObjectForPackage(JsonObject json, Package p) {
+        Map<String, String> externalIds = CommonUtils.nullToEmptyMap(p.getExternalIds());
+
+        json.addProperty("external_component_id", p.getId());
+        putExternalIdToJsonAsInteger(json, "svm_component_id",
+                externalIds.get(SW360Constants.SVM_COMPONENT_ID));
+        putExternalIdToJsonAsInteger(json, "swml_component_id",
+                externalIds.get(SW360Constants.MAINLINE_COMPONENT_ID));
+        json.addProperty("name", p.getName());
+        json.addProperty("version", p.getVersion());
+        json.add("urls", getUrlsJsonForPackage(p));
+        json.addProperty("description", p.getDescription());
+
+        return json;
+    }
+
     private JsonArray serializeReleasesToJson(List<Release> releases, Map<String, Component> componentMap) {
         JsonArray serializedReleases = new JsonArray();
         for (Release r: releases){
             Component c = componentMap.get(r.getComponentId());
             JsonObject json = new JsonObject();
-            Map<String, String> externalIds = CommonUtils.nullToEmptyMap(r.getExternalIds());
-            json.addProperty("external_component_id", r.getId());
-            putExternalIdToJsonAsInteger(json, "svm_component_id", externalIds.get(SW360Constants.SVM_COMPONENT_ID));
-            putExternalIdToJsonAsInteger(json, "swml_component_id", externalIds.get(SW360Constants.MAINLINE_COMPONENT_ID));
-            json.addProperty("vendor", Optional.ofNullable(r.getVendor()).map(Vendor::getShortname).orElse(""));
-            json.addProperty("name", r.getName());
-            json.addProperty("version", r.getVersion());
-            if (c == null) {
-                log.warn(String.format("Parent component of release %s (%s) with id %s was not found", r.getName(), r.getId(), r.getComponentId()));
-            } else {
-                json.add("urls", getUrlsJson(r, c));
-                json.addProperty("description", c.getDescription());
-            }
-            json.add("cpe_items", getReleaseCpeIdsJson(r));
-            serializedReleases.add(json);
+
+            serializedReleases.add(createJsonObjectForRelease(json, r, c));
         }
         return serializedReleases;
+    }
+
+    private JsonArray serializeReleasesandPackagesToJson(List<Release> releases, Map<String, Component> componentMap,
+            List<Package> projectPackages) {
+        JsonArray serializedReleasesandPackages = new JsonArray();
+        List<Package> nonOrphanPackages = new ArrayList<>();
+
+        for (Package p : projectPackages) {
+            if (p.getRelease() != null) {
+                nonOrphanPackages.add(p);
+            } else {
+                log.warn(String.format("Sending orphan package %s (%s) to SVM",
+                        p.getName(), p.getId()));
+
+                JsonObject json = new JsonObject();
+
+                serializedReleasesandPackages.add(createJsonObjectForPackage(json, p));
+            }
+        }
+
+        for (Release r : releases) {
+            List<Package> releasePackages = nonOrphanPackages.stream().filter(p -> r.getPackageIds().contains(p.getId()))
+                    .collect(Collectors.toList());
+            JsonObject json = new JsonObject();
+
+            if (!releasePackages.isEmpty()) {
+                for (Package p : releasePackages) {
+                    serializedReleasesandPackages.add(createJsonObjectForPackage(json, p));
+                }
+            } else {
+                Component c = componentMap.get(r.getComponentId());
+
+                serializedReleasesandPackages.add(createJsonObjectForRelease(json, r, c));
+            }
+        }
+        return serializedReleasesandPackages;
     }
 
     private void putExternalIdToJsonAsInteger(JsonObject json, String jsonKey, String extId){
@@ -1683,6 +1749,13 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         putIfNotEmpty(jsonArray, c.getBlog());
         putIfNotEmpty(jsonArray, c.getWiki());
         putIfNotEmpty(jsonArray, r.getSourceCodeDownloadurl());
+        return jsonArray;
+    }
+
+    private JsonArray getUrlsJsonForPackage(Package p) {
+        JsonArray jsonArray = new JsonArray();
+        putIfNotEmpty(jsonArray, p.getPurl());
+        putIfNotEmpty(jsonArray, p.getVcs());
         return jsonArray;
     }
 
