@@ -12,14 +12,17 @@ package org.eclipse.sw360.datahandler.db;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.eclipse.sw360.datahandler.cloudantclient.DatabaseConnectorCloudant;
 import org.eclipse.sw360.datahandler.cloudantclient.DatabaseRepositoryCloudantClient;
 import org.eclipse.sw360.datahandler.thrift.PaginationData;
+import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 
@@ -163,5 +166,9 @@ public class PackageRepository extends DatabaseRepositoryCloudantClient<Package>
         pageData.setTotalRowCount(response.getTotalRowCount());
         result.put(pageData, packages);
         return result;
+    }
+
+    public List<Package> getPackagesIgnoringNotFound(Collection<String> ids) {
+        return getConnector().get(Package.class, ids, true);
     }
 }

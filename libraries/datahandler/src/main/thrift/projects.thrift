@@ -618,7 +618,7 @@ service ProjectService {
     /**
      * Get the SBOM import statistics information from attachment as String (JSON formatted)
      */
-    string getSbomImportInfoFromAttachmentAsString(string attachmentContentId) throws (1: SW360Exception exp);
+    string getSbomImportInfoFromAttachmentAsString(1: string attachmentContentId) throws (1: SW360Exception exp);
 
     /**
      * create clearing request for project

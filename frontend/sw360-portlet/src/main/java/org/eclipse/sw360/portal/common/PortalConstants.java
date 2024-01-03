@@ -595,7 +595,7 @@ public class PortalConstants {
     public static final String WRITE_SPDX_LICENSE_INFO_INTO_RELEASE = "WriteSpdxLicenseInfoIntoRelease";
     public static final String LOAD_ASSESSMENT_SUMMARY_INFO = "LoadAssessmentSummaryInfo";
 
-    // linked projects and releases actions
+    // linked projects, releases and packages actions
     public static final String LINKED_OBJECTS_PREFIX = "load_linked_";
     public static final String LOAD_LINKED_PROJECTS_ROWS = LINKED_OBJECTS_PREFIX + "projects_rows";
     public static final String LOAD_LINKED_RELEASES_ROWS = LINKED_OBJECTS_PREFIX + "releases_rows";
@@ -605,6 +605,7 @@ public class PortalConstants {
     public static final String PARENT_SCOPE_GROUP_ID = "parentScopeGroupId";
     public static final String ADD_LINKED_PACKAGES = "addLinkedPackages";
     public static final String VIEW_LINKED_PACKAGES = "viewLinkedPackages";
+    public static final String LINKED_PACKAGE_DATA = "linkedPackageData";
 
     // bom import / export
     public static final String PREPARE_IMPORT_BOM = "prepareImportBom";
@@ -702,6 +703,7 @@ public class PortalConstants {
     public static  final String UPDATE_VULNERABILITY_RATINGS = "updateVulnerabilityRatings";
     public static  final String UPDATE_VULNERABILITY_VERIFICATION = "updateVulnerabilityVerification";
     public static  final String LOAD_VULNERABILITIES_PROJECT = "loadVulnerabilitiesProject";
+    public static  final String UPDATE_VULNERABILITIES_PACKAGE = "updateVulnerabilitiesPackage";
 
     public static final String LIST_VULNERABILITY_WITH_VIEW_SIZE_FRIENDLY_URL = "listVulnerabilityWithViewSizeFriendlyUrl";
     public static final String UPDATE_PROJECT_VULNERABILITIES_URL = "updateProjectVulnerabilitiesURL";

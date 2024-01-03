@@ -1,8 +1,8 @@
 /*
  * Copyright Siemens Healthineers GmBH, 2023. Part of the SW360 Portal Project.
  *
- * This program and the accompanying materials are made 
- * available under the terms of the Eclipse Public License 2.0 
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
  * SPDX-License-Identifier: EPL-2.0
@@ -24,6 +24,8 @@ import static org.eclipse.sw360.portal.common.PortalConstants.DATATABLE_RECORDS_
 import static org.eclipse.sw360.portal.common.PortalConstants.DATATABLE_RECORDS_TOTAL;
 import static org.eclipse.sw360.portal.common.PortalConstants.DOCUMENT_ID;
 import static org.eclipse.sw360.portal.common.PortalConstants.IS_ERROR_IN_UPDATE_OR_CREATE;
+import static org.eclipse.sw360.portal.common.PortalConstants.NUMBER_OF_CHECKED_OR_UNCHECKED_VULNERABILITIES;
+import static org.eclipse.sw360.portal.common.PortalConstants.NUMBER_OF_INCORRECT_VULNERABILITIES;
 import static org.eclipse.sw360.portal.common.PortalConstants.PACKAGE;
 import static org.eclipse.sw360.portal.common.PortalConstants.PACKAGES_PORTLET_NAME;
 import static org.eclipse.sw360.portal.common.PortalConstants.PACKAGE_ID;
@@ -34,6 +36,8 @@ import static org.eclipse.sw360.portal.common.PortalConstants.PAGENAME_VIEW;
 import static org.eclipse.sw360.portal.common.PortalConstants.PKG;
 import static org.eclipse.sw360.portal.common.PortalConstants.RELEASE;
 import static org.eclipse.sw360.portal.common.PortalConstants.USING_PROJECTS;
+import static org.eclipse.sw360.portal.common.PortalConstants.VULNERABILITY_VERIFICATION_EDITABLE;
+import static org.eclipse.sw360.portal.common.PortletUtils.getVerificationState;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -41,6 +45,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -72,12 +77,15 @@ import org.eclipse.sw360.datahandler.common.SW360Constants;
 import org.eclipse.sw360.datahandler.common.SW360Utils;
 import org.eclipse.sw360.datahandler.common.ThriftEnumUtils;
 import org.eclipse.sw360.datahandler.couchdb.lucene.LuceneAwareDatabaseConnector;
+import org.eclipse.sw360.datahandler.permissions.PermissionUtils;
 import org.eclipse.sw360.datahandler.thrift.AddDocumentRequestStatus;
 import org.eclipse.sw360.datahandler.thrift.AddDocumentRequestSummary;
 import org.eclipse.sw360.datahandler.thrift.DateRange;
 import org.eclipse.sw360.datahandler.thrift.PaginationData;
 import org.eclipse.sw360.datahandler.thrift.RequestStatus;
 import org.eclipse.sw360.datahandler.thrift.SW360Exception;
+import org.eclipse.sw360.datahandler.thrift.VerificationState;
+import org.eclipse.sw360.datahandler.thrift.VerificationStateInfo;
 import org.eclipse.sw360.datahandler.thrift.components.ComponentService;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
@@ -85,7 +93,12 @@ import org.eclipse.sw360.datahandler.thrift.packages.PackageService;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectService;
 import org.eclipse.sw360.datahandler.thrift.users.User;
+import org.eclipse.sw360.datahandler.thrift.users.UserGroup;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.ReleaseVulnerabilityRelation;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityService;
 import org.eclipse.sw360.portal.common.ChangeLogsPortletUtils;
+import org.eclipse.sw360.portal.common.CommonVulnerabilityPortletUtils;
 import org.eclipse.sw360.portal.common.ErrorMessages;
 import org.eclipse.sw360.portal.common.PortalConstants;
 import org.eclipse.sw360.portal.common.PortletUtils;
@@ -106,10 +119,10 @@ import com.liferay.portal.kernel.servlet.SessionMessages;
 import com.liferay.portal.kernel.util.PortalUtil;
 
 @org.osgi.service.component.annotations.Component(
-        immediate = true, 
+        immediate = true,
         properties = {
                 "/org/eclipse/sw360/portal/portlets/base.properties",
-                "/org/eclipse/sw360/portal/portlets/default.properties" 
+                "/org/eclipse/sw360/portal/portlets/default.properties"
         }, property = {
                 "javax.portlet.name=" + PACKAGES_PORTLET_NAME,
                 "javax.portlet.display-name=Packages",
@@ -431,6 +444,16 @@ public class PackagePortlet extends Sw360Portlet {
             }
             request.setAttribute(PortalConstants.WRITE_ACCESS_USER, SW360Utils.isWriteAccessUser(pkg.getCreatedBy(), user, SW360Constants.PACKAGE_PORTLET_WRITE_ACCESS_USER_ROLE));
             setUsingDocs(request, pkg.getId(), user);
+
+         // get vulnerabilities
+            Set<UserGroup> allSecRoles = !CommonUtils.isNullOrEmptyMap(user.getSecondaryDepartmentsAndRoles())
+                    ? user.getSecondaryDepartmentsAndRoles().entrySet().stream().flatMap(entry -> entry.getValue().stream()).collect(Collectors.toSet())
+                    : new HashSet<UserGroup>();
+            boolean isVulEditable = PermissionUtils.isUserAtLeast(UserGroup.SECURITY_ADMIN, user)
+                    || PermissionUtils.isUserAtLeastDesiredRoleInSecondaryGroup(UserGroup.SECURITY_ADMIN, allSecRoles);
+            putVulnerabilitiesInRequestPackage(request, id, user, isVulEditable);
+            request.setAttribute(VULNERABILITY_VERIFICATION_EDITABLE, isVulEditable);
+
             addPackageBreadcrumb(request, response, pkg);
         } catch (TException e) {
             log.error("An error occured while loading package for detail view: " + id, e);
@@ -584,4 +607,82 @@ public class PackagePortlet extends Sw360Portlet {
         request.setAttribute(PKG, pkg);
         request.setAttribute(IS_ERROR_IN_UPDATE_OR_CREATE, true);
     }
+
+    private String formatedMessageForVul(List<VerificationStateInfo> infoHistory){
+        return CommonVulnerabilityPortletUtils.formatedMessageForVul(infoHistory,
+                e -> e.getVerificationState().name(),
+                e -> e.getCheckedOn(),
+                e -> e.getCheckedBy(),
+                e -> e.getComment(),
+                e -> "");
+    }
+
+    private void putVulnerabilitiesInRequestPackage(RenderRequest request, String packageId, User user, boolean isVulEditable) throws TException {
+        VulnerabilityService.Iface vulClient = thriftClients.makeVulnerabilityClient();
+        List<VulnerabilityDTO> vuls;
+        if (isVulEditable) {
+            vuls = vulClient.getVulnerabilitiesByPackageId(packageId, user);
+        } else {
+            vuls = vulClient.getVulnerabilitiesByPackageIdWithoutIncorrect(packageId, user);
+        }
+
+        putVulnerabilitiesInRequest(request, vuls, user);
+    }
+
+    private void putVulnerabilitiesInRequest(RenderRequest request, List<VulnerabilityDTO> vuls, User user) {
+        CommonVulnerabilityPortletUtils.putLatestVulnerabilitiesInRequest(request, vuls, user);
+        CommonVulnerabilityPortletUtils.putMatchedByHistogramInRequest(request, vuls);
+        putVulnerabilityMetadatasInRequest(request, vuls);
+    }
+
+    private void addToVulnerabilityVerifications(Map<String, Map<String, VerificationState>> vulnerabilityVerifications,
+            Map<String, Map<String, String>> vulnerabilityTooltips, VulnerabilityDTO vulnerability) {
+        String vulnerabilityId = vulnerability.getExternalId();
+        String releaseId = vulnerability.getIntReleaseId();
+        Map<String, VerificationState> vulnerabilityVerification = vulnerabilityVerifications
+                .computeIfAbsent(vulnerabilityId, k -> new HashMap<>());
+        Map<String, String> vulnerabilityTooltip = vulnerabilityTooltips.computeIfAbsent(vulnerabilityId,
+                k -> new HashMap<>());
+        ReleaseVulnerabilityRelation relation = vulnerability.getReleaseVulnerabilityRelation();
+
+        if (!relation.isSetVerificationStateInfo()) {
+            vulnerabilityVerification.put(releaseId, VerificationState.NOT_CHECKED);
+            vulnerabilityTooltip.put(releaseId, "Not checked yet.");
+        } else {
+            List<VerificationStateInfo> infoHistory = relation.getVerificationStateInfo();
+            VerificationStateInfo info = infoHistory.get(infoHistory.size() - 1);
+            vulnerabilityVerification.put(releaseId, info.getVerificationState());
+            vulnerabilityTooltip.put(releaseId, formatedMessageForVul(infoHistory));
+        }
+    }
+
+    private void putVulnerabilityMetadatasInRequest(RenderRequest request, List<VulnerabilityDTO> vuls) {
+        Map<String, Map<String, String>> vulnerabilityTooltips = new HashMap<>();
+        Map<String, Map<String, VerificationState>> vulnerabilityVerifications = new HashMap<>();
+        for (VulnerabilityDTO vulnerability : vuls) {
+            addToVulnerabilityVerifications(vulnerabilityVerifications, vulnerabilityTooltips, vulnerability);
+        }
+
+        long numberOfCorrectVuls = vuls.stream()
+                .filter(vul -> !VerificationState.INCORRECT.equals(getVerificationState(vul)))
+                .map(VulnerabilityDTO::getExternalId).collect(Collectors.toSet()).size();
+        request.setAttribute(NUMBER_OF_CHECKED_OR_UNCHECKED_VULNERABILITIES, numberOfCorrectVuls);
+        User userFromRequest = UserCacheHolder.getUserFromRequest(request);
+        Set<UserGroup> allSecRoles = !CommonUtils.isNullOrEmptyMap(userFromRequest.getSecondaryDepartmentsAndRoles())
+                ? userFromRequest.getSecondaryDepartmentsAndRoles().entrySet().stream()
+                        .flatMap(entry -> entry.getValue().stream()).collect(Collectors.toSet())
+                : new HashSet<UserGroup>();
+        if (PermissionUtils.isAdmin(userFromRequest) || PermissionUtils.isAdminBySecondaryRoles(allSecRoles)
+                || PermissionUtils.isSecurityAdmin(userFromRequest)
+                || PermissionUtils.isSecurityAdminBySecondaryRoles(allSecRoles)) {
+            long numberOfIncorrectVuls = vuls.stream()
+                    .filter(v -> VerificationState.INCORRECT.equals(getVerificationState(v)))
+                    .map(VulnerabilityDTO::getExternalId).collect(Collectors.toSet()).size();
+            request.setAttribute(NUMBER_OF_INCORRECT_VULNERABILITIES, numberOfIncorrectVuls);
+        }
+
+        request.setAttribute(PortalConstants.VULNERABILITY_VERIFICATIONS, vulnerabilityVerifications);
+        request.setAttribute(PortalConstants.VULNERABILITY_VERIFICATION_TOOLTIPS, vulnerabilityTooltips);
+    }
+
 }

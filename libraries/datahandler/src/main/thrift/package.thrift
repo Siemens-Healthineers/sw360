@@ -166,4 +166,9 @@ service PackageService {
      **/
     i32 getTotalPackagesCount();
 
+    /**
+     * loads component mappings from SVM and stores the SVM ids in the external ids of the respective packages
+     **/
+    RequestStatus updatePackagesWithSvmTrackingFeedback(1: set<string> packageIds);
+
 }

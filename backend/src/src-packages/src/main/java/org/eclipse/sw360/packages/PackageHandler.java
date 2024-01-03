@@ -135,4 +135,9 @@ public class PackageHandler implements PackageService.Iface {
     public int getTotalPackagesCount() {
         return handler.getTotalPackageCount();
     }
+
+    @Override
+    public RequestStatus updatePackagesWithSvmTrackingFeedback(Set<String> packageIds) throws TException {
+        return handler.updatePackagesWithSvmTrackingFeedback(packageIds);
+    }
 }
