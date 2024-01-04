@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.common.SW360Utils;
-<<<<<<< HEAD
 import org.eclipse.sw360.datahandler.resourcelists.PaginationOptions;
 import org.eclipse.sw360.datahandler.resourcelists.PaginationParameterException;
 import org.eclipse.sw360.datahandler.resourcelists.PaginationResult;
@@ -32,7 +31,6 @@ import org.eclipse.sw360.datahandler.resourcelists.ResourceListController;
 import org.eclipse.sw360.datahandler.thrift.ProjectReleaseRelationship;
 import org.eclipse.sw360.datahandler.thrift.Quadratic;
 import org.eclipse.sw360.datahandler.thrift.SW360Exception;
-import org.eclipse.sw360.datahandler.resourcelists.*;
 import org.eclipse.sw360.datahandler.thrift.attachments.Attachment;
 import org.eclipse.sw360.datahandler.thrift.attachments.AttachmentDTO;
 import org.eclipse.sw360.datahandler.thrift.attachments.CheckStatus;
@@ -58,8 +56,6 @@ import org.eclipse.sw360.datahandler.thrift.vulnerabilities.CVEReference;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.Vulnerability;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityApiDTO;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
-import org.eclipse.sw360.datahandler.thrift.vulnerabilities.ReleaseVulnerabilityRelation;
-import org.eclipse.sw360.datahandler.thrift.vulnerabilities.CVEReference;
 import org.eclipse.sw360.rest.resourceserver.attachment.AttachmentController;
 import org.eclipse.sw360.rest.resourceserver.component.ComponentController;
 import org.eclipse.sw360.rest.resourceserver.license.LicenseController;
@@ -1023,6 +1019,7 @@ public class RestControllerHelper<T> {
         embeddedVulnerability.setId(vulnerabilityDto.getId());
         return embeddedVulnerability;
     }
+
 
     public boolean setDataVulApiDTO(VulnerabilityApiDTO vulnerabilityApiDTO, Vulnerability vulnerability, Set<Release> releaseList) {
         for (Vulnerability._Fields field : Vulnerability._Fields.values()) {

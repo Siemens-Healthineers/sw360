@@ -139,6 +139,7 @@ public class JacksonCustomizations {
                     .replaceWithClass(Vulnerability.class, VulnerabilityMixin.class)
                     .replaceWithClass(VulnerabilityState.class, VulnerabilityStateMixin.class)
                     .replaceWithClass(ReleaseVulnerabilityRelationDTO.class, ReleaseVulnerabilityRelationDTOMixin.class)
+                    .replaceWithClass(VendorAdvisory.class, VendorAdvisoryMixin.class)
                     .replaceWithClass(VulnerabilityDTO.class, VulnerabilityDTOMixin.class)
                     .replaceWithClass(VulnerabilityApiDTO.class, VulnerabilityApiDTOMixin.class)
                     .replaceWithClass(EccInformation.class, EccInformationMixin.class)
@@ -1419,72 +1420,6 @@ public class JacksonCustomizations {
             @JsonProperty("id")
             abstract public String getId();
         }
-        @JsonInclude(JsonInclude.Include.NON_EMPTY)
-        @JsonIgnoreProperties({
-                "id",
-                "revision",
-                "type",
-                "priorityToolTip",
-                "intComponentId",
-                "intComponentName",
-                "releaseVulnerabilityRelation",
-                "matchedBy",
-                "usedNeedle",
-                "setType",
-                "setId",
-                "setRevision",
-                "setIntReleaseName",
-                "setLastExternalUpdate",
-                "setIntComponentId",
-                "setIntComponentName",
-                "referencesSize",
-                "setPriorityToolTip",
-                "setCveReferences",
-                "setIntReleaseId",
-                "cveReferencesSize",
-                "setDescription",
-                "setReleaseVulnerabilityRelation",
-                "setImpact",
-                "setMatchedBy",
-                "setLegalNotice",
-                "setUsedNeedle",
-                "setReferences",
-                "setPriority",
-                "setAction",
-                "impactSize",
-                "setExternalId",
-                "setPublishDate",
-                "setTitle",
-                "setLastUpdateDate",
-                "setPriorityText",
-                "cveReferencesIterator",
-                "setCveFurtherMetaDataPerSource",
-                "setAssignedExtComponentIds",
-                "referencesIterator",
-                "setVulnerableConfiguration",
-                "setExtendedDescription",
-                "vulnerableConfigurationSize",
-                "assignedExtComponentIdsSize",
-                "assignedExtComponentIdsIterator",
-                "vendorAdvisoriesIterator",
-                "vendorAdvisoriesSize",
-                "setVendorAdvisories",
-                "cveFurtherMetaDataPerSourceSize",
-                "setCvss",
-                "setCwe",
-                "releasesIterator",
-                "setIsSetCvss",
-                "setCvssTime",
-                "setAccess",
-                "accessSize",
-                "releasesSize",
-                "setReleases"
-        })
-        public static abstract class VulnerabilityApiDTOMixin extends VulnerabilityApiDTO {
-            @Override
-            @JsonProperty("id")
-            abstract public String getId();
-        }
 
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
         @JsonIgnoreProperties({
@@ -1545,7 +1480,36 @@ public class JacksonCustomizations {
                 "setAccess",
                 "accessSize",
                 "releasesSize",
-                "setReleases"
+                "setReleases",
+                "descriptionIsSet",
+                "idIsSet",
+                "revisionIsSet",
+                "typeIsSet",
+                "releasesIsSet",
+                "externalIdIsSet",
+                "titleIsSet",
+                "publishDateIsSet",
+                "lastExternalUpdateIsSet",
+                "priorityIsSet",
+                "actionIsSet",
+                "impactIsSet",
+                "legalNoticeIsSet",
+                "cveReferencesIsSet",
+                "referencesIsSet",
+                "lastUpdateDateIsSet",
+                "priorityTextIsSet",
+                "assignedExtComponentIdsIsSet",
+                "vendorAdvisoriesIsSet",
+                "extendedDescriptionIsSet",
+                "cvssIsSet",
+                "isSetCvssIsSet",
+                "cvssTimeIsSet",
+                "vulnerableConfigurationIsSet",
+                "accessIsSet",
+                "cweIsSet",
+                "cveFurtherMetaDataPerSourceIsSet",
+                "packagesSize",
+                "setPackages"
         })
         public static abstract class VulnerabilityApiDTOMixin extends VulnerabilityApiDTO {
             @Override
@@ -1874,7 +1838,13 @@ public class JacksonCustomizations {
                 "setName",
                 "setVendor",
                 "setUrl",
-                "type"
+                "type",
+                "urlIsSet",
+                "nameIsSet",
+                "idIsSet",
+                "revisionIsSet",
+                "typeIsSet",
+                "vendorIsSet"
         })
         public static abstract class VendorAdvisoryMixin extends VendorAdvisory {
         }
@@ -1947,7 +1917,15 @@ public class JacksonCustomizations {
                 "setMatchedBy",
                 "setUsedNeedle",
                 "setReleaseId",
-                "setSpdxId"
+                "setSpdxId",
+                "idIsSet",
+                "revisionIsSet",
+                "typeIsSet",
+                "releaseIdIsSet",
+                "matchedByIsSet",
+                "usedNeedleIsSet",
+                "vulnerabilityIdIsSet",
+                "verificationStateInfoIsSet"
         })
         public static abstract class ReleaseVulnerabilityRelationMixin extends ReleaseVulnerabilityRelation {
         }
@@ -1957,7 +1935,11 @@ public class JacksonCustomizations {
                 "setCheckedBy",
                 "setCheckedOn",
                 "setComment",
-                "setVerificationState"
+                "setVerificationState",
+                "checkedByIsSet",
+                "checkedOnIsSet",
+                "commentIsSet",
+                "verificationStateIsSet"
         })
         public static abstract class VerificationStateInfoMixin extends VerificationStateInfo {
         }

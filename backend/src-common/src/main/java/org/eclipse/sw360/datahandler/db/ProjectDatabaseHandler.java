@@ -1650,11 +1650,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             log.warn(String.format("Parent component of release %s (%s) with id %s was not found", r.getName(), r.getId(), r.getComponentId()));
         } else {
             json.add("urls", getUrlsJson(r, c));
-<<<<<<< HEAD
-            json.addProperty("description", c.getDescription());
-=======
             json.addProperty("description", StringEscapeUtils.escapeJson(c.getDescription()));
->>>>>>> e2839140b ((feat):SVM Vulnerability Monitoring at Package level and External Id, Additional Data fields added to Packages)
         }
         json.add("cpe_items", getReleaseCpeIdsJson(r));
 
@@ -1673,11 +1669,8 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         json.addProperty("version", p.getVersion());
         json.add("urls", getUrlsJsonForPackage(p));
         json.addProperty("description", p.getDescription());
-<<<<<<< HEAD
-=======
         json.add("cpe_items", new JsonArray());
         json.addProperty("vendor", "");
->>>>>>> e2839140b ((feat):SVM Vulnerability Monitoring at Package level and External Id, Additional Data fields added to Packages)
 
         return json;
     }
@@ -1694,37 +1687,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     private JsonArray serializeReleasesandPackagesToJson(List<Release> releases, Map<String, Component> componentMap,
-<<<<<<< HEAD
-            List<Package> projectPackages) {
-        JsonArray serializedReleasesandPackages = new JsonArray();
-        List<Package> nonOrphanPackages = new ArrayList<>();
-
-        for (Package p : projectPackages) {
-            if (p.getRelease() != null) {
-                nonOrphanPackages.add(p);
-            } else {
-                log.warn(String.format("Sending orphan package %s (%s) to SVM",
-                        p.getName(), p.getId()));
-
-                JsonObject json = new JsonObject();
-
-                serializedReleasesandPackages.add(createJsonObjectForPackage(json, p));
-            }
-        }
-
-        for (Release r : releases) {
-            List<Package> releasePackages = nonOrphanPackages.stream().filter(p -> r.getPackageIds().contains(p.getId()))
-                    .collect(Collectors.toList());
-            JsonObject json = new JsonObject();
-
-            if (!releasePackages.isEmpty()) {
-                for (Package p : releasePackages) {
-                    serializedReleasesandPackages.add(createJsonObjectForPackage(json, p));
-                }
-            } else {
-                Component c = componentMap.get(r.getComponentId());
-
-=======
             Set<Package> projectPackages) {
         JsonArray serializedReleasesandPackages = new JsonArray();
         List<String> releaseIds = new ArrayList<>();
@@ -1744,7 +1706,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             if (!releaseIds.contains(r.getId())) {
                 JsonObject json = new JsonObject();
                 Component c = componentMap.get(r.getComponentId());
->>>>>>> e2839140b ((feat):SVM Vulnerability Monitoring at Package level and External Id, Additional Data fields added to Packages)
                 serializedReleasesandPackages.add(createJsonObjectForRelease(json, r, c));
             }
         }
