@@ -71,7 +71,7 @@ public class ErrorMessages {
     public static final String ERROR_VENDOR = "Error: Invalid vendor Name or Url.";
     public static final String ERROR_BULK_DELETING = "Error while bulk deleting";
     public static final String ERROR_BULK_DELETING_IN_BACKEND = "Error while bulk deleting in backend.";
-    
+
     public static final String PACKAGE_NOT_ADDED = "Package could not be added.";
     public static final String PACKAGE_DUPLICATE = "A package with the same name and version already exists.";
     public static final String PACKAGE_NAME_VERSION_ERROR = "Name and version of the package cannot contain only space characters.";
@@ -134,6 +134,10 @@ public class ErrorMessages {
             .add(ERROR_USER_ACTIVATE_DEACTIVATE)
             .add(OBLIGATION_NOT_ADDED)
             .add(OBLIGATION_NOT_UPDATED)
+            .add(ERROR_VULNERABILITY_USED_BY_RELEASE)
+            .add(ERROR_VULNERABILITY_DELETE)
+            .add(ERROR_ADD_VULNERABILITY)
+            .add(ERROR_UPDATE_VULNERABILITY)
             .add(VENDOR_DUPLICATE)
             .add(ERROR_VENDOR)
             .add(ERROR_BULK_DELETING)

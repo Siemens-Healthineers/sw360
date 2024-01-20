@@ -114,6 +114,10 @@ public class PackageDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return pkg;
     }
 
+    public Package getPackage(String id) {
+        return packageRepository.get(id);
+    }
+
     public List<Package> getPackageByIds(Set<String> ids) throws SW360Exception {
         List<Package> packages = packageRepository.get(ids);
         SW360Assert.assertEquals(ids.size(), CommonUtils.nullToEmptyList(packages).size(), "At least one package id was invalid!" );

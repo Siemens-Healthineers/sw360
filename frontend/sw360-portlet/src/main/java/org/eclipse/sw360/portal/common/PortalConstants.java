@@ -468,6 +468,11 @@ public class PortalConstants {
     public static final String DELETE_ATTACHMENT_INTERVAL = "deleteAttachmentInterval";
     public static final String DELETE_ATTACHMENT_NEXT_SYNC = "deleteAttachmentNextSync";
 
+    public static final String SRC_UPLOAD_SERVICE_IS_SCHEDULED = "srcUploadIsScheduled";
+    public static final String SRC_UPLOAD_SERVICE_OFFSET = "srcUploadOffset";
+    public static final String SRC_UPLOAD_SERVICE_INTERVAL = "srcUploadInterval";
+    public static final String SRC_UPLOAD_SERVICE_NEXT_SYNC = "srcUploadNextSync";
+
     public static final String DEPARTMENT_IS_SCHEDULED = "departmentIsScheduled";
     public static final String DEPARTMENT_OFFSET = "departmentOffset";
     public static final String DEPARTMENT_INTERVAL = "departmentInterval";
@@ -510,6 +515,7 @@ public class PortalConstants {
     public static final String ACTION_POSTPONE = "action_postpone";
     public static final String ACTION_DECLINE = "action_decline";
     public static final String ACTION_REMOVEME = "action_removeme";
+    public static final String LAST_MODERATOR = "last_moderator";
     public static final String ACTION_RENDER_NEXT_AFTER_UNSUBSCRIBE = "action_render_next";
     public static final String MODERATION_REQUEST_COMMENT = "moderation_request_comment";
     public static final String MODERATION_DECISION_COMMENT = "moderation_decision_comment";
@@ -704,6 +710,7 @@ public class PortalConstants {
     public static  final String UPDATE_VULNERABILITY_VERIFICATION = "updateVulnerabilityVerification";
     public static  final String LOAD_VULNERABILITIES_PROJECT = "loadVulnerabilitiesProject";
     public static  final String UPDATE_VULNERABILITIES_PACKAGE = "updateVulnerabilitiesPackage";
+    public static  final String REMOVE_VULNERABILITY = "removeVulnerability";
 
     public static final String LIST_VULNERABILITY_WITH_VIEW_SIZE_FRIENDLY_URL = "listVulnerabilityWithViewSizeFriendlyUrl";
     public static final String UPDATE_PROJECT_VULNERABILITIES_URL = "updateProjectVulnerabilitiesURL";
