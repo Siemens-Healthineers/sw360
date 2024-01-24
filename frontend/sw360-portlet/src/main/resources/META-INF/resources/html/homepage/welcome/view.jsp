@@ -26,17 +26,13 @@
 		<br/>
 	    <p class="lead">
 		<liferay-ui:message key="sw360.is.an.open.source.software.project.that.provides.both.a.web.application.and.a.repository.to.collect.organize.and.make.available.information.about.software.components.it.establishes.a.central.hub.for.software.components.in.an.organization" />
-		<p>
-            <strong>Additional Resources:</strong>
-        </p>
-        <ul>
-            <li><a href="https://teams.microsoft.com/l/team/19%3aUjBY3R8YTaI3Wik7-LKOA6Zpzk-j1ZIreeQ9Aa0MNQE1%40thread.tacv2/conversations?groupId=eec48a5b-4288-4f46-8c62-4f108410a641&tenantId=5dbf1add-202a-4b8d-815b-bf0fb024e033" target = "_blank">SHS SW360 User Group on MS Teams</a>&nbsp;</li>
-            <li><a href="https://code.siemens.com/SHS/shs-sw-360-portal/issues" target = "_blank"> Healthineers Issue Tracker</a></li>
-            <li><a href="/resource/docs/api-guide.html" target = "_blank"> REST API Docs</a></li>
-            <li><a href="https://www.eclipse.org/sw360/docs/userguide/" target="_blank"> SW360 Docs</a></li>
-            <li><a href="http://www.github.com/eclipse/sw360" target="_blank"> SW360</a></li>
-        </ul>
-	    </p>
+		<h2>SHS SW360 Data Privacy Policy</h2>
+	<p><strong>Deleting/ Anonymizing inactive users in SW360.</strong></p>
+	<ol>
+	<li>Information of all inactive users will be stored in SW360 for a period of 36 months from the date of separation from the organization.</li>
+	<li>A periodic review of user status will be performed every 12 months (September of every FY).</li>
+	<li>Identified inactive users shall be deactivated during this review cycle and there personal data shall be anonymized at the end of 36 month period.</li>
+	</ol>
     </core_rt:if>
 	<hr class="my-4">
 	<core_rt:if test="${themeDisplay.signedIn}">
