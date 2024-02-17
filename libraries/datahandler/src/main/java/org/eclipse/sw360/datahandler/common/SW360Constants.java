@@ -55,6 +55,7 @@ public class SW360Constants {
     public static final String NULL_STRING = "null";
     public static final String PACKAGE_URL = "package-url";
     public static final String PURL_ID = "purl.id";
+    public static final String DUPLICATE_PACKAGE_BY_PURL = "duplicatePackagesByPurl";
     public static final String XML_FILE_EXTENSION = "xml";
     public static final String JSON_FILE_EXTENSION = "json";
     public static final String PROJECT_IDS = "projectIds";
@@ -215,7 +216,7 @@ public class SW360Constants {
         SPDX_DOCUMENT_ENABLED = Boolean.parseBoolean(props.getProperty("spdx.document.enabled", "false"));
         DATA_HANDLER_POM_FILE_PATH = props.getProperty("datahandler.pom.file.path", "/META-INF/maven/org.eclipse.sw360/datahandler/pom.xml");
         PACKAGE_PORTLET_WRITE_ACCESS_USER_ROLE = UserGroup.valueOf(props.getProperty("package.portlet.write.access.usergroup", UserGroup.USER.name()));
-        IS_PACKAGE_PORTLET_ENABLED = Boolean.parseBoolean(props.getProperty("package.portlet.enabled", "false"));
+        IS_PACKAGE_PORTLET_ENABLED = Boolean.parseBoolean(props.getProperty("package.portlet.enabled", "true"));
         TOOL_NAME = props.getProperty("sw360.tool.name", "SW360");
         TOOL_VENDOR = props.getProperty("sw360.tool.vendor", "Eclipse Foundation");
         SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE = UserGroup.valueOf(props.getProperty("sbom.import.export.access.usergroup", UserGroup.USER.name()));

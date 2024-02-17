@@ -65,6 +65,11 @@ import java.net.MalformedURLException;
 import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -102,6 +107,8 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     private static final int DELETION_SANITY_CHECK_THRESHOLD = 5;
     private static final String DUMMY_NEW_PROJECT_ID = "newproject";
     public static final int SVMML_JSON_LOG_CUTOFF_LENGTH = 3000;
+    private static final boolean WITH_ALL_RELEASES = true;
+    private static final boolean WITH_ROOT_RELEASES_ONLY = false;
 
     private final ProjectRepository repository;
     private final ProjectVulnerabilityRatingRepository pvrRepository;
@@ -225,10 +232,15 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     // CREATE CLEARING REQUEST //
     /////////////////////////////
 
-    public AddDocumentRequestSummary createClearingRequest(ClearingRequest clearingRequest, User user, String projectUrl) throws SW360Exception {
+    public AddDocumentRequestSummary createClearingRequest(ClearingRequest clearingRequest, User user, String projectUrl) throws TException {
         Project project = getProjectById(clearingRequest.getProjectId(), user);
         AddDocumentRequestSummary requestSummary = new AddDocumentRequestSummary().setRequestStatus(AddDocumentRequestStatus.FAILURE);
-
+        int numReleaseWithoutSRC = doAllReleasesHaveSourceAttachment(project.id, user);
+        if(numReleaseWithoutSRC > 0) {
+        	log.error("Failed to create CR as " + numReleaseWithoutSRC + " releases do not have SRC type attachment");
+        	return requestSummary.setMessage("one.or.more.linked.releases.do.not.have.src.type.attachment");
+        }
+        
         if (!isWriteActionAllowedOnProject(project, user)) {
             return requestSummary.setMessage("You do not have WRITE access to the project");
         }
@@ -255,6 +267,11 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             log.error("Cannot create clearing request for closed or private project: " + project.getId());
         }
         return requestSummary.setMessage("Failed to create clearing request");
+    }
+    
+    private int doAllReleasesHaveSourceAttachment(String id, User user) throws TException {
+    	List<Release> releaseWithoutSource = componentDatabaseHandler.releasesWithoutSRC(id, user);
+    	return releaseWithoutSource.size();
     }
 
     private boolean isWriteActionAllowedOnProject(Project project, User user) {
@@ -806,7 +823,9 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
                 PackageService.Iface packageClient = new ThriftClients().makePackageClient();
                 List<Package> removedPackages = packageClient.getPackageWithReleaseByPackageIds(unlinkedPacakgeIds);
 
-                Map<String, Set<String>> releaseIdToPackageIdsMap = removedPackages.stream().map(Package::getRelease)
+                Map<String, Set<String>> releaseIdToPackageIdsMap = removedPackages.stream()
+                        .filter(packageFilter -> packageFilter.getRelease() != null)
+                        .map(Package::getRelease)
                         .filter(rel -> CommonUtils.isNotEmpty(rel.getPackageIds()))
                         .map(rel -> new AbstractMap.SimpleEntry<>(rel.getId(), rel.getPackageIds()))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldVal, newVal) -> newVal));
@@ -969,7 +988,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
                         parentNodeId, visitedIds, maxDepth, user);
             } else {
                 projectLinkOptional = createProjectLinkForDependencyNetwork(entry.getKey(), entry.getValue(),
-                        parentNodeId, visitedIds, maxDepth, user, true);
+                        parentNodeId, visitedIds, maxDepth, user, true, WITH_ROOT_RELEASES_ONLY);
             }
             projectLinkOptional.ifPresent(out::add);
         }
@@ -2206,50 +2225,51 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             for (int i = 1; i < trace.size(); i++){
                 previousNode = previousNode.getReleaseLink().get(Integer.parseInt(trace.get(i)));
             }
-            linkedReleases = convertFromReleaseNodeToReleaseLink(previousNode.getReleaseLink(), projectId, user, previousNode.getReleaseId(), trace.size());
+            linkedReleases = convertReleaseNodesToReleaseLinksSequentially(previousNode.getReleaseLink(), projectId, user, previousNode.getReleaseId(), trace.size());
         } catch (JsonProcessingException e) {
             log.error("JsonProcessingException: " + e);
         }
         return linkedReleases;
     }
 
-    protected List<ReleaseLink> convertFromReleaseNodeToReleaseLink(List<ReleaseNode> releaseLinkJSONs, String projectId, User user, String parentId, int layer) throws TException {
+    protected List<ReleaseLink> convertReleaseNodesToReleaseLinksSequentially(List<ReleaseNode> releaseNodes, String projectId, User user, String parentId, int layer) throws TException {
         List<ReleaseLink> releaseLinks = new ArrayList<>();
         int index = 0;
-        for (ReleaseNode releaseNode : releaseLinkJSONs) {
-            Release releaseById = componentDatabaseHandler.getRelease(releaseNode.getReleaseId(), user);
-            Component componentById = componentDatabaseHandler.getComponent(releaseById.getComponentId(), user);
-
-            ReleaseLink releaseLink = new ReleaseLink();
-            releaseLink.setId(releaseNode.getReleaseId());
-            releaseLink.setReleaseRelationship(ReleaseRelationship.valueOf(releaseNode.getReleaseRelationship()));
-            releaseLink.setMainlineState(MainlineState.valueOf(releaseNode.getMainlineState()));
-            releaseLink.setComment(releaseNode.getComment());
-            releaseLink.setHasSubreleases(!releaseNode.getReleaseLink().isEmpty());
-            releaseLink.setName(releaseById.getName());
-            releaseLink.setVersion(releaseById.getVersion());
-            releaseLink.setLongName(SW360Utils.printFullname(releaseById));
-            releaseLink.setClearingState(releaseById.getClearingState());
-            releaseLink.setComponentType(componentById.getComponentType());
-            releaseLink.setLicenseIds(releaseById.getMainLicenseIds());
-            releaseLink.setOtherLicenseIds(releaseById.getOtherLicenseIds());
-            releaseLink.setAccessible(componentDatabaseHandler.isReleaseActionAllowed(releaseById, user, RequestedAction.READ));
-            releaseLink.setNodeId(releaseById.getId() + "_" + UUID.randomUUID());
-            releaseLink.setParentNodeId(parentId);
-            releaseLink.setLayer(layer);
-            releaseLink.setProjectId(projectId);
+        for (ReleaseNode releaseNode : releaseNodes) {
+            ReleaseLink releaseLink = convertReleaseNodeToReleaseLink(releaseNode, projectId, user, parentId, layer);
             releaseLink.setIndex(index);
-            releaseLink.setReleaseMainLineState(releaseById.getMainlineState());
-            releaseLink.setAttachments(releaseById.getAttachments() != null ? Lists.newArrayList(releaseById.getAttachments()) : Collections.emptyList());
-            if (releaseById.getVendor() != null) {
-                releaseLink.setVendor(releaseById.getVendor().getFullname());
-            } else {
-                releaseLink.setVendor("");
-            }
             index++;
             releaseLinks.add(releaseLink);
         }
         return releaseLinks;
+    }
+
+    protected List<ReleaseLink> convertReleaseNodesToReleaseLinksParallel(List<ReleaseNode> releaseNodes, String projectId, User user) {
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+
+        final List<Callable<ReleaseLink>> callableTasksToConvertReleaseNodes = new ArrayList<>();
+        releaseNodes.forEach(releaseNode -> {
+            Callable<ReleaseLink> convertToReleaseLink = () ->
+                    convertReleaseNodeToReleaseLink(releaseNode, projectId, user, "", 0);
+            callableTasksToConvertReleaseNodes.add(convertToReleaseLink);
+        });
+
+        List<Future<ReleaseLink>> releaseLinksFuture;
+        try {
+            releaseLinksFuture = executor.invokeAll(callableTasksToConvertReleaseNodes);
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Error when convert releaseLink: " + e.getMessage());
+        } finally {
+            executor.shutdown();
+        }
+
+        return releaseLinksFuture.stream().map(fut -> {
+            try {
+                return fut.get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException("Error when convert releaseLink: " + e.getMessage());
+            }
+        }).collect(Collectors.toList());
     }
 
     public List<Map<String, String>> getClearingStateForDependencyNetworkListView(String projectId, User user, boolean isInaccessibleLinkMasked)
@@ -2344,7 +2364,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     private Optional<ProjectLink> createProjectLinkForDependencyNetwork(String id, ProjectProjectRelationship projectProjectRelationship, String parentNodeId,
-                                                                        Deque<String> visitedIds, int maxDepth, User user, boolean withRelease) {
+                                                                        Deque<String> visitedIds, int maxDepth, User user, boolean withRelease, boolean withAllReleases) {
         ProjectLink projectLink = null;
         if (!visitedIds.contains(id) && (maxDepth < 0 || visitedIds.size() < maxDepth)) {
             visitedIds.push(id);
@@ -2360,12 +2380,21 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
                 if (withRelease) {
                     if (project.getReleaseRelationNetwork() != null && project.getReleaseRelationNetwork().length() > 0 && (maxDepth < 0 || visitedIds.size() < maxDepth)) {
                         String releaseNetwork = project.getReleaseRelationNetwork();
-                        List<ReleaseNode> listReleaseLinkJson;
+                        List<ReleaseNode> releaseNodes;
                         List<ReleaseLink> linkedReleases = new ArrayList<>();
                         try {
-                            listReleaseLinkJson = mapper.readValue(releaseNetwork, new TypeReference<>() {
+                            releaseNodes = mapper.readValue(releaseNetwork, new TypeReference<>() {
                             });
-                            linkedReleases = convertFromReleaseNodeToReleaseLink(listReleaseLinkJson, id, user, "", 0);
+                            if (withAllReleases == WITH_ROOT_RELEASES_ONLY) {
+                                linkedReleases = convertReleaseNodesToReleaseLinksSequentially(releaseNodes, id, user, "", 0);
+                            } else {
+                                List<ReleaseNode> flattenedNetwork = new ArrayList<>();
+                                Set<String> visitedNodeIds = new HashSet<>();
+                                for (ReleaseNode node : releaseNodes) {
+                                    flattenedNetwork.addAll(flattenNodeNetwork(node, visitedNodeIds));
+                                }
+                                linkedReleases = convertReleaseNodesToReleaseLinksParallel(flattenedNetwork, id, user);
+                            }
                         } catch (JsonProcessingException e) {
                             log.error("JsonProcessingException: " + e);
                         } catch (TException e) {
@@ -2387,8 +2416,12 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
                         .setClearingState(project.getClearingState())
                         .setTreeLevel(visitedIds.size() - 1);
                 if (project.isSetLinkedProjects()) {
-                    List<ProjectLink> subprojectLinks = iterateProjectRelationShips(project.getLinkedProjects(),
-                            projectLink.getNodeId(), visitedIds, maxDepth, user, withRelease);
+                    List<ProjectLink> subprojectLinks =
+                            (withAllReleases == WITH_ROOT_RELEASES_ONLY)
+                                    ? iterateProjectRelationShips(project.getLinkedProjects(),
+                                        projectLink.getNodeId(), visitedIds, maxDepth, user, withRelease)
+                                    : iterateProjectRelationShipsWithAllReleases(project.getLinkedProjects(),
+                                        projectLink.getNodeId(), visitedIds, maxDepth, user);
                     projectLink.setSubprojects(subprojectLinks);
                 }
             } else {
@@ -2419,7 +2452,7 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
                         parentNodeId, visitedIds, maxDepth, user);
             } else {
                 projectLinkOptional = createProjectLinkForDependencyNetwork(entry.getKey(), entry.getValue(),
-                        parentNodeId, visitedIds, maxDepth, user, withRelease);
+                        parentNodeId, visitedIds, maxDepth, user, withRelease, WITH_ROOT_RELEASES_ONLY);
             }
             projectLinkOptional.ifPresent(out::add);
         }
@@ -2434,5 +2467,89 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         fakeRelations.put(project.isSetId() ? project.getId() : DUMMY_NEW_PROJECT_ID, new ProjectProjectRelationship(ProjectRelationship.UNKNOWN));
         List<ProjectLink> out = iterateProjectRelationShips(fakeRelations, null, visitedIds, deep ? -1 : 2, user, false);
         return out;
+    }
+
+    public List<ProjectLink> getLinkedProjectsWithAllReleases(Project project, boolean deep, User user) {
+        Deque<String> visitedIds = new ArrayDeque<>();
+
+        Map<String, ProjectProjectRelationship> fakeRelations = new HashMap<>();
+        fakeRelations.put(project.isSetId() ? project.getId() : DUMMY_NEW_PROJECT_ID, new ProjectProjectRelationship(ProjectRelationship.UNKNOWN));
+        return iterateProjectRelationShipsWithAllReleases(fakeRelations, null, visitedIds, deep ? -1 : 2, user);
+    }
+
+    private List<ProjectLink> iterateProjectRelationShipsWithAllReleases(Map<String, ProjectProjectRelationship> relations,
+                                                                         String parentNodeId, Deque<String> visitedIds, int maxDepth, User user) {
+        List<ProjectLink> out = new ArrayList<>();
+        for (Map.Entry<String, ProjectProjectRelationship> entry : relations.entrySet()) {
+            Optional<ProjectLink> projectLinkOptional = createProjectLinkForDependencyNetwork(entry.getKey(), entry.getValue(),
+                    parentNodeId, visitedIds, maxDepth, user, true, WITH_ALL_RELEASES);
+            projectLinkOptional.ifPresent(out::add);
+        }
+        out.sort(Comparator.comparing(ProjectLink::getName).thenComparing(ProjectLink::getVersion));
+        return out;
+    }
+
+    private List<ReleaseNode> flattenNodeNetwork(ReleaseNode node, Set<String> visitedNodeIds) {
+        if (node == null) {
+            return Collections.emptyList();
+        }
+
+        List<ReleaseNode> releaseNodes = new ArrayList<>();
+
+        if (!visitedNodeIds.contains(node.getReleaseId())) {
+            visitedNodeIds.add(node.getReleaseId());
+            releaseNodes.add(node);
+        }
+
+        if (node.getReleaseLink() == null) {
+            return releaseNodes;
+        }
+
+        if (!node.getReleaseLink().isEmpty()) {
+            List<ReleaseNode> children = node.getReleaseLink();
+            for (ReleaseNode child : children) {
+                if (child.getReleaseLink() != null) {
+                    releaseNodes.addAll(flattenNodeNetwork(child, visitedNodeIds));
+                }
+            }
+        }
+        return releaseNodes;
+    }
+
+    protected ReleaseLink convertReleaseNodeToReleaseLink(ReleaseNode releaseNode, String projectId, User user, String parentId, int layer) throws TException {
+        Release releaseById = componentDatabaseHandler.getRelease(releaseNode.getReleaseId(), user);
+        ReleaseLink releaseLink = new ReleaseLink();
+        releaseLink.setId(releaseNode.getReleaseId());
+        releaseLink.setReleaseRelationship(ReleaseRelationship.valueOf(releaseNode.getReleaseRelationship()));
+        releaseLink.setMainlineState(MainlineState.valueOf(releaseNode.getMainlineState()));
+        releaseLink.setComment(releaseNode.getComment());
+        releaseLink.setHasSubreleases(!releaseNode.getReleaseLink().isEmpty());
+        releaseLink.setName(releaseById.getName());
+        releaseLink.setVersion(releaseById.getVersion());
+        releaseLink.setLongName(SW360Utils.printFullname(releaseById));
+        releaseLink.setClearingState(releaseById.getClearingState());
+        releaseLink.setLicenseIds(releaseById.getMainLicenseIds());
+        releaseLink.setOtherLicenseIds(releaseById.getOtherLicenseIds());
+        releaseLink.setAccessible(componentDatabaseHandler.isReleaseActionAllowed(releaseById, user, RequestedAction.READ));
+        releaseLink.setNodeId(releaseById.getId() + "_" + UUID.randomUUID());
+        releaseLink.setParentNodeId(parentId);
+        releaseLink.setLayer(layer);
+        releaseLink.setProjectId(projectId);
+        releaseLink.setReleaseMainLineState(releaseById.getMainlineState());
+        releaseLink.setAttachments(releaseById.getAttachments() != null ? Lists.newArrayList(releaseById.getAttachments()) : Collections.emptyList());
+
+        if (releaseById.getVendor() != null) {
+            releaseLink.setVendor(releaseById.getVendor().getFullname());
+        } else {
+            releaseLink.setVendor("");
+        }
+
+        if (releaseById.getComponentType() != null) {
+            releaseLink.setComponentType(releaseById.getComponentType());
+        } else {
+            Component componentById = componentDatabaseHandler.getComponent(releaseById.getComponentId(), user);
+            releaseLink.setComponentType(componentById.getComponentType());
+        }
+        return releaseLink;
     }
 }
