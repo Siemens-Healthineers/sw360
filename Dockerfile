@@ -107,7 +107,7 @@ COPY ./scripts/install-thrift.sh build_thrift.sh
 RUN --mount=type=tmpfs,target=/build \
     ./build_thrift.sh
 
-FROM scratch AS sw360thrift
+FROM scratch AS thrift
 COPY --from=sw360thriftbuild /usr/local/bin/thrift /usr/local/bin/thrift
 
 #--------------------------------------------------------------------------------------------------
@@ -182,7 +182,7 @@ COPY scripts/docker-config/set_proxy.sh /usr/local/bin/setup_maven_proxy
 RUN chmod a+x /usr/local/bin/setup_maven_proxy \
     && setup_maven_proxy
 
-COPY --from=sw360thrift /usr/local/bin/thrift /usr/bin
+COPY --from=thrift /usr/local/bin/thrift /usr/bin
 
 RUN --mount=type=bind,target=/build/sw360,rw \
     --mount=type=cache,target=/root/.m2 \
@@ -215,7 +215,8 @@ COPY scripts/create-slim-war-files.sh /bin/slim.sh
 
 RUN bash /bin/slim.sh
 
-FROM scratch AS sw360
+FROM scratch AS binaries
+COPY --from=sw360build /etc/sw360 /etc/sw360
 COPY --from=sw360build /sw360_deploy /sw360_deploy
 COPY --from=sw360build /sw360_tomcat_webapps /sw360_tomcat_webapps
 COPY --from=sw360clucene /couchdb-lucene.war /sw360_tomcat_webapps
@@ -223,7 +224,7 @@ COPY --from=sw360build /etc/sw360 /etc/sw360
 
 #--------------------------------------------------------------------------------------------------
 # Runtime image
-FROM base AS runtime
+FROM base AS sw360
 
 ARG DEBUG
 ARG USERNAME=sw360
@@ -235,16 +236,16 @@ RUN chown -R $USERNAME:$USERNAME /app/sw360
 
 USER $USERNAME
 
-# Downloaded jar dependencies
-COPY --chown=$USERNAME:$USERNAME --from=sw360 /sw360_deploy/* /app/sw360/deploy
-# Streamlined wars
-COPY --chown=$USERNAME:$USERNAME --from=sw360 /sw360_tomcat_webapps/slim-wars/*.war /app/sw360/tomcat/webapps/
-# org.eclipse.sw360 jar artifacts
-COPY --chown=$USERNAME:$USERNAME --from=sw360 /sw360_tomcat_webapps/*.jar /app/sw360/tomcat/webapps/
-# Shared streamlined jar libs
-COPY --chown=$USERNAME:$USERNAME --from=sw360 /sw360_tomcat_webapps/libs/*.jar /app/sw360/tomcat/shared/
 # Modified etc
-COPY --chown=$USERNAME:$USERNAME --from=sw360 /etc/sw360 /etc/sw360
+COPY --chown=$USERNAME:$USERNAME --from=binaries /etc/sw360 /etc/sw360
+# Downloaded jar dependencies
+COPY --chown=$USERNAME:$USERNAME --from=binaries /sw360_deploy/* /app/sw360/deploy
+# Streamlined wars
+COPY --chown=$USERNAME:$USERNAME --from=binaries /sw360_tomcat_webapps/slim-wars/*.war /app/sw360/tomcat/webapps/
+# org.eclipse.sw360 jar artifacts
+COPY --chown=$USERNAME:$USERNAME --from=binaries /sw360_tomcat_webapps/*.jar /app/sw360/tomcat/webapps/
+# Shared streamlined jar libs
+COPY --chown=$USERNAME:$USERNAME --from=binaries /sw360_tomcat_webapps/libs/*.jar /app/sw360/tomcat/shared/
 
 # Make catalina understand shared directory
 RUN dos2unix /app/sw360/tomcat/conf/catalina.properties \

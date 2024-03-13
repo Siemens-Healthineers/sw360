@@ -19,18 +19,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.eclipse.sw360.datahandler.common.CommonUtils;
 import org.eclipse.sw360.datahandler.common.SW360Constants;
 import org.eclipse.sw360.datahandler.thrift.changelogs.ChangeLogs;
 import org.eclipse.sw360.datahandler.thrift.components.Component;
+import org.eclipse.sw360.datahandler.thrift.components.EccInformation;
 import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.moderation.ModerationRequest;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
+import org.eclipse.sw360.datahandler.thrift.search.SearchResult;
 import org.eclipse.sw360.datahandler.thrift.users.User;
 import org.eclipse.sw360.datahandler.thrift.vendors.Vendor;
-import org.eclipse.sw360.datahandler.thrift.search.SearchResult;
-import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
 import org.eclipse.sw360.datahandler.thrift.vulnerabilities.Vulnerability;
+import org.eclipse.sw360.datahandler.thrift.vulnerabilities.VulnerabilityDTO;
 
 public class ResourceComparatorGenerator<T> {
 
@@ -38,6 +40,8 @@ public class ResourceComparatorGenerator<T> {
     private static final Map<Project._Fields, Comparator<Project>> projectMap = generateProjectMap();
     private static final Map<User._Fields, Comparator<User>> userMap = generateUserMap();
     private static final Map<Release._Fields, Comparator<Release>> releaseMap = generateReleaseMap();
+    private static final Map<Release._Fields, Comparator<Release>> releaseMapForEcc = generateReleaseMapForEccComparator();
+    private static final Map<EccInformation._Fields, Comparator<Release>> eccInfoMap = generateEccInfoMap();
     private static final Map<Vendor._Fields, Comparator<Vendor>> vendorMap = generateVendorMap();
     private static final Map<Package._Fields, Comparator<Package>> packageMap = generatePackageMap();
     private static final Map<SearchResult._Fields, Comparator<SearchResult>> searchResultMap = generateSearchResultMap();
@@ -77,6 +81,35 @@ public class ResourceComparatorGenerator<T> {
         releaseMap.put(Release._Fields.NAME, Comparator.comparing(Release::getName, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
         releaseMap.put(Release._Fields.CLEARING_STATE, Comparator.comparing(p -> Optional.ofNullable(p.getClearingState()).map(Object::toString).orElse(null), Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
         return Collections.unmodifiableMap(releaseMap);
+    }
+
+    private static Map<Release._Fields, Comparator<Release>> generateReleaseMapForEccComparator() {
+        Map<Release._Fields, Comparator<Release>> releaseMapForEcc = new HashMap<>();
+        releaseMapForEcc.put(Release._Fields.NAME,
+                Comparator.comparing(Release::getName, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        releaseMapForEcc.put(Release._Fields.VERSION,
+                Comparator.comparing(Release::getVersion, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        releaseMapForEcc.put(Release._Fields.CREATOR_DEPARTMENT, Comparator.comparing(Release::getCreatorDepartment,
+                Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        return Collections.unmodifiableMap(releaseMapForEcc);
+    }
+
+    private static Map<EccInformation._Fields, Comparator<Release>> generateEccInfoMap() {
+        Map<EccInformation._Fields, Comparator<Release>> eccInfoMap = new HashMap<>();
+        eccInfoMap.put(EccInformation._Fields.ASSESSMENT_DATE,
+                Comparator.comparing(r -> CommonUtils.nullToEmptyString(r.getEccInformation().getAssessmentDate()),
+                        Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        eccInfoMap.put(EccInformation._Fields.ASSESSOR_CONTACT_PERSON,
+                Comparator.comparing(
+                        r -> CommonUtils.nullToEmptyString(r.getEccInformation().getAssessorContactPerson()),
+                        Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        eccInfoMap.put(EccInformation._Fields.ASSESSOR_DEPARTMENT,
+                Comparator.comparing(r -> CommonUtils.nullToEmptyString(r.getEccInformation().getAssessorDepartment()),
+                        Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        eccInfoMap.put(EccInformation._Fields.ECC_STATUS,
+                Comparator.comparing(r -> CommonUtils.nullToEmptyString(r.getEccInformation().getEccStatus()),
+                        Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        return Collections.unmodifiableMap(eccInfoMap);
     }
 
     private static Map<Vendor._Fields, Comparator<Vendor>> generateVendorMap() {
@@ -133,6 +166,10 @@ public class ResourceComparatorGenerator<T> {
                 Comparator.comparing(ModerationRequest::getRequestingUser, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
         moderationRequestMap.put(ModerationRequest._Fields.DOCUMENT_TYPE,
                 Comparator.comparing(c -> Optional.ofNullable(c.getDocumentType()).map(Object::toString).orElse(null), Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        moderationRequestMap.put(ModerationRequest._Fields.DOCUMENT_NAME,
+                Comparator.comparing(ModerationRequest::getDocumentName, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
+        moderationRequestMap.put(ModerationRequest._Fields.MODERATION_STATE,
+                Comparator.comparing(c -> Optional.ofNullable(c.getModerationState()).map(Object::toString).orElse(null), Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
         return Collections.unmodifiableMap(moderationRequestMap);
     }
 
@@ -160,6 +197,8 @@ public class ResourceComparatorGenerator<T> {
                 return (Comparator<T>)defaultModerationRequestComparator();
             case SW360Constants.TYPE_PACKAGE:
                 return (Comparator<T>)defaultPackageComparator();
+            case SW360Constants.TYPE_ECC:
+                return (Comparator<T>)defaultReleaseComparator();
             default:
                 throw new ResourceClassNotFoundException("No default comparator for resource class with name " + type);
         }
@@ -261,6 +300,28 @@ public class ResourceComparatorGenerator<T> {
                     }
                 }
                 return generateVulComparatorWithFields(type, vul);
+            case SW360Constants.TYPE_ECC:
+                List<Release._Fields> releaseFields = new ArrayList<>();
+                List<EccInformation._Fields> eccInfoFields = new ArrayList<>();
+                for (String property : properties) {
+                    Release._Fields field = Release._Fields.findByName(property);
+                    EccInformation._Fields eccField = EccInformation._Fields.findByName(property);
+                    if (field != null) {
+                        releaseFields.add(field);
+                    } else if (eccField != null) {
+                        eccInfoFields.add(eccField);
+                    }
+                }
+                return generateReleaseEccComparatorWithFields(type, releaseFields, eccInfoFields);
+            case SW360Constants.TYPE_MODERATION:
+                List<ModerationRequest._Fields> modFields = new ArrayList<>();
+                for (String property : properties) {
+                    ModerationRequest._Fields field = ModerationRequest._Fields.findByName(property);
+                    if (field != null) {
+                        modFields.add(field);
+                    }
+                }
+                return generateModerationRequestComparatorWithFields(type, modFields);
             default:
                 throw new ResourceClassNotFoundException("No comparator for resource class with name " + type);
         }
@@ -299,6 +360,16 @@ public class ResourceComparatorGenerator<T> {
                 return (Comparator<T>)releaseComparator(fields);
             default:
                 throw new ResourceClassNotFoundException("No comparator for resource class with name " + type);
+        }
+    }
+
+    public Comparator<T> generateReleaseEccComparatorWithFields(String type, List<Release._Fields> fields,
+            List<EccInformation._Fields> eccInfoFields) throws ResourceClassNotFoundException {
+        switch (type) {
+        case SW360Constants.TYPE_ECC:
+            return (Comparator<T>) releaseEccComparator(fields, eccInfoFields);
+        default:
+            throw new ResourceClassNotFoundException("No comparator for resource class with name " + type);
         }
     }
 
@@ -356,6 +427,16 @@ public class ResourceComparatorGenerator<T> {
         }
     }
 
+    public Comparator<T> generateModerationRequestComparatorWithFields(
+            String type, List<ModerationRequest._Fields> fields) throws ResourceClassNotFoundException {
+        switch (type) {
+            case SW360Constants.TYPE_MODERATION:
+                return (Comparator<T>) moderationComparator(fields);
+            default:
+                throw new ResourceClassNotFoundException("No comparator for resource class with name " + type);
+        }
+    }
+
 
     private Comparator<Component> componentComparator(List<Component._Fields> fields) {
         Comparator<Component> comparator = Comparator.comparing(x -> true);
@@ -402,6 +483,31 @@ public class ResourceComparatorGenerator<T> {
             }
         }
         comparator = comparator.thenComparing(defaultReleaseComparator());
+        return comparator;
+    }
+
+    private Comparator<?> releaseEccComparator(List<Release._Fields> fields,
+            List<EccInformation._Fields> eccInfoFields) {
+        Comparator<Release> comparator = Comparator.comparing(x -> true);
+        Comparator<Release> eccComparator = Comparator.comparing(x -> true);
+        if (!fields.isEmpty()) {
+            for (Release._Fields field : fields) {
+                Comparator<Release> fieldComparator = releaseMapForEcc.get(field);
+                if (fieldComparator != null) {
+                    comparator = comparator.thenComparing(fieldComparator);
+                }
+            }
+            comparator = comparator.thenComparing(defaultReleaseComparator());
+        } else if (!eccInfoFields.isEmpty()) {
+            for (EccInformation._Fields eccField : eccInfoFields) {
+                Comparator<Release> eccFieldComparator = eccInfoMap.get(eccField);
+                if (eccFieldComparator != null) {
+                    eccComparator = eccComparator.thenComparing(eccFieldComparator);
+                }
+            }
+            eccComparator = eccComparator.thenComparing(defaultEccComparator());
+            return eccComparator;
+        }
         return comparator;
     }
 
@@ -477,6 +583,18 @@ public class ResourceComparatorGenerator<T> {
         return comparator;
     }
 
+    private Comparator<ModerationRequest> moderationComparator(List<ModerationRequest._Fields> fields) {
+        Comparator<ModerationRequest> comparator = Comparator.comparing(x -> true);
+        for (ModerationRequest._Fields field : fields) {
+            Comparator<ModerationRequest> fieldComparator = moderationRequestMap.get(field);
+            if (fieldComparator != null) {
+                comparator = comparator.thenComparing(fieldComparator);
+            }
+        }
+        comparator = comparator.thenComparing(defaultModerationRequestComparator());
+        return comparator;
+    }
+
     private Comparator<Component> defaultComponentComparator() {
         return componentMap.get(Component._Fields.NAME);
     }
@@ -519,5 +637,9 @@ public class ResourceComparatorGenerator<T> {
 
     private Comparator<Package> defaultPackageComparator() {
         return packageMap.get(Package._Fields.NAME);
+    }
+
+    private Comparator<Release> defaultEccComparator() {
+        return eccInfoMap.get(EccInformation._Fields.ASSESSMENT_DATE);
     }
 }

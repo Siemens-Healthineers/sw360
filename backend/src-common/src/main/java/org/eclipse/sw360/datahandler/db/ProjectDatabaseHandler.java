@@ -232,15 +232,10 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     // CREATE CLEARING REQUEST //
     /////////////////////////////
 
-    public AddDocumentRequestSummary createClearingRequest(ClearingRequest clearingRequest, User user, String projectUrl) throws TException {
+    public AddDocumentRequestSummary createClearingRequest(ClearingRequest clearingRequest, User user, String projectUrl) throws SW360Exception {
         Project project = getProjectById(clearingRequest.getProjectId(), user);
         AddDocumentRequestSummary requestSummary = new AddDocumentRequestSummary().setRequestStatus(AddDocumentRequestStatus.FAILURE);
-        int numReleaseWithoutSRC = doAllReleasesHaveSourceAttachment(project.id, user);
-        if(numReleaseWithoutSRC > 0) {
-        	log.error("Failed to create CR as " + numReleaseWithoutSRC + " releases do not have SRC type attachment");
-        	return requestSummary.setMessage("one.or.more.linked.releases.do.not.have.src.type.attachment");
-        }
-        
+
         if (!isWriteActionAllowedOnProject(project, user)) {
             return requestSummary.setMessage("You do not have WRITE access to the project");
         }
@@ -267,11 +262,6 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
             log.error("Cannot create clearing request for closed or private project: " + project.getId());
         }
         return requestSummary.setMessage("Failed to create clearing request");
-    }
-    
-    private int doAllReleasesHaveSourceAttachment(String id, User user) throws TException {
-    	List<Release> releaseWithoutSource = componentDatabaseHandler.releasesWithoutSRC(id, user);
-    	return releaseWithoutSource.size();
     }
 
     private boolean isWriteActionAllowedOnProject(Project project, User user) {
@@ -2173,11 +2163,16 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return repository.searchByType(type, user);
     }
 
-	public ByteBuffer getReportDataStream(User user, boolean extendedByReleases) throws TException {
+	public ByteBuffer getReportDataStream(User user, boolean extendedByReleases, String projectId) throws TException {
+	    List<Project> projectList = null;
         try {
-        	List<Project> documents = getAccessibleProjectsSummary(user);
-            ProjectExporter exporter = getProjectExporterObject(documents, user, extendedByReleases);
-            InputStream stream = exporter.makeExcelExport(documents);
+            if (!isNullOrEmpty(projectId)) {
+                projectList = getProjectDetailsBasedOnId(user, projectId);
+            }else {
+                projectList =  getAccessibleProjectsSummary(user);
+            }
+            ProjectExporter exporter = getProjectExporterObject(projectList, user, extendedByReleases);
+            InputStream stream = exporter.makeExcelExport(projectList);
             return ByteBuffer.wrap(IOUtils.toByteArray(stream));
           }catch (IOException e) {
             throw new SW360Exception(e.getMessage());
@@ -2191,14 +2186,30 @@ public class ProjectDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     public String getReportInEmail(User user,
-			boolean extendedByReleases) throws TException {
+			boolean extendedByReleases, String projectId) throws TException {
+        List<Project> projectList = null;
         try {
-        	List<Project> documents = getAccessibleProjectsSummary(user);
-             ProjectExporter exporter = getProjectExporterObject(documents, user, extendedByReleases);
-             return exporter.makeExcelExportForProject(documents, user);
-          }catch (IOException e) {
+            if (!isNullOrEmpty(projectId)) {
+                projectList = getProjectDetailsBasedOnId(user, projectId);
+            }else {
+                projectList = getAccessibleProjectsSummary(user);
+            }
+            ProjectExporter exporter = getProjectExporterObject(projectList, user, extendedByReleases);
+            return exporter.makeExcelExportForProject(projectList, user);
+          }catch (IOException | TException e) {
              throw new SW360Exception(e.getMessage());
        }
+     }
+
+     private List<Project> getProjectDetailsBasedOnId(User user, String projectId) throws TException {
+         final Collection<ProjectLink> projectLinks = SW360Utils.getLinkedProjectsAsFlatList(projectId, true,
+                 new ThriftClients(), log, user);
+         if (projectLinks.isEmpty()) {
+             throw new TException("For the projectId : " + projectId
+                     + ", No data available. Please check the projectId and try again.");
+         }
+         List<String> linkedProjectIds = projectLinks.stream().map(ProjectLink::getId).collect(Collectors.toList());
+         return getProjectsById(linkedProjectIds, user);
      }
 
      public ByteBuffer downloadExcel(User user, boolean extendedByReleases, String token) throws SW360Exception {
