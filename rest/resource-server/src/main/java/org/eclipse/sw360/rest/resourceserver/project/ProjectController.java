@@ -19,6 +19,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -72,6 +73,8 @@ import org.eclipse.sw360.datahandler.thrift.licenseinfo.LicenseNameWithText;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.OutputFormatInfo;
 import org.eclipse.sw360.datahandler.thrift.licenseinfo.OutputFormatVariant;
 import org.eclipse.sw360.datahandler.thrift.licenses.License;
+import org.eclipse.sw360.datahandler.thrift.projects.ObligationList;
+import org.eclipse.sw360.datahandler.thrift.projects.ObligationStatusInfo;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectClearingState;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectLink;
@@ -93,6 +96,7 @@ import org.eclipse.sw360.rest.resourceserver.license.Sw360LicenseService;
 import org.eclipse.sw360.rest.resourceserver.licenseinfo.Sw360LicenseInfoService;
 import org.eclipse.sw360.rest.resourceserver.packages.PackageController;
 import org.eclipse.sw360.rest.resourceserver.packages.SW360PackageService;
+import org.eclipse.sw360.rest.resourceserver.release.ReleaseController;
 import org.eclipse.sw360.rest.resourceserver.release.Sw360ReleaseService;
 import org.eclipse.sw360.rest.resourceserver.user.Sw360UserService;
 import org.eclipse.sw360.rest.resourceserver.vulnerability.Sw360VulnerabilityService;
@@ -136,6 +140,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.InvalidPropertiesFormatException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -159,6 +164,9 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 @RestController
 @SecurityRequirement(name = "tokenAuth")
 public class ProjectController implements RepresentationModelProcessor<RepositoryLinksResource> {
+    private static final String CREATED_BY = "createdBy";
+    private static final String ATTACHMENT_TYPE = "attachmentType";
+    private static final String ATTACHMENTS = "attachments";
     public static final String PROJECTS_URL = "/projects";
     public static final String SW360_ATTACHMENT_USAGES = "sw360:attachmentUsages";
     private static final Logger log = LogManager.getLogger(ProjectController.class);
@@ -343,7 +351,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     public ResponseEntity<CollectionModel<EntityModel<Project>>> getProjectsFilteredForUser(
             Pageable pageable,
             @Parameter(description = "Projects with current user as creator.")
-            @RequestParam(value = "createdBy", required = false, defaultValue = "true") boolean createdBy,
+            @RequestParam(value = CREATED_BY, required = false, defaultValue = "true") boolean createdBy,
             @Parameter(description = "Projects with current user as moderator.")
             @RequestParam(value = "moderator", required = false, defaultValue = "true") boolean moderator,
             @Parameter(description = "Projects with current user as contributor.")
@@ -1545,11 +1553,67 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             }
         }
 
-        HalResource userHalResource = attachmentUsageReleases(sw360Project, sw360User, releaseList, listOfAttachmentUsages);
+        List<Map<String, Object>> releaseObjMap = getReleaseObjectMapper(releaseList);
+        HalResource userHalResource = attachmentUsageReleases(sw360Project, releaseObjMap, listOfAttachmentUsages);
         return new ResponseEntity<>(userHalResource, HttpStatus.OK);
     }
 
-    private HalResource attachmentUsageReleases(Project sw360Project, User sw360User, List<EntityModel<Release>> releases, List<Map<String, Object>> attachmentUsageMap)
+	private List<Map<String, Object>> getReleaseObjectMapper(List<EntityModel<Release>> releaseList) {
+		ObjectMapper oMapper = new ObjectMapper();
+		List<Map<String, Object>> modifiedList = new ArrayList<>();
+		for (EntityModel<Release> rel : releaseList) {
+			Map<String, Object> relMap = (Map<String, Object>) oMapper.convertValue(rel, Map.class);
+			if (relMap.get(ATTACHMENTS) != null) {
+				for (Object attach : (ArrayList<?>) relMap.get(ATTACHMENTS)) {
+					Map<String, Object> attachmentMap = (Map<String, Object>) attach;
+					AttachmentType type = AttachmentType.valueOf((String) attachmentMap.get(ATTACHMENT_TYPE));
+					attachmentMap.replace(ATTACHMENT_TYPE, attachmentMap.get(ATTACHMENT_TYPE),
+							ThriftEnumUtils.MAP_ATTACHMENT_TYPE_SHORT_STRING.get(type));
+				}
+			}
+			final ImmutableSet<String> fieldsToKeep = ImmutableSet.of("name", "version", ATTACHMENTS);
+			Map<String, Object> valueToKeep = new LinkedHashMap<>();
+			Link releaseLink = null;
+			if (relMap != null) {
+				for (Map.Entry<String, Object> entry : relMap.entrySet()) {
+					if (entry != null && entry.getKey().equals("id")) {
+						releaseLink = linkTo(ReleaseController.class).slash("api/releases/" + entry.getValue())
+								.withSelfRel();
+					} else if (entry != null && fieldsToKeep.contains(entry.getKey())) {
+                        if (entry.getKey().equals(ATTACHMENTS) && null != entry.getValue()) {
+                            List<Map<String, Object>> attList = new ArrayList<>();
+                            for (LinkedHashMap att : ((List<LinkedHashMap>) entry.getValue())) {
+                                Map<String, Object> map = new LinkedHashMap<>();
+                                map.put("attachmentContentId", att.get("attachmentContentId"));
+                                map.put("filename", att.get("filename"));
+                                map.put("sha1", att.get("sha1"));
+                                map.put(ATTACHMENT_TYPE, att.get(ATTACHMENT_TYPE));
+                                map.put(CREATED_BY, att.get(CREATED_BY));
+                                map.put("createdTeam", att.get("createdTeam"));
+                                map.put("createdOn", att.get("createdOn"));
+                                map.put("checkStatus", att.get("checkStatus"));
+                                map.put("createdComment", att.get("createdComment"));
+                                map.put("checkedBy", att.get("checkedBy"));
+                                map.put("checkedTeam", att.get("checkedTeam"));
+                                map.put("checkedComment", att.get("checkedComment"));
+                                map.put("checkedOn", att.get("checkedOn"));
+                                attList.add(map);
+                            }
+                            valueToKeep.put(entry.getKey(), attList);
+                        } else {
+                            valueToKeep.put(entry.getKey(), entry.getValue());
+                        }
+
+                    }
+				}
+			}
+			valueToKeep.put("_links", releaseLink);
+			modifiedList.add(valueToKeep);
+		}
+		return modifiedList;
+	}
+
+    private HalResource attachmentUsageReleases(Project sw360Project, List<Map<String, Object>> releases, List<Map<String, Object>> attachmentUsageMap)
             throws TException {
         ObjectMapper oMapper = new ObjectMapper();
         Map<String, ProjectReleaseRelationship> releaseIdToUsages = sw360Project.getReleaseIdToUsage();
@@ -1847,7 +1911,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     private HalResource<Project> createHalProject(Project sw360Project, User sw360User) throws TException {
         HalResource<Project> halProject = new HalResource<>(sw360Project);
         User projectCreator = restControllerHelper.getUserByEmail(sw360Project.getCreatedBy());
-        restControllerHelper.addEmbeddedUser(halProject, projectCreator, "createdBy");
+        restControllerHelper.addEmbeddedUser(halProject, projectCreator, CREATED_BY);
 
         Map<String, ProjectReleaseRelationship> releaseIdToUsage = sw360Project.getReleaseIdToUsage();
         if (releaseIdToUsage != null) {
@@ -1960,7 +2024,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 
     private HalResource<Project> createHalProjectResourceWithAllDetails(Project sw360Project, User sw360User) {
         HalResource<Project> halProject = new HalResource<>(sw360Project);
-        halProject.addEmbeddedResource("createdBy", sw360Project.getCreatedBy());
+        halProject.addEmbeddedResource(CREATED_BY, sw360Project.getCreatedBy());
 
         Set<String> packageIds = sw360Project.getPackageIds();
 
@@ -2063,6 +2127,145 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     }
 
     @Operation(
+            description = "Get license obligations data from license database.",
+            tags = {"Project"}
+    )
+    @RequestMapping(value = PROJECTS_URL + "/{id}/licenseDbObligations", method = RequestMethod.GET)
+	public ResponseEntity<?> getLicObligations(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @Parameter(description = "Project ID.") @PathVariable("id") String id)
+            throws TException {
+        final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+   	    final Project sw360Project = projectService.getProjectForUserById(id, sw360User);
+   	    if (CommonUtils.isNullOrEmptyMap(sw360Project.getReleaseIdToUsage())) {
+            return new ResponseEntity<String>("No release linked to the project", HttpStatus.NO_CONTENT);
+        }
+        Map<String, AttachmentUsage> licenseInfoAttachmentUsage = projectService.getLicenseInfoAttachmentUsage(id);
+        if(licenseInfoAttachmentUsage.size() == 0) {
+            return new ResponseEntity<String>("No approved CLI or licenseInfo attachment usage present for the project", HttpStatus.NO_CONTENT);
+        }
+        Map<String, Set<Release>> licensesFromAttachmentUsage = projectService.getLicensesFromAttachmentUsage(licenseInfoAttachmentUsage, sw360User);
+        Map<String, ObligationStatusInfo> licenseObligation = projectService.getLicenseObligationData(licensesFromAttachmentUsage, sw360User);
+
+        List<Map.Entry<String, ObligationStatusInfo>> entries = new ArrayList<>(licenseObligation.entrySet());
+        int startIndex = page * size;
+        int endIndex = Math.min(startIndex + size, entries.size());
+        entries = entries.subList(startIndex, endIndex);
+        Map<String, ObligationStatusInfo> paginatedMap = new LinkedHashMap<>();
+        for (Map.Entry<String, ObligationStatusInfo> entry : entries) {
+            paginatedMap.put(entry.getKey(), entry.getValue());
+        }
+        Map<String, Integer> paginationMetadata = createPaginationMetadata(page, size, licenseObligation.size());
+        Map<String, Object> responseBody = new LinkedHashMap<>();
+        responseBody.put("licenseDbObligations", paginatedMap);
+        responseBody.put("page", paginationMetadata);
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+    private Map<String, Integer> createPaginationMetadata(int page, int size, int totalElements) {
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        return Map.of(
+            "size", size,
+            "totalElements", totalElements,
+            "totalPages", totalPages,
+            "number", page
+        );
+    }
+
+    @Operation(
+            description = "Get license obligation data of project tab.",
+            tags = {"Project"}
+    )
+    @RequestMapping(value = PROJECTS_URL + "/{id}/licenseObligations", method = RequestMethod.GET)
+	public ResponseEntity<HalResource> getLicenseObligations(
+            @Parameter(description = "Project ID.") @PathVariable("id") String id)
+            throws TException {
+        final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        final Project sw360Project = projectService.getProjectForUserById(id, sw360User);
+        final Map<String, String> releaseIdToAcceptedCLI = Maps.newHashMap();
+        List<Release> releases = new ArrayList<>();;
+        ObligationList obligation = new ObligationList();
+        Map<String, ObligationStatusInfo> obligationStatusMap = Maps.newHashMap();
+        List<String> releaseIds = new ArrayList<>(sw360Project.getReleaseIdToUsage().keySet());
+        for (final String releaseId : releaseIds) {
+            Release sw360Release = releaseService.getReleaseForUserById(releaseId, sw360User);
+            if (sw360Release.getAttachmentsSize() > 0) {
+                releases.add(sw360Release);
+            }
+        }
+        if (CommonUtils.isNotNullEmptyOrWhitespace(sw360Project.getLinkedObligationId())) {
+            obligation = projectService.getObligationData(sw360Project.getLinkedObligationId(), sw360User);
+            obligationStatusMap = CommonUtils.nullToEmptyMap(obligation.getLinkedObligationStatus());
+            releaseIdToAcceptedCLI.putAll(SW360Utils.getReleaseIdtoAcceptedCLIMappings(obligationStatusMap));
+        }
+
+        obligationStatusMap = projectService.setLicenseInfoWithObligations(obligationStatusMap, releaseIdToAcceptedCLI, releases, sw360User);
+
+        HalResource<Map<String, ObligationStatusInfo>> halObligation = new HalResource<>(obligationStatusMap);
+        return new ResponseEntity<>(halObligation, HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasAuthority('WRITE')")
+    @Operation(
+            summary = "Add licenseObligations from license DB",
+			description = "Pass an array of obligation ids in request body.",
+            tags = {"Projects"}
+    )
+    @RequestMapping(value = PROJECTS_URL + "/{id}/licenseObligation", method = RequestMethod.POST)
+    public ResponseEntity<?> addLicenseObligations(
+            @Parameter(description = "License Obligation ID.")
+            @PathVariable("id") String id,
+			@Parameter(description = "Set of license obligation IDs to be added.",
+                    example = "[\"3765276512\",\"5578999\",\"3765276513\"]"
+            )
+			@RequestBody List<String> obligationIds
+    ) throws TException {
+        final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+	    final Project sw360Project = projectService.getProjectForUserById(id, sw360User);
+	    Map<String, AttachmentUsage> licenseInfoAttachmentUsage = projectService.getLicenseInfoAttachmentUsage(id);
+        Map<String, Set<Release>> licensesFromAttachmentUsage = projectService.getLicensesFromAttachmentUsage(
+                licenseInfoAttachmentUsage, sw360User);
+        Map<String, ObligationStatusInfo> licenseObligation = projectService.getLicenseObligationData(licensesFromAttachmentUsage, sw360User);
+        Map<String, ObligationStatusInfo> selectedLicenseObligation = new HashMap<String, ObligationStatusInfo>();
+
+        ObligationList obligation = new ObligationList();
+		Map<String, ObligationStatusInfo> obligationStatusMap = Maps.newHashMap();
+		Map<String, ObligationStatusInfo> obligationStatusMapFromReport = Maps.newHashMap();
+		final Map<String, String> releaseIdToAcceptedCLI = Maps.newHashMap();
+		List<Release> releases = new ArrayList<>();
+		List<String> releaseIds = new ArrayList<>(sw360Project.getReleaseIdToUsage().keySet());
+		for (final String releaseId : releaseIds) {
+			Release sw360Release = releaseService.getReleaseForUserById(releaseId, sw360User);
+			if (sw360Release.getAttachmentsSize() > 0) {
+				releases.add(sw360Release);
+			}
+		}
+        if (CommonUtils.isNotNullEmptyOrWhitespace(sw360Project.getLinkedObligationId())) {
+			obligation = projectService.getObligationData(sw360Project.getLinkedObligationId(), sw360User);
+			obligationStatusMap = CommonUtils.nullToEmptyMap(obligation.getLinkedObligationStatus());
+			releaseIdToAcceptedCLI.putAll(SW360Utils.getReleaseIdtoAcceptedCLIMappings(obligationStatusMap));
+		} else {
+			obligationStatusMapFromReport = projectService.setLicenseInfoWithObligations(obligationStatusMap, releaseIdToAcceptedCLI, releases, sw360User);
+		}
+
+        if (licenseObligation.size() == 0) {
+            return new ResponseEntity<>("No License Obligations Present", HttpStatus.NO_CONTENT);
+        }
+        for (Map.Entry<String, ObligationStatusInfo> entry : licenseObligation.entrySet()) {
+            String oblId = entry.getValue().getId();
+            if (obligationIds.contains(oblId)) {
+                selectedLicenseObligation.put(entry.getKey(), entry.getValue());
+            }
+        }
+        selectedLicenseObligation.putAll(obligationStatusMapFromReport);
+        RequestStatus requestStatus= projectService.updateLinkedObligations(sw360Project, sw360User, selectedLicenseObligation);
+        if (requestStatus == RequestStatus.SUCCESS) {
+            return new ResponseEntity<>("License Obligation Added Successfully", HttpStatus.CREATED);
+        }
+        return new ResponseEntity<>("Failed to add/update obligation for project", HttpStatus.NOT_FOUND);
+	}
+        
+    @Operation(
             description = "Get summary and administration page of project tab.",
             tags = {"Projects"}
     )
@@ -2136,7 +2339,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         HalResource<ProjectDTO> halProject = new HalResource<>(projectDTO);
 
         User projectCreator = restControllerHelper.getUserByEmail(projectDTO.getCreatedBy());
-        restControllerHelper.addEmbeddedUser(halProject, projectCreator, "createdBy");
+        restControllerHelper.addEmbeddedUser(halProject, projectCreator, CREATED_BY);
 
         Map<String, ProjectProjectRelationship> linkedProjects = projectDTO.getLinkedProjects();
         if (linkedProjects != null) {
