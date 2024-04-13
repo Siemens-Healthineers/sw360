@@ -12,8 +12,10 @@ package org.eclipse.sw360.cyclonedx;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,9 +29,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
@@ -145,7 +149,7 @@ public class CycloneDxBOMImporter {
      * @return Map<String, List<org.cyclonedx.model.Component>>
      */
     private Map<String, List<org.cyclonedx.model.Component>> getVcsToComponentMap(List<org.cyclonedx.model.Component> components) {
-        return components.stream().filter(Objects::nonNull)
+        return components.parallelStream().filter(Objects::nonNull)
                 .filter(comp -> {
                     return !isCompNonPkgManaged(comp);
                 })
@@ -153,8 +157,8 @@ public class CycloneDxBOMImporter {
                         .filter(Objects::nonNull)
                         .filter(ref -> ExternalReference.Type.VCS.equals(ref.getType()))
                         .map(ExternalReference::getUrl)
-                        .map(String::toLowerCase)
-                        .map(url -> StringUtils.removeEnd(url, DOT_GIT))
+                        .map(url -> sanitizeVCS(url))
+                        .filter(url -> CommonUtils.isValidUrl(url))
                         .map(url -> new AbstractMap.SimpleEntry<>(url, comp)))
                 .collect(Collectors.groupingBy(e -> e.getKey(),
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
@@ -200,8 +204,7 @@ public class CycloneDxBOMImporter {
             List<org.cyclonedx.model.Component> components = CommonUtils.nullToEmptyList(bom.getComponents());
             List<org.cyclonedx.model.Component> nonPkgManagedComponents = CommonUtils.nullToEmptyList(bom.getComponents());
 
-            long vcsCount = components.stream().map(org.cyclonedx.model.Component::getExternalReferences)
-                    .filter(Objects::nonNull).flatMap(List::stream).map(ExternalReference::getType).filter(typeFilter).count();
+            long vcsCount = getVcsToComponentMap(components).size();
             long componentsCount = components.size();
             org.cyclonedx.model.Component compMetadata = bomMetadata.getComponent();
             Map<String, List<org.cyclonedx.model.Component>> vcsToComponentMap = new HashMap<>();
@@ -210,7 +213,6 @@ public class CycloneDxBOMImporter {
                 vcsToComponentMap.put("", components);
                 requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent, replacePackageFlag);
             } else {
-
                 vcsToComponentMap = getVcsToComponentMap(components);
                 nonPkgManagedComponents = getNonPkgManagedComponents(components);
                 if (componentsCount == vcsCount) {
@@ -251,10 +253,9 @@ public class CycloneDxBOMImporter {
                         Set<String> projectPkgIds = CommonUtils.isNullOrEmptyCollection(project.getPackageIds()) ? new HashSet<>() : project.getPackageIds();
 
                         for (org.cyclonedx.model.Component comp : components) {
-
-                            if ((CommonUtils.isNullOrEmptyCollection(comp.getExternalReferences()) || comp.getExternalReferences().stream().map(ExternalReference::getType).filter(typeFilter).count() == 0)
-                                    && !isCompNonPkgManaged(comp)
-                            ){
+                            if ((CommonUtils.isNullOrEmptyCollection(comp.getExternalReferences())
+                                    || comp.getExternalReferences().stream().map(ExternalReference::getType).filter(typeFilter).count() == 0
+                                    || !containsComp(vcsToComponentMap, comp)) && !isCompNonPkgManaged(comp)) {
                                 final var fullName = SW360Utils.getVersionedName(comp.getName(), comp.getVersion());
                                 final var licenses = getLicenseFromBomComponent(comp);
                                 final Package pkg = createPackage(comp, null, licenses);
@@ -1052,6 +1053,24 @@ public class CycloneDxBOMImporter {
         }
     }
 
+    private String getComponentNameFromVCS(String vcsUrl){
+        String compName = vcsUrl.replaceAll(SCHEMA_PATTERN, "$1");
+        Matcher thirdSlashMatcher = THIRD_SLASH_PATTERN.matcher(compName);
+        if (thirdSlashMatcher.find()) {
+            compName = thirdSlashMatcher.group();
+            Matcher firstSlashMatcher = FIRST_SLASH_PATTERN.matcher(compName);
+            if (firstSlashMatcher.find()) {
+                compName = firstSlashMatcher.group(1);
+                compName = compName.replaceAll(SLASH, ".");
+                if (vcsUrl.toLowerCase().contains("github.com")) {
+                    compName = compName.replaceAll("\\.git.*", "").replaceAll("#.*", "");
+                }
+            }
+        }
+
+        return compName;
+    }
+
     private Package createPackage(org.cyclonedx.model.Component componentFromBom, Release release, Set<String> licenses) {
         Package pckg = new Package();
         String purl = componentFromBom.getPurl();
@@ -1181,5 +1200,34 @@ public class CycloneDxBOMImporter {
             }
         }
         return compName;
+    }
+    /*
+     * Sanitize different repository URLS based on their defined schema
+     */
+    public String sanitizeVCS(String vcs) {
+        // GitHub repository URL Format: https://github.com/supplier/name
+        if (vcs.toLowerCase().contains("github.com")) {
+            URI uri = URI.create(vcs);
+            String[] urlParts = uri.getPath().split("/");
+            if (urlParts.length >= 3) {
+                String firstSegment = urlParts[1];
+                String secondSegment = urlParts[2].replaceAll("\\.git.*", "").replaceAll("#.*", "");
+                vcs = "https://github.com/" + firstSegment + "/" + secondSegment;
+                return vcs;
+            } else {
+                log.error("Invalid GitHub repository URL: " + vcs);
+            }
+        }
+        // Other formats yet to be defined
+        return vcs;
+    }
+
+    public static boolean containsComp(Map<String, List<org.cyclonedx.model.Component>> map, org.cyclonedx.model.Component element) {
+        for (List<org.cyclonedx.model.Component> list : map.values()) {
+            if (list.contains(element)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
