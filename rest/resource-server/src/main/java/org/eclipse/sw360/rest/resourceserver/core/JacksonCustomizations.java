@@ -183,7 +183,6 @@ public class JacksonCustomizations {
 
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonIgnoreProperties({
-                "id",
                 "revision",
                 "attachments",
                 "createdBy",
@@ -2014,6 +2013,7 @@ public class JacksonCustomizations {
                 "setPackageInfoAdditions",
                 "setPackageInfoDeletions",
                 "type",
+                "revision",
                 "moderatorsIterator",
                 "SPDXDocumentAdditions",
                 "SPDXDocumentDeletions",
