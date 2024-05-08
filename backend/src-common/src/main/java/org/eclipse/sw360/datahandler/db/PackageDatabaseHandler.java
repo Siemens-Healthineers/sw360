@@ -429,6 +429,18 @@ public class PackageDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return duplicates.size() > 0;
     }
 
+    public List<Package> searchByName(String name) {
+        return packageRepository.searchByName(name);
+    }
+
+    public List<Package> searchByVersion(String version) {
+        return packageRepository.searchByVersion(version);
+    }
+
+    public List<Package> searchByPackageManager(String packageManager) {
+        return packageRepository.searchByPackageManager(packageManager);
+    }
+
     private List<Package> getPackageByNameAndVersion(String pkgName, String pkgVersion) {
         if (isNullEmptyOrWhitespace(pkgName)) {
             return Collections.emptyList();
@@ -436,7 +448,7 @@ public class PackageDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return packageRepository.searchByNameAndVersion(pkgName, pkgVersion, true);
     }
 
-    private List<Package> getPackageByPurl(String purl) {
+    public List<Package> getPackageByPurl(String purl) {
         if (isNullEmptyOrWhitespace(purl)) {
             return Collections.emptyList();
         }
