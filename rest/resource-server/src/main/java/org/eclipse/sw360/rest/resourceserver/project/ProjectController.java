@@ -251,8 +251,6 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         boolean isSearchByType = CommonUtils.isNotNullEmptyOrWhitespace(projectType);
         boolean isSearchByGroup = CommonUtils.isNotNullEmptyOrWhitespace(group);
         boolean isNoFilter = false;
-        String queryString = request.getQueryString();
-        Map<String, String> params = restControllerHelper.parseQueryString(queryString);
         List<Project> sw360Projects = new ArrayList<>();
         Map<String, Set<String>> filterMap = new HashMap<>();
         if (luceneSearch) {
@@ -279,11 +277,11 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             sw360Projects.addAll(projectService.refineSearch(filterMap, sw360User));
         } else {
             if (isSearchByName) {
-                sw360Projects.addAll(projectService.searchProjectByName(params.get("name"), sw360User));
+                sw360Projects.addAll(projectService.searchProjectByName(name, sw360User));
             } else if (isSearchByGroup) {
                 sw360Projects.addAll(projectService.searchProjectByGroup(group, sw360User));
             } else if (isSearchByTag) {
-                sw360Projects.addAll(projectService.searchProjectByTag(params.get("tag"), sw360User));
+                sw360Projects.addAll(projectService.searchProjectByTag(tag, sw360User));
             } else if (isSearchByType) {
                 sw360Projects.addAll(projectService.searchProjectByType(projectType, sw360User));
             } else {
@@ -1474,11 +1472,10 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             @Parameter(description = "External ID map for filter.",
                     example = "{\"project-ext\": \"515432\", \"project-ext\": \"7657\", \"portal-id\": \"13319-XX3\"}"
             )
-            HttpServletRequest request
+            @RequestParam MultiValueMap<String, String> externalIdsMultiMap
     ) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
-        String queryString = request.getQueryString();
-        return restControllerHelper.searchByExternalIds(queryString, projectService, sw360User);
+        return restControllerHelper.searchByExternalIds(externalIdsMultiMap, projectService, sw360User);
     }
 
     @Operation(

@@ -110,8 +110,6 @@ include::{snippets}/should_document_get_releases_with_fields/links.adoc[]
 A `GET` request will list all of the service's releases by name. +
 Please set the request parameter `&name=<NAME>`.
 
-Note : send query parameter's value in encoded format. (Reference: `https://datatracker.ietf.org/doc/html/rfc3986`)
-
 ===== Response structure
 include::{snippets}/should_document_get_releases_by_name/response-fields.adoc[]
 
@@ -131,8 +129,6 @@ include::{snippets}/should_document_get_releases_by_name/links.adoc[]
 A `GET` request will get all releases corresponding to external ids +
 The request parameter supports MultiValueMap (allows to add duplicate keys with different values) +
 It's possible to search for releases only by the external id key by leaving the value.
-
-Note : send query parameter's value in encoded format. (Reference: `https://datatracker.ietf.org/doc/html/rfc3986`)
 
 ===== Response structure
 include::{snippets}/should_document_get_releases_by_external-ids/response-fields.adoc[]
