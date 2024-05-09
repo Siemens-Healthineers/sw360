@@ -251,6 +251,8 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         boolean isSearchByType = CommonUtils.isNotNullEmptyOrWhitespace(projectType);
         boolean isSearchByGroup = CommonUtils.isNotNullEmptyOrWhitespace(group);
         boolean isNoFilter = false;
+        String queryString = request.getQueryString();
+        Map<String, String> params = restControllerHelper.parseQueryString(queryString);
         List<Project> sw360Projects = new ArrayList<>();
         Map<String, Set<String>> filterMap = new HashMap<>();
         if (luceneSearch) {
@@ -277,11 +279,11 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             sw360Projects.addAll(projectService.refineSearch(filterMap, sw360User));
         } else {
             if (isSearchByName) {
-                sw360Projects.addAll(projectService.searchProjectByName(name, sw360User));
+                sw360Projects.addAll(projectService.searchProjectByName(params.get("name"), sw360User));
             } else if (isSearchByGroup) {
                 sw360Projects.addAll(projectService.searchProjectByGroup(group, sw360User));
             } else if (isSearchByTag) {
-                sw360Projects.addAll(projectService.searchProjectByTag(tag, sw360User));
+                sw360Projects.addAll(projectService.searchProjectByTag(params.get("tag"), sw360User));
             } else if (isSearchByType) {
                 sw360Projects.addAll(projectService.searchProjectByType(projectType, sw360User));
             } else {
@@ -1472,10 +1474,11 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             @Parameter(description = "External ID map for filter.",
                     example = "{\"project-ext\": \"515432\", \"project-ext\": \"7657\", \"portal-id\": \"13319-XX3\"}"
             )
-            @RequestParam MultiValueMap<String, String> externalIdsMultiMap
+            HttpServletRequest request
     ) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
-        return restControllerHelper.searchByExternalIds(externalIdsMultiMap, projectService, sw360User);
+        String queryString = request.getQueryString();
+        return restControllerHelper.searchByExternalIds(queryString, projectService, sw360User);
     }
 
     @Operation(
@@ -1506,19 +1509,27 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             tags = {"Projects"}
     )
     @RequestMapping(value = PROJECTS_URL + "/{id}/attachmentUsage", method = RequestMethod.GET)
-    public ResponseEntity attachmentUsages(@Parameter(description = "Project ID.") @PathVariable("id") String id,  HttpServletRequest request)
-            throws URISyntaxException, TException {
+    public ResponseEntity attachmentUsages(@Parameter(description = "Project ID.") @PathVariable("id") String id,
+            @Parameter(description = "filtering attachmentUsages")
+            @RequestParam(value = "filter", required = false) String filter,
+            @Parameter(description = "Get the transitive releases.")
+            @RequestParam(value = "transitive", required = true) String transitive)
+            throws TException {
 
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Project sw360Project = projectService.getProjectForUserById(id, sw360User);
-        boolean transitive = true;
-        final Set<String> releaseIds = projectService.getReleaseIds(id, sw360User, transitive);
-        List<Release> releases = releaseIds.stream().map(relId -> wrapTException(() -> {
+        boolean isTransitive = Boolean.parseBoolean(transitive);
+        final Set<String> releaseIds = projectService.getReleaseIds(id, sw360User, isTransitive);
+        List<Release> releases = null;
+        if (filter != null) {
+            releases = filterReleases(sw360User, filter, releaseIds);
+        } else {
+            releases = releaseIds.stream().map(relId -> wrapTException(() -> {
                 final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
                 releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
                 return sw360Release;
-        })).collect(Collectors.toList());
-
+            })).collect(Collectors.toList());
+        }
         List<EntityModel<Release>> releaseList = releases.stream().map(sw360Release -> wrapTException(() -> {
                 final Release embeddedRelease = restControllerHelper.convertToEmbeddedReleaseAttachments(sw360Release);
                 final HalResource<Release> releaseResource = restControllerHelper.addEmbeddedReleaseLinks(embeddedRelease);
@@ -1612,6 +1623,83 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 		}
 		return modifiedList;
 	}
+
+    public List<Release> filterReleases(User sw360User, String filter, Set<String> releaseIds) {
+        List<Release> releasesSrc = new ArrayList<>();
+
+        switch (filter) {
+            case "withSourceAttachment":
+                releasesSrc = releaseIds.stream().map(relId -> wrapTException(() -> {
+                    final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+                    releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+                    List<Attachment> sourceAttachments = sw360Release.getAttachments().stream()
+                        .filter(attachment -> attachment.getAttachmentType() == AttachmentType.SOURCE || attachment.getAttachmentType() == AttachmentType.SOURCE_SELF)
+                        .collect(Collectors.toList());
+                    Set<Attachment> sourceAttachmentsSet = new HashSet<>(sourceAttachments);
+                    sw360Release.setAttachments(sourceAttachmentsSet);
+                    return sourceAttachmentsSet.isEmpty() ? null : sw360Release;
+                }))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                break;
+            case "withoutSourceAttachment":
+                releasesSrc = releaseIds.stream().map(relId -> wrapTException(() -> {
+                    final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+                    releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+                    List<Attachment> withoutSourceAttachments = sw360Release.getAttachments().stream()
+                        .filter(attachment -> attachment.getAttachmentType() != AttachmentType.SOURCE && attachment.getAttachmentType() != AttachmentType.SOURCE_SELF)
+                        .collect(Collectors.toList());
+                    Set<Attachment> withoutSourceAttachmentsSet = new HashSet<>(withoutSourceAttachments);
+                    sw360Release.setAttachments(withoutSourceAttachmentsSet);
+                    return withoutSourceAttachmentsSet.isEmpty() ? null : sw360Release;
+                }))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                break;
+            case "withoutAttachment":
+                releasesSrc = releaseIds.stream().map(relId -> wrapTException(() -> {
+                    final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+                    releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+                    return sw360Release.getAttachments().isEmpty() ? sw360Release : null;
+                }))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                break;
+            case "withAttachment":
+                releasesSrc = releaseIds.stream().map(relId -> wrapTException(() -> {
+                    final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+                    releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+                    return sw360Release.getAttachments().isEmpty() ? null : sw360Release;
+                }))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                break;
+            case "withCliAttachment":
+                releasesSrc = releaseIds.stream().map(relId -> wrapTException(() -> {
+                    final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+                    releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+                    List<Attachment> cliAttachments = sw360Release.getAttachments().stream()
+                        .filter(attachment -> attachment.getAttachmentType() == AttachmentType.COMPONENT_LICENSE_INFO_XML)
+                        .collect(Collectors.toList());
+                    Set<Attachment> cliAttachmentsSet = new HashSet<>(cliAttachments);
+                    sw360Release.setAttachments(cliAttachmentsSet);
+                    return cliAttachmentsSet.isEmpty() ? null : sw360Release;
+                }))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+                break;
+            default:
+                releasesSrc = releaseIds.stream().map(relId -> wrapTException(() -> {
+                    final Release sw360Release = releaseService.getReleaseForUserById(relId, sw360User);
+                    releaseService.setComponentDependentFieldsInRelease(sw360Release, sw360User);
+                    return sw360Release;
+                }))
+                .collect(Collectors.toList());
+                break;
+        }
+
+        return releasesSrc;
+    }
 
     private HalResource attachmentUsageReleases(Project sw360Project, List<Map<String, Object>> releases, List<Map<String, Object>> attachmentUsageMap)
             throws TException {
@@ -1753,7 +1841,10 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
 
         if (requestSummary.getRequestStatus() == RequestStatus.FAILURE) {
             return new ResponseEntity<String>(requestSummary.getMessage(), HttpStatus.BAD_REQUEST);
+        }else if(requestSummary.getRequestStatus() == RequestStatus.ACCESS_DENIED){
+            return new ResponseEntity<String>("You do not have sufficient permissions.", HttpStatus.UNAUTHORIZED);
         }
+
         String jsonMessage = requestSummary.getMessage();
         messageMap = new Gson().fromJson(jsonMessage, Map.class);
         projectId = messageMap.get("projectId");
@@ -1762,6 +1853,10 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             return new ResponseEntity<String>(
                     "A project with same name and version already exists. The projectId is: " + projectId,
                     HttpStatus.CONFLICT);
+        }else if (requestSummary.getRequestStatus() == RequestStatus.FAILED_SANITY_CHECK){
+            return new ResponseEntity<String>(
+                    "Project name or version present in SBOM metadata tag is not same as the current SW360 project!",
+                    HttpStatus.BAD_REQUEST);
         }
 
         Project project = projectService.getProjectForUserById(projectId, sw360User);
@@ -2131,8 +2226,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             tags = {"Project"}
     )
     @RequestMapping(value = PROJECTS_URL + "/{id}/licenseDbObligations", method = RequestMethod.GET)
-	public ResponseEntity<?> getLicObligations(@RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size,
+	public ResponseEntity<?> getLicObligations(Pageable pageable,
             @Parameter(description = "Project ID.") @PathVariable("id") String id)
             throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
@@ -2147,29 +2241,32 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         Map<String, Set<Release>> licensesFromAttachmentUsage = projectService.getLicensesFromAttachmentUsage(licenseInfoAttachmentUsage, sw360User);
         Map<String, ObligationStatusInfo> licenseObligation = projectService.getLicenseObligationData(licensesFromAttachmentUsage, sw360User);
 
+        Map<String, Object> responseBody = createPaginationMetadata(pageable, licenseObligation);
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+    }
+
+    private Map<String, Object> createPaginationMetadata(Pageable pageable, Map<String, ObligationStatusInfo> licenseObligation) {
         List<Map.Entry<String, ObligationStatusInfo>> entries = new ArrayList<>(licenseObligation.entrySet());
-        int startIndex = page * size;
-        int endIndex = Math.min(startIndex + size, entries.size());
-        entries = entries.subList(startIndex, endIndex);
+        int pageSize = pageable.getPageSize();
+        int pageNumber = pageable.getPageNumber();
+        int start = pageNumber * pageSize;
+        int end = Math.min(start + pageSize, entries.size());
+        entries = entries.subList(start, end);
+        int totalPages = (int) Math.ceil((double) licenseObligation.size()/ pageSize);
         Map<String, ObligationStatusInfo> paginatedMap = new LinkedHashMap<>();
         for (Map.Entry<String, ObligationStatusInfo> entry : entries) {
             paginatedMap.put(entry.getKey(), entry.getValue());
         }
-        Map<String, Integer> paginationMetadata = createPaginationMetadata(page, size, licenseObligation.size());
-        Map<String, Object> responseBody = new LinkedHashMap<>();
-        responseBody.put("licenseDbObligations", paginatedMap);
-        responseBody.put("page", paginationMetadata);
-        return new ResponseEntity<>(responseBody, HttpStatus.OK);
-    }
-
-    private Map<String, Integer> createPaginationMetadata(int page, int size, int totalElements) {
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-        return Map.of(
-            "size", size,
-            "totalElements", totalElements,
+        Map<String, Integer> pagination =  Map.of(
+            "size", pageSize,
+            "totalElements", licenseObligation.size(),
             "totalPages", totalPages,
-            "number", page
+            "number", pageNumber
         );
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("page", pagination);
+        responseBody.put("licenseObligations", paginatedMap);
+        return responseBody;
     }
 
     @Operation(
@@ -2177,7 +2274,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             tags = {"Project"}
     )
     @RequestMapping(value = PROJECTS_URL + "/{id}/licenseObligations", method = RequestMethod.GET)
-	public ResponseEntity<HalResource> getLicenseObligations(
+	public ResponseEntity<HalResource> getLicenseObligations(Pageable pageable,
             @Parameter(description = "Project ID.") @PathVariable("id") String id)
             throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
@@ -2200,8 +2297,14 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         }
 
         obligationStatusMap = projectService.setLicenseInfoWithObligations(obligationStatusMap, releaseIdToAcceptedCLI, releases, sw360User);
+        for (Map.Entry<String, ObligationStatusInfo> entry : obligationStatusMap.entrySet()) {
+            ObligationStatusInfo statusInfo = entry.getValue();
+            Set<Release> limitedSet = releaseService.getReleasesForUserByIds(statusInfo.getReleaseIdToAcceptedCLI().keySet());
+            statusInfo.setReleases(limitedSet);
+        }
 
-        HalResource<Map<String, ObligationStatusInfo>> halObligation = new HalResource<>(obligationStatusMap);
+        Map<String, Object> responseBody = createPaginationMetadata(pageable, obligationStatusMap);
+        HalResource<Map<String, Object>> halObligation = new HalResource<>(responseBody);
         return new ResponseEntity<>(halObligation, HttpStatus.OK);
     }
 
@@ -2296,11 +2399,11 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
     private void setAdditionalFieldsToHalResource(Project sw360Project, HalResource<Project> userHalResource) throws TException {
         try {
             User projectModifier = restControllerHelper.getUserByEmail(sw360Project.getModifiedBy());
-            if (projectModifier != null) {
+            if (projectModifier != null && projectModifier.getEmail() != null) {
                 restControllerHelper.addEmbeddedUser(userHalResource, projectModifier, "modifiedBy");
             }
             User projectOwner = restControllerHelper.getUserByEmail(sw360Project.getProjectOwner());
-            if (projectOwner != null) {
+            if (projectOwner != null && projectOwner.getEmail() != null) {
                 restControllerHelper.addEmbeddedUser(userHalResource, projectOwner, "projectOwner");
             }
             if (sw360Project.getSecurityResponsibles() == null || sw360Project.getSecurityResponsibles().isEmpty()) {
@@ -2316,7 +2419,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             if (sw360Project.getProjectResponsible() != null) {
                 restControllerHelper.addEmbeddedProjectResponsible(userHalResource,sw360Project.getProjectResponsible());
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new TException(e.getMessage());
         }
     }

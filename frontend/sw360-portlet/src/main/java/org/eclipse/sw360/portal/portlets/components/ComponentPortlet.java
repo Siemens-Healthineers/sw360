@@ -903,6 +903,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             JsonNode input = OBJECT_MAPPER.readValue(request.getParameter(SPDX_LICENSE_INFO), JsonNode.class);
             JsonNode licenesIdsNode = input.get(LICENSE_IDS);
             if (null != licenesIdsNode) {
+                release.getMainLicenseIds().clear();
                 if (licenesIdsNode.isArray()) {
                     for (JsonNode objNode : licenesIdsNode) {
                         release.addToMainLicenseIds(objNode.asText());
@@ -913,6 +914,7 @@ public class ComponentPortlet extends FossologyAwarePortlet {
             }
             licenesIdsNode = input.get("otherLicenseIds");
             if (null != licenesIdsNode) {
+                release.getOtherLicenseIds().clear();
                 if (licenesIdsNode.isArray()) {
                     for (JsonNode objNode : licenesIdsNode) {
                         release.addToOtherLicenseIds(objNode.asText());

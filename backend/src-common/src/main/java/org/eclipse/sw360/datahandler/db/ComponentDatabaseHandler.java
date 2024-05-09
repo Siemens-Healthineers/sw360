@@ -455,10 +455,10 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
      * Add new release to the database
      */
     public AddDocumentRequestSummary addComponent(Component component, String user) throws SW360Exception {
-        if(isDuplicateUsingVcs(component.getVcs())){
+        if(isDuplicateUsingVcs(component, true)){
             final AddDocumentRequestSummary addDocumentRequestSummary = new AddDocumentRequestSummary()
                     .setRequestStatus(AddDocumentRequestStatus.DUPLICATE);
-            Set<String> duplicates = componentRepository.getComponentIdsByVCS(component.getVcs().toLowerCase());
+            Set<String> duplicates = componentRepository.getComponentIdsByVCS(component.getVcs(), true);
             if (duplicates.size() == 1) {
                 duplicates.forEach(addDocumentRequestSummary::setId);
             }
@@ -605,11 +605,15 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         return duplicates.size()>0;
     }
 
-    private boolean isDuplicateUsingVcs(String vcsUrl){
+    private boolean isDuplicateUsingVcs(Component component, boolean caseInsenstive){
+        return isDuplicateUsingVcs(component.getVcs(), caseInsenstive);
+    }
+
+    private boolean isDuplicateUsingVcs(String vcsUrl, boolean caseInsenstive){
         if (isNullEmptyOrWhitespace(vcsUrl)) {
             return false;
         }
-        Set<String> duplicates = componentRepository.getComponentIdsByVCS(vcsUrl.toLowerCase());
+        Set<String> duplicates = componentRepository.getComponentIdsByVCS(vcsUrl, caseInsenstive);
         return duplicates.size()>0;
     }
 
@@ -3068,7 +3072,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         components.forEach(c -> {
             String VCS = c.getVcs();
             log.info(String.format("SRC Upload: %s %s", c.getId(), VCS));
-            if (isValidURL(VCS)) {
+            // Add more domains in the future and include the download logic accordingly
+            if (VCS.toLowerCase().contains("github.com")) {
                 for (String r_id : c.getReleaseIds()) {
                     boolean isUploaded = false;
                     Release r = getRelease(r_id);
@@ -3148,10 +3153,9 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
     public File downloadFile(String url, String destinationDirectory) throws IOException {
         URL fileUrl = new URL(url);
-        String regex = ".*/([^/]+)/archive/refs/tags/(?:v)?([\\d.]+)\\.zip$";
+        String regex = ".*/([^/]+)/archive/refs/tags/(?:v)?(.*).zip$";
         String fileName = url.replaceAll(regex, "$1-$2.zip");
-        Path destinationPath = Paths.get(destinationDirectory, fileName);
-
+        Path destinationPath = Paths.get(destinationDirectory, fileName.replace("/","-"));
         try (InputStream in = fileUrl.openStream()) {
             Files.copy(in, destinationPath, StandardCopyOption.REPLACE_EXISTING);
         }
