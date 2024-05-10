@@ -270,16 +270,17 @@ public class CycloneDxBOMImporter {
                                     componentsWithoutVcs.add(fullName);
 
                                     if (CommonUtils.isNotNullEmptyOrWhitespace(pkgAddSummary.getId())) {
-                                        project.addToPackageIds(pkgAddSummary.getId());
                                         pkg.setId(pkgAddSummary.getId());
                                         if (AddDocumentRequestStatus.DUPLICATE.equals(pkgAddSummary.getRequestStatus())) {
-                                            pkgReuseCount++;
+                                            if(!CommonUtils.nullToEmptySet(project.getPackageIds()).contains(pkgAddSummary.getId())){
+                                                pkgReuseCount++;
+                                            }
                                             Package dupPkg = packageDatabaseHandler.getPackageById(pkgAddSummary.getId());
                                             if (CommonUtils.isNotNullEmptyOrWhitespace(dupPkg.getReleaseId())) {
-                                                if (!CommonUtils.nullToEmptyMap(project.getReleaseIdToUsage()).containsKey(pkgAddSummary.getId())) {
-                                                    project.putToReleaseIdToUsage(pkgAddSummary.getId(), getDefaultRelation());
+                                                if (!CommonUtils.nullToEmptyMap(project.getReleaseIdToUsage()).containsKey(dupPkg.getReleaseId())) {
+                                                    project.putToReleaseIdToUsage(dupPkg.getReleaseId(), getDefaultRelation());
+                                                    relReuseCount++;
                                                 }
-                                                relReuseCount++;
                                             }
                                         } else {
                                             pkgCreationCount++;
@@ -290,6 +291,7 @@ public class CycloneDxBOMImporter {
                                         duplicatePackages.add(fullName);
                                         continue;
                                     }
+                                    project.addToPackageIds(pkgAddSummary.getId());
                                 } catch (SW360Exception e) {
                                     log.error("An error occured while creating/adding package from SBOM: " + e.getMessage());
                                     continue;
@@ -587,6 +589,8 @@ public class CycloneDxBOMImporter {
 
                 if (CommonUtils.isNotNullEmptyOrWhitespace(compAddSummary.getId())) {
                     comp.setId(compAddSummary.getId());
+                    String existingCompName = getComponetNameById(comp.getId(), user);
+                    comp.setName(existingCompName);
                 } else {
                     // in case of more than 1 duplicate found, then continue and show error message in UI.
                     log.warn("found multiple components: " + comp.getName());
@@ -664,7 +668,9 @@ public class CycloneDxBOMImporter {
                                     dupPkg.setReleaseId(release.getId());
                                     packageDatabaseHandler.updatePackage(dupPkg, user);
                                 }
-                                pkgReuseCount++;
+                                if(!CommonUtils.nullToEmptySet(project.getPackageIds()).contains(pkg.getId())){
+                                    pkgReuseCount++;
+                                }
                             } else {
                                 pkgCreationCount++;
                             }
@@ -1080,13 +1086,13 @@ public class CycloneDxBOMImporter {
             if (ExternalReference.Type.VCS.equals(ref.getType())) {
                 String vcsUrl = ref.getUrl().toLowerCase();
 
-                if(vcsUrl.equals("cots")){
+                if (vcsUrl.equals("cots")) {
                     return true;
-                }else{
+                } else {
                     vcsUrl = vcsUrl.replaceAll(SCHEMA_PATTERN, "$1");
                     Matcher matcherForThirdSlashPattern = THIRD_SLASH_PATTERN.matcher(vcsUrl);
                     if (matcherForThirdSlashPattern.find()) {
-                        String vcsUrlAfterThirdSlash  = matcherForThirdSlashPattern.group();
+                        String vcsUrlAfterThirdSlash = matcherForThirdSlashPattern.group();
                         Matcher matcherForFirstSlashPattern = FIRST_SLASH_PATTERN.matcher(vcsUrlAfterThirdSlash);
                         if (matcherForFirstSlashPattern.find()) {
                             return true;
@@ -1096,5 +1102,10 @@ public class CycloneDxBOMImporter {
             }
         }
         return false;
+    }
+    
+    public String getComponetNameById(String id, User user) throws SW360Exception {
+        Component comp = componentDatabaseHandler.getComponent(id, user);
+        return comp.getName();
     }
 }

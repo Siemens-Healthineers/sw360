@@ -491,6 +491,13 @@ public class RestControllerHelper<T> {
         }
     }
 
+    public Set<String> getObligationIdsFromRequestWithValueTrue(Map<String, Boolean> reqBodyMaps) {
+        Map<String, Boolean> obligationIdsRequest = reqBodyMaps.entrySet().stream()
+                .filter(reqBodyMap-> reqBodyMap.getValue().equals(true))
+                .collect(Collectors.toMap(reqBodyMap-> reqBodyMap.getKey(),reqBodyMap -> reqBodyMap.getValue()));
+        return obligationIdsRequest.keySet();
+    }
+
     private HalResource<License> addEmbeddedLicense(String licenseId) {
         License embeddedLicense = convertToEmbeddedLicense(licenseId);
         HalResource<License> halLicense = new HalResource<>(embeddedLicense);
@@ -881,6 +888,7 @@ public class RestControllerHelper<T> {
         }
         return embeddedRelease;
     }
+
 
     public License convertToEmbeddedLicense(License license) {
         License embeddedLicense = new License();
@@ -1429,5 +1437,12 @@ public class RestControllerHelper<T> {
         User sw360User = getUserByEmail(clearingTeam);
         if(sw360User!=null)
             addEmbeddedUser(userHalResource, sw360User, resource);
+    }
+
+    public void addEmbeddedOtherLicenses(HalResource<Release> halRelease, Set<String> licenseIds) {
+        for (String licenseId : licenseIds) {
+            HalResource<License> licenseHalResource = addEmbeddedLicense(licenseId);
+            halRelease.addEmbeddedResource("sw360:otherLicenses", licenseHalResource);
+        }
     }
 }

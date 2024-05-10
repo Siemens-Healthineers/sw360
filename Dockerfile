@@ -111,40 +111,30 @@ FROM scratch AS thrift
 COPY --from=sw360thriftbuild /usr/local/bin/thrift /usr/local/bin/thrift
 
 #--------------------------------------------------------------------------------------------------
-# Couchdb-Lucene
-FROM maven:3.9-eclipse-temurin-11 as sw360clucenebuild
+# SW360 Build Test image
+# Base image to build with test
 
-ARG CLUCENE_VERSION
+FROM maven:3-eclipse-temurin-11 as sw360test
 
-WORKDIR /build
+COPY --from=thrift /usr/local/bin/thrift /usr/bin
 
+# Thanks to Liferay, we need fix the java version
+ENV _JAVA_OPTIONS='-Djdk.util.zip.disableZip64ExtraFieldValidation=true'
+
+SHELL ["/bin/bash", "-c"]
+
+# Install mkdocs to generate documentation
 RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get -qq update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y --no-install-recommends \
     gettext-base \
-    patch
-
-# Prepare maven from binary to avoid wrong java dependencies and proxy
-COPY scripts/docker-config/mvn-proxy-settings.xml /etc
-COPY scripts/docker-config/set_proxy.sh /usr/local/bin/setup_maven_proxy
-RUN chmod a+x /usr/local/bin/setup_maven_proxy \
-    && setup_maven_proxy
-
-# Prepare source code
-COPY ./scripts/docker-config/couchdb-lucene.ini /var/tmp/couchdb-lucene.ini
-COPY ./scripts/patches/couchdb-lucene.patch /var/tmp/couchdb-lucene.patch
-
-# Build CLucene
-RUN --mount=type=tmpfs,target=/build \
-    --mount=type=cache,target=/root/.m2 \
-    curl -JL https://github.com/rnewson/couchdb-lucene/archive/v"$CLUCENE_VERSION".tar.gz | tar -C /build -xz --strip-components=1 \
-    && patch -p1 < /var/tmp/couchdb-lucene.patch \
-    && cp /var/tmp/couchdb-lucene.ini src/main/resources/couchdb-lucene.ini \
-    && mvn -X install war:war \
-    && cp ./target/*.war /couchdb-lucene.war
-
-FROM scratch AS sw360clucene
-COPY --from=sw360clucenebuild /couchdb-lucene.war /couchdb-lucene.war
+    git \
+    python3-pip \
+    python3-wheel \
+    zip \
+    unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install mkdocs-material
 
 #--------------------------------------------------------------------------------------------------
 # SW360
