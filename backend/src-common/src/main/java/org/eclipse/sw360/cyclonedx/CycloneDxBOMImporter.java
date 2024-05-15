@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.ArrayList;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -168,7 +169,7 @@ public class CycloneDxBOMImporter {
     }
 
     @SuppressWarnings("unchecked")
-    public RequestSummary importFromBOM(InputStream inputStream, AttachmentContent attachmentContent, String projectId, User user) {
+    public RequestSummary importFromBOM(InputStream inputStream, AttachmentContent attachmentContent, String projectId, User user, boolean replacePackageFlag) {
         RequestSummary requestSummary = new RequestSummary();
         Map<String, String> messageMap = new HashMap<>();
         requestSummary.setRequestStatus(RequestStatus.FAILURE);
@@ -208,17 +209,17 @@ public class CycloneDxBOMImporter {
 
             if (!IS_PACKAGE_PORTLET_ENABLED) {
                 vcsToComponentMap.put("", components);
-                requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent);
+                requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent, replacePackageFlag);
             } else {
 
                 vcsToComponentMap = getVcsToComponentMap(components);
                 nonPkgManagedComponents = getNonPkgManagedComponents(components);
                 if (componentsCount == vcsCount) {
 
-                    requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent);
+                    requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent, replacePackageFlag);
                 } else if (componentsCount > vcsCount) {
 
-                    requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent);
+                    requestSummary = importSbomAsProject(compMetadata, vcsToComponentMap, nonPkgManagedComponents, projectId, attachmentContent, replacePackageFlag);
 
                     if (requestSummary.requestStatus.equals(RequestStatus.SUCCESS)) {
 
@@ -248,6 +249,7 @@ public class CycloneDxBOMImporter {
                             packages = "";
                         }
                         Project project = projectDatabaseHandler.getProjectById(projId, user);
+                        Set<String> projectPkgIds = CommonUtils.isNullOrEmptyCollection(project.getPackageIds()) ? new HashSet<>() : project.getPackageIds();
 
                         for (org.cyclonedx.model.Component comp : components) {
 
@@ -268,6 +270,18 @@ public class CycloneDxBOMImporter {
                                 try {
                                     AddDocumentRequestSummary pkgAddSummary = packageDatabaseHandler.addPackage(pkg, user);
                                     componentsWithoutVcs.add(fullName);
+
+                                    if(replacePackageFlag && CommonUtils.isNotEmpty(projectPkgIds)){
+                                        List<String> packagesToBeRemoved = new ArrayList<>();
+                                        for(String pkgId: projectPkgIds){
+                                            Package existingPkg = packageDatabaseHandler.getPackageById(pkgId);
+                                            if(pkg.getName().equals(existingPkg.getName()) && !pkg.getVersion().equals(existingPkg.getVersion())){
+                                                log.error("existing pkg and release need to be replaced " + existingPkg.getId() );
+                                                packagesToBeRemoved.add(pkgId);
+                                            }
+                                        }
+                                        unlinkPackageAndReleaseFromProject(project, packagesToBeRemoved);
+                                    }
 
                                     if (CommonUtils.isNotNullEmptyOrWhitespace(pkgAddSummary.getId())) {
                                         pkg.setId(pkgAddSummary.getId());
@@ -383,7 +397,7 @@ public class CycloneDxBOMImporter {
     }
 
     public RequestSummary importSbomAsProject(org.cyclonedx.model.Component compMetadata,
-            Map<String, List<org.cyclonedx.model.Component>> vcsToComponentMap, List<org.cyclonedx.model.Component> nonPkgManagedComponents, String projectId, AttachmentContent attachmentContent)
+            Map<String, List<org.cyclonedx.model.Component>> vcsToComponentMap, List<org.cyclonedx.model.Component> nonPkgManagedComponents, String projectId, AttachmentContent attachmentContent, boolean replacePackageFlag)
                     throws SW360Exception {
         final RequestSummary summary = new RequestSummary();
         summary.setRequestStatus(RequestStatus.FAILURE);
@@ -436,7 +450,7 @@ public class CycloneDxBOMImporter {
         }
 
         if (IS_PACKAGE_PORTLET_ENABLED) {
-            messageMap = importAllComponentsAsPackages(vcsToComponentMap, nonPkgManagedComponents, project);
+            messageMap = importAllComponentsAsPackages(vcsToComponentMap, nonPkgManagedComponents, project, replacePackageFlag);
         } else {
             messageMap = importAllComponentsAsReleases(vcsToComponentMap, project);
         }
@@ -566,7 +580,7 @@ public class CycloneDxBOMImporter {
         return messageMap;
     }
 
-    private Map<String, String> importAllComponentsAsPackages(Map<String, List<org.cyclonedx.model.Component>> vcsToComponentMap, List<org.cyclonedx.model.Component> nonPkgManagedComponents, Project project) {
+    private Map<String, String> importAllComponentsAsPackages(Map<String, List<org.cyclonedx.model.Component>> vcsToComponentMap, List<org.cyclonedx.model.Component> nonPkgManagedComponents, Project project, boolean replacePackageFlag) {
         final var countMap = new HashMap<String, Integer>();
         final Set<String> duplicateComponents = new HashSet<>();
         final Set<String> duplicateReleases = new HashSet<>();
@@ -575,10 +589,10 @@ public class CycloneDxBOMImporter {
         final Set<String> nonPkgManagedCompWithoutVCS = new HashSet<>();
         final Set<String> invalidPackages = new HashSet<>();
         final Map<String, ProjectReleaseRelationship> releaseRelationMap = CommonUtils.isNullOrEmptyMap(project.getReleaseIdToUsage()) ? new HashMap<>() : project.getReleaseIdToUsage();
+        Set<String> projectPkgIds = CommonUtils.isNullOrEmptyCollection(project.getPackageIds()) ? new HashSet<>() : project.getPackageIds();
         countMap.put(REL_CREATION_COUNT_KEY, 0); countMap.put(REL_REUSE_COUNT_KEY, 0);
         countMap.put(PKG_CREATION_COUNT_KEY, 0); countMap.put(PKG_REUSE_COUNT_KEY, 0);
         int relCreationCount = 0, relReuseCount = 0, pkgCreationCount = 0, pkgReuseCount = 0;
-
         for (Map.Entry<String, List<org.cyclonedx.model.Component>> entry : vcsToComponentMap.entrySet()) {
             Component comp = createComponent(entry.getKey());
             Release release = new Release();
@@ -610,6 +624,7 @@ public class CycloneDxBOMImporter {
 
                     try {
                         AddDocumentRequestSummary relAddSummary = componentDatabaseHandler.addRelease(release, user);
+
                         if (CommonUtils.isNotNullEmptyOrWhitespace(relAddSummary.getId())) {
                             release.setId(relAddSummary.getId());
                             if (AddDocumentRequestStatus.SUCCESS.equals(relAddSummary.getRequestStatus())) {
@@ -660,6 +675,18 @@ public class CycloneDxBOMImporter {
 
                     try {
                         AddDocumentRequestSummary pkgAddSummary = packageDatabaseHandler.addPackage(pkg, user);
+                        if(replacePackageFlag && !CommonUtils.isNullOrEmptyMap(releaseRelationMap)){
+                            List<String> packagesToBeRemoved = new ArrayList<>();
+                            for(String pkgId: projectPkgIds){
+                                Package existingPkg = packageDatabaseHandler.getPackageById(pkgId);
+                                if(pkg.getName().equals(existingPkg.getName()) && !pkg.getVersion().equals(existingPkg.getVersion())){
+                                    log.error("existing pkg and release need to be replaced " + existingPkg.getId() );
+                                    packagesToBeRemoved.add(pkgId);
+                                }
+                            }
+                            unlinkPackageAndReleaseFromProject(project, packagesToBeRemoved);
+                        }
+
                         if (CommonUtils.isNotNullEmptyOrWhitespace(pkgAddSummary.getId())) {
                             pkg.setId(pkgAddSummary.getId());
                             if (AddDocumentRequestStatus.DUPLICATE.equals(pkgAddSummary.getRequestStatus())) {
@@ -1110,5 +1137,37 @@ public class CycloneDxBOMImporter {
     public String getComponetNameById(String id, User user) throws SW360Exception {
         Component comp = componentDatabaseHandler.getComponent(id, user);
         return comp.getName();
+    }
+
+    public void unlinkPackageAndReleaseFromProject(Project project, List<String> packagesToBeRemoved) throws SW360Exception {
+        Map<String, ProjectReleaseRelationship> releaseRelationMap = CommonUtils.isNullOrEmptyMap(project.getReleaseIdToUsage()) ? new HashMap<>() : project.getReleaseIdToUsage();
+        Set<String> projectPkgIds = CommonUtils.isNullOrEmptyCollection(project.getPackageIds()) ? new HashSet<>() : project.getPackageIds();
+
+        for (String pkgIdToBeRemoved: packagesToBeRemoved){
+            //fetching the linked release form a pkg
+            String linkedReleaseId = packageDatabaseHandler.getPackageById(pkgIdToBeRemoved).getReleaseId();
+
+            //Removing the pkg
+            projectPkgIds.remove(pkgIdToBeRemoved);
+
+            //removing the release linked from pkg only if the other packages in project are not linked to this rel
+            boolean isReleaseUnlinkPossible = true;
+            if(CommonUtils.isNotNullEmptyOrWhitespace(linkedReleaseId)){
+                for(String pkgId: projectPkgIds){
+                    Package pkg = packageDatabaseHandler.getPackageById(pkgId);
+                    if(CommonUtils.isNotNullEmptyOrWhitespace(pkg.getReleaseId()) && pkg.getReleaseId().equals(linkedReleaseId)){
+                        isReleaseUnlinkPossible = false;
+                        break;
+                    }
+                };
+            }
+
+            if(CommonUtils.isNotNullEmptyOrWhitespace(linkedReleaseId) && isReleaseUnlinkPossible){
+                releaseRelationMap.remove(linkedReleaseId);
+            }
+        }
+
+        project.setPackageIds(projectPkgIds);
+        project.setReleaseIdToUsage(releaseRelationMap);
     }
 }
