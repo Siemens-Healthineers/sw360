@@ -648,8 +648,9 @@ public class CycloneDxBOMImporter {
                         log.info("updating component successfull: " + comp.getName());
                     }
 
+                    releaseRelationMap.putIfAbsent(release.getId(), getDefaultRelation());
                     Package pkg = createPackage(bomComp, release, licenses);
-                    String pkgName = SW360Utils.getVersionedName(pkg.getName(), pkg.getVersion());
+                    String pkgName = pkg == null ? SW360Utils.getVersionedName(bomComp.getName(), bomComp.getVersion()) : SW360Utils.getVersionedName(pkg.getName(), pkg.getVersion());
                     if (pkg == null || CommonUtils.isNullEmptyOrWhitespace(pkg.getName()) || CommonUtils.isNullEmptyOrWhitespace(pkg.getVersion())
                             || CommonUtils.isNullEmptyOrWhitespace(pkg.getPurl())) {
                         invalidPackages.add(pkgName);
