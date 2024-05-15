@@ -1845,7 +1845,7 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
             @PathVariable(value = "id", required = true) String id,
             @Parameter(description = "SBOM file")
             @RequestBody MultipartFile file,
-            @RequestParam(value = "replacePackageFlag", required = true) boolean replacePackageFlag
+            @RequestParam(value = "replacePackageFlag", required = false) boolean replacePackageFlag
     ) throws TException {
         final User sw360User = restControllerHelper.getSw360UserFromAuthentication();
         Attachment attachment = null;

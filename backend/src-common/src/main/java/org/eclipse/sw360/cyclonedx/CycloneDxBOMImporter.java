@@ -275,8 +275,9 @@ public class CycloneDxBOMImporter {
                                         List<String> packagesToBeRemoved = new ArrayList<>();
                                         for(String pkgId: projectPkgIds){
                                             Package existingPkg = packageDatabaseHandler.getPackageById(pkgId);
-                                            if(pkg.getName().equals(existingPkg.getName()) && !pkg.getVersion().equals(existingPkg.getVersion())){
-                                                log.error("existing pkg and release need to be replaced " + existingPkg.getId() );
+                                            String existingPkgPURLWithoutVersion = existingPkg.getPurl().split("@")[0];
+                                            String currPkgPURLWithoutVersion = pkg.getPurl().split("@")[0];
+                                            if(currPkgPURLWithoutVersion.equals(existingPkgPURLWithoutVersion) && !pkg.getVersion().equals(existingPkg.getVersion())){
                                                 packagesToBeRemoved.add(pkgId);
                                             }
                                         }
@@ -694,8 +695,9 @@ public class CycloneDxBOMImporter {
                             List<String> packagesToBeRemoved = new ArrayList<>();
                             for(String pkgId: projectPkgIds){
                                 Package existingPkg = packageDatabaseHandler.getPackageById(pkgId);
-                                if(pkg.getName().equals(existingPkg.getName()) && !pkg.getVersion().equals(existingPkg.getVersion())){
-                                    log.error("existing pkg and release need to be replaced " + existingPkg.getId() );
+                                String existingPkgPURLWithoutVersion = existingPkg.getPurl().split("@")[0];
+                                String currPkgPURLWithoutVersion = pkg.getPurl().split("@")[0];
+                                if(currPkgPURLWithoutVersion.equals(existingPkgPURLWithoutVersion) && !pkg.getVersion().equals(existingPkg.getVersion())){
                                     packagesToBeRemoved.add(pkgId);
                                 }
                             }
@@ -1159,27 +1161,22 @@ public class CycloneDxBOMImporter {
         Map<String, ProjectReleaseRelationship> releaseRelationMap = CommonUtils.isNullOrEmptyMap(project.getReleaseIdToUsage()) ? new HashMap<>() : project.getReleaseIdToUsage();
         Set<String> projectPkgIds = CommonUtils.isNullOrEmptyCollection(project.getPackageIds()) ? new HashSet<>() : project.getPackageIds();
 
-        for (String pkgIdToBeRemoved : packagesToBeRemoved) {
-            //fetching the linked release form a pkg
+        for (String pkgIdToBeRemoved: packagesToBeRemoved){
             String linkedReleaseId = packageDatabaseHandler.getPackageById(pkgIdToBeRemoved).getReleaseId();
 
-            //Removing the pkg
             projectPkgIds.remove(pkgIdToBeRemoved);
-
-            //removing the release linked from pkg only if the other packages in project are not linked to this rel
-            boolean isReleaseUnlinkPossible = true;
-            if (CommonUtils.isNotNullEmptyOrWhitespace(linkedReleaseId)) {
-                for (String pkgId : projectPkgIds) {
+            boolean unlinkRelease = true;
+            if(CommonUtils.isNotNullEmptyOrWhitespace(linkedReleaseId)){
+                for(String pkgId: projectPkgIds){
                     Package pkg = packageDatabaseHandler.getPackageById(pkgId);
-                    if (CommonUtils.isNotNullEmptyOrWhitespace(pkg.getReleaseId()) && pkg.getReleaseId().equals(linkedReleaseId)) {
-                        isReleaseUnlinkPossible = false;
+                    if(CommonUtils.isNotNullEmptyOrWhitespace(pkg.getReleaseId()) && pkg.getReleaseId().equals(linkedReleaseId)){
+                        unlinkRelease = false;
                         break;
                     }
-                }
-                ;
+                };
             }
 
-            if (CommonUtils.isNotNullEmptyOrWhitespace(linkedReleaseId) && isReleaseUnlinkPossible) {
+            if(CommonUtils.isNotNullEmptyOrWhitespace(linkedReleaseId) && unlinkRelease){
                 releaseRelationMap.remove(linkedReleaseId);
             }
         }
