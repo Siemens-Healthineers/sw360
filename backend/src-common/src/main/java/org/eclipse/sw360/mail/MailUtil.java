@@ -74,6 +74,7 @@ public class MailUtil extends BackendUtils {
     private String supportMailAddress;
     private String smtpSSLProtocol;
     private String smtpSSLTrust;
+    private String excludeRecipient;
 
     public MailUtil() {
         mailExecutor = fixedThreadPoolWithQueueSize(MAIL_ASYNC_SEND_THREAD_LIMIT, MAIL_ASYNC_SEND_QUEUE_LIMIT);
@@ -100,6 +101,7 @@ public class MailUtil extends BackendUtils {
         supportMailAddress = loadedProperties.getProperty("MailUtil_supportMailAddress","");
         smtpSSLProtocol = loadedProperties.getProperty("MailUtil_smtpSSLProtocol", "");
         smtpSSLTrust = loadedProperties.getProperty("MailUtil_smtpSSLTrust", "*");
+        excludeRecipient= loadedProperties.getProperty("MailUtil_excludeRecipient", "");
     }
 
     private void setSession() {
@@ -116,6 +118,7 @@ public class MailUtil extends BackendUtils {
         properties.setProperty("mail.smtp.ssl.trust", smtpSSLTrust);
         properties.setProperty("mail.debug", enableDebug);
         properties.setProperty("mail.smtp.ssl.protocols", smtpSSLProtocol);
+        properties.setProperty("mail.exclude.recipient", excludeRecipient);
 
 
         if (!"false".equals(isAuthenticationNecessary)) {
@@ -144,7 +147,7 @@ public class MailUtil extends BackendUtils {
         sendMail(recipient, subjectNameInPropertiesFile, textNameInPropertiesFile, notificationClass, roleName, true, textParameters);
     }
     public void sendMail(String recipient, String subjectNameInPropertiesFile, String textNameInPropertiesFile, String notificationClass, String roleName, boolean checkWantsNotifications, String ... textParameters) {
-        sendMail(Sets.newHashSet(recipient), null, subjectNameInPropertiesFile, textNameInPropertiesFile, notificationClass, roleName, checkWantsNotifications, textParameters);
+        sendMail(Sets.newHashSet(recipient), excludeRecipient, subjectNameInPropertiesFile, textNameInPropertiesFile, notificationClass, roleName, checkWantsNotifications, textParameters);
     }
 
     public void sendMail(Set<String> recipients, String excludedRecipient, String subjectNameInPropertiesFile, String textNameInPropertiesFile, String notificationClass, String roleName, String... textParameters) {
@@ -155,7 +158,7 @@ public class MailUtil extends BackendUtils {
         MimeMessage messageWithSubjectAndText = makeMessageWithSubjectAndText(subjectNameInPropertiesFile, textNameInPropertiesFile, textParameters);
         for (String recipient : nullToEmptySet(recipients)) {
             if(!isNullEmptyOrWhitespace(recipient)
-                    && !recipient.equals(excludedRecipient)
+                    && !recipient.contains(excludedRecipient)
                     && (!checkWantsNotifications || isMailWantedBy(recipient, SW360Utils.notificationPreferenceKey(notificationClass, roleName)))) {
                 sendMailWithSubjectAndText(recipient, messageWithSubjectAndText);
             }
