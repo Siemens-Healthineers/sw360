@@ -2017,7 +2017,13 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     public List<Component> getAllComponentsWithVCS() {
-        final List<Component> components = componentRepository.getComponentsByVCS();
+        final List<Component> componentsWithVCS = componentRepository.getComponentsByVCS();
+        final List<Component> components = new ArrayList<>();
+        for (Component component : componentsWithVCS) {
+            if (!CommonUtils.isNullOrEmptyCollection(component.getReleaseIds())) {
+                components.add(component);
+            }
+        }
         return components;
     }
 
@@ -3069,7 +3075,6 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
         components.forEach(c -> {
             String VCS = c.getVcs();
-            log.info(String.format("SRC Upload: %s %s", c.getId(), VCS));
             // Add more domains in the future and include the download logic accordingly
             if (VCS.toLowerCase().contains("github.com")) {
                 for (String r_id : c.getReleaseIds()) {
@@ -3085,6 +3090,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
                             releasesWithoutSRC.add(r.getId());
                             String version = r.getVersion();
                             Release originalReleaseData = r.deepCopy();
+                            log.info(String.format("SRC Upload: %s %s", c.getVcs(), version));
 
                             for (String format : formats) {
                                 String downloadURL = String.format(format, c.getVcs(), version);
@@ -3108,6 +3114,8 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
                                         log.error(
                                                 "SRC Upload: Error while downloading the source code zip file for release:"
                                                         + r.getId() + " " + e);
+                                    } catch (Exception e) {
+                                        log.error("An exception occured while uploading source:" + r.getId() + " " + e);
                                     }
                                 }
                             }
@@ -3143,7 +3151,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
             } else {
                 return false;
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error while checking the validity of the URL " + url, e);
             return false;
         }
