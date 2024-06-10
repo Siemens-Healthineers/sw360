@@ -14,26 +14,14 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.net.URI;
 import java.nio.charset.Charset;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.thrift.TException;
@@ -75,7 +63,6 @@ import org.eclipse.sw360.datahandler.thrift.components.Release;
 import org.eclipse.sw360.datahandler.thrift.components.Repository;
 import org.eclipse.sw360.datahandler.thrift.components.RepositoryType;
 import org.eclipse.sw360.datahandler.thrift.packages.Package;
-import org.eclipse.sw360.datahandler.thrift.packages.PackageManager;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.projects.ProjectType;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -596,11 +583,16 @@ public class CycloneDxBOMImporter {
         int relCreationCount = 0, relReuseCount = 0, pkgCreationCount = 0, pkgReuseCount = 0;
         for (Map.Entry<String, List<org.cyclonedx.model.Component>> entry : vcsToComponentMap.entrySet()) {
             Component comp = createComponent(entry.getKey());
+            List<org.cyclonedx.model.Component> componentsFromBom = entry.getValue();
             Release release = new Release();
             String relName = "";
             AddDocumentRequestSummary compAddSummary;
             try {
-                if (componentDatabaseHandler.isDuplicate(comp.getName(), true)) {
+                Component dupCompByName = componentDatabaseHandler.searchComponentByName(comp.getName());
+
+                //Check if the component name is same but manufacturer is different. In this case, rename the component as manf/name.
+                if (dupCompByName != null && (CommonUtils.isNotNullEmptyOrWhitespace(dupCompByName.getVcs())
+                        && !(comp.getVcs().equalsIgnoreCase(dupCompByName.getVcs())))) {
                     comp.setName(getComponentNameFromVCS(entry.getKey(), true));
                 }
 
@@ -1055,24 +1047,6 @@ public class CycloneDxBOMImporter {
         }
     }
 
-    private String getComponentNameFromVCS(String vcsUrl){
-        String compName = vcsUrl.replaceAll(SCHEMA_PATTERN, "$1");
-        Matcher thirdSlashMatcher = THIRD_SLASH_PATTERN.matcher(compName);
-        if (thirdSlashMatcher.find()) {
-            compName = thirdSlashMatcher.group();
-            Matcher firstSlashMatcher = FIRST_SLASH_PATTERN.matcher(compName);
-            if (firstSlashMatcher.find()) {
-                compName = firstSlashMatcher.group(1);
-                compName = compName.replaceAll(SLASH, ".");
-                if (vcsUrl.toLowerCase().contains("github.com")) {
-                    compName = compName.replaceAll("\\.git.*", "").replaceAll("#.*", "");
-                }
-            }
-        }
-
-        return compName;
-    }
-
     private Package createPackage(org.cyclonedx.model.Component componentFromBom, Release release, Set<String> licenses) {
         Package pckg = new Package();
         String purl = componentFromBom.getPurl();
@@ -1081,7 +1055,7 @@ public class CycloneDxBOMImporter {
                 purl = purl.toLowerCase().trim();
                 PackageURL packageURL = new PackageURL(purl);
                 pckg.setPurl(purl);
-                String packageName = packageURL.getName();
+                String packageName = componentFromBom.getName();
                 boolean isDuplicatePackageName = packageDatabaseHandler.getPackageByNameAndVersion(packageName, packageURL.getVersion()).size() > 0;
                 if (isDuplicatePackageName) {
                     packageName = getPackageName(packageURL, componentFromBom, SLASH).trim();
@@ -1198,6 +1172,7 @@ public class CycloneDxBOMImporter {
         }
         return compName;
     }
+
     /*
      * Sanitize different repository URLS based on their defined schema
      */

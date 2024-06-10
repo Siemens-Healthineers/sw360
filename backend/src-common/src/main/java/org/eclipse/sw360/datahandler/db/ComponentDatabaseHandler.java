@@ -599,10 +599,6 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     private boolean isDuplicate(Component component, boolean caseInsensitive){
-        if (isNotNullEmptyOrWhitespace(component.getVcs())) {
-            return isDuplicate(component.getName(), caseInsensitive) && isDuplicateUsingVcs(component.getVcs(), caseInsensitive);
-        }
-
         return isDuplicate(component.getName(), caseInsensitive);
     }
 
@@ -614,7 +610,7 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
         if (isNullEmptyOrWhitespace(componentName)) {
             return false;
         }
-        Set<String> duplicates = componentRepository.getComponentIdsByName(componentName, caseInsensitive);
+        Set<String> duplicates = componentRepository.getComponentIdsByName(componentName.trim(), caseInsensitive);
         return duplicates.size()>0;
     }
 
@@ -771,6 +767,15 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
     }
 
+    public Component searchComponentByName(String name) {
+        List<Component> components = componentRepository.searchComponentByName(name, false);
+        if (components != null && components.size() == 1) {
+            return components.get(0);
+        } else {
+            return null;
+        }
+    }
+
     private boolean isDependenciesExistInComponent(Component component) {
         boolean isValidDependentIds = true;
         if (component.isSetReleaseIds()) {
@@ -840,16 +845,17 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
     }
 
     private boolean changeWouldResultInDuplicate(Component before, Component after) {
-        if (before.getName().equals(after.getName())) {
-            return false;
-        }
-        if (isNotNullEmptyOrWhitespace(before.getVcs())) {
-            if (before.getVcs().equals(after.getVcs())) {
+        String beforeVCS = isNullEmptyOrWhitespace(before.getVcs()) ? "" : before.getVcs().trim();
+        String afterVCS = isNullEmptyOrWhitespace(after.getVcs()) ? "" : after.getVcs().trim();
+
+        if (before.getName().trim().equalsIgnoreCase(after.getName().trim())) {
+            if (beforeVCS.equalsIgnoreCase(afterVCS)) {
                 return false;
             }
+            return isDuplicateUsingVcs(afterVCS, true);
         }
 
-        return isDuplicate(after, false);
+        return isDuplicate(after, true);
     }
 
     private void updateComponentInternal(Component updated, Component current, User user) {
