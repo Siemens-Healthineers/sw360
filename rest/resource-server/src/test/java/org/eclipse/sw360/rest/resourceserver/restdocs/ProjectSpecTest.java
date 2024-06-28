@@ -710,7 +710,9 @@ public class ProjectSpecTest extends TestRestDocsSpecBase {
         LicenseInfoFile licenseInfoFile = new LicenseInfoFile();
         licenseInfoFile.setGeneratedOutput(new byte[0]);
         given(this.licenseInfoMockService.getLicenseInfoFile(any(), any(), any(), any(),
-                any(),any(), any())).willReturn(licenseInfoFile);
+                any(),any(), any(), eq(false))).willReturn(licenseInfoFile);
+        given(this.licenseInfoMockService.getLicenseInfoFile(any(), any(), any(), any(),
+                any(),any(), any(), eq(true))).willReturn(licenseInfoFile);
 
         Source ownerSrc1 = Source.releaseId("9988776655");
         Source usedBySrc = Source.projectId(project.getId());
@@ -2022,6 +2024,25 @@ public class ProjectSpecTest extends TestRestDocsSpecBase {
                                 parameterWithName("variant").description("All the possible values for variants are "
                                         + Arrays.asList(OutputFormatVariant.values())),
                                 parameterWithName("externalIds").description("The external Ids of the project")
+                                )));
+    }
+    
+    @Test
+    public void should_document_get_download_license_info_without_release_version() throws Exception {
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+        this.mockMvc.perform(get("/api/projects/" + project.getId()+ "/licenseinfo?generatorClassName=XhtmlGenerator&variant=DISCLOSURE&excludeReleaseVersion=true")
+                .header("Authorization", "Bearer " + accessToken)
+                .accept("application/xhtml+xml"))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler
+                        .document(requestParameters(
+                                parameterWithName("generatorClassName")
+                                        .description("All possible values for output generator class names are "
+                                                + Arrays.asList("DocxGenerator", "XhtmlGenerator", "TextGenerator")),
+                                parameterWithName("variant").description("All the possible values for variants are "
+                                        + Arrays.asList(OutputFormatVariant.values())),
+                                parameterWithName("excludeReleaseVersion").description("Exclude version of the components from the generated license info file. "
+                                		+ "Possible values are `<true|false>`")
                                 )));
     }
 
