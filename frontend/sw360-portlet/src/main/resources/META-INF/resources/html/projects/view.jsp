@@ -36,6 +36,7 @@
 <jsp:useBean id="state" class="java.lang.String" scope="request"/>
 <jsp:useBean id="exactMatchCheckBox" class="java.lang.String" scope="request"/>
 <jsp:useBean id="isSbomImportExportAccessUser" type="java.lang.Boolean" scope="request"/>
+<jsp:useBean id="isUserAtLeastClearingAdmin" type="java.lang.Boolean" scope="request"/>
 
 <core_rt:set var="stateAutoC" value='<%=PortalConstants.STATE%>'/>
 <core_rt:set var="projectTypeAutoC" value='<%=PortalConstants.PROJECT_TYPE%>'/>
@@ -168,7 +169,7 @@
                     <div class="btn-toolbar" role="toolbar">
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-primary" onclick="window.location.href='<%=addProjectURL%>'"><liferay-ui:message key="add.project" /></button>
-									<button type="button" ${isSbomImportExportAccessUser ? '' : 'disabled'}
+									<button type="button" ${isUserAtLeastClearingAdmin ? '' : 'disabled'}
 									class="btn btn-secondary dropdown-toggle"
 										data-toggle="dropdown" aria-haspopup="true"
 										aria-expanded="false">
