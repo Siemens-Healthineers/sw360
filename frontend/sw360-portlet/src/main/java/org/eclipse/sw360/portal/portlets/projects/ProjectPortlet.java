@@ -1670,6 +1670,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
             Integer criticalCount = modClient.getOpenCriticalCrCountByGroup(user.getDepartment());
             request.setAttribute(CRITICAL_CR_COUNT, criticalCount);
             request.setAttribute(PortalConstants.IS_SBOM_IMPORT_EXPORT_ACCESS_USER, SW360Utils.isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(user, SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE));
+            request.setAttribute(IS_USER_AT_LEAST_CLEARING_ADMIN, PermissionUtils.isUserAtLeast(UserGroup.CLEARING_ADMIN, user));
         } catch(TException e) {
             log.error("Error in getting the projectList from backend ", e);
         }
@@ -1810,6 +1811,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                     }
                 }
                 request.setAttribute(PortalConstants.IS_SBOM_IMPORT_EXPORT_ACCESS_USER, SW360Utils.isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(user, SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE));
+                request.setAttribute(IS_USER_AT_LEAST_CLEARING_ADMIN, PermissionUtils.isUserAtLeast(UserGroup.CLEARING_ADMIN, user));
                 request.setAttribute(PortalConstants.TOTAL_VULNERABILITY_COUNT, total_vuls.size());
                 putDirectlyLinkedReleasesInRequest(request, project);
                 Set<Project> usingProjects = client.searchLinkingProjects(id, user);
@@ -2584,6 +2586,7 @@ public class ProjectPortlet extends FossologyAwarePortlet {
                 request.setAttribute(ALL_USING_PROJECTS_COUNT, 0);
                 request.setAttribute(SOURCE_PROJECT_ID, id);
                 request.setAttribute(PortalConstants.IS_SBOM_IMPORT_EXPORT_ACCESS_USER, SW360Utils.isUserAtleastDesiredRoleInPrimaryOrSecondaryGroup(user, SW360Constants.SBOM_IMPORT_EXPORT_ACCESS_USER_ROLE));
+                request.setAttribute(IS_USER_AT_LEAST_CLEARING_ADMIN, PermissionUtils.isUserAtLeast(UserGroup.CLEARING_ADMIN, user));
                 request.setAttribute(LOGIN_USER, user);
             } else {
                 Project project = new Project();
