@@ -76,3 +76,25 @@ include::{snippets}/should_document_get_clearingrequests_by_state/curl-request.a
 ===== Example response
 include::{snippets}/should_document_get_clearingrequests_by_state/http-response.adoc[]
 
+[[resources-add-comment-to-clearingrequest]]
+==== Add a new comment to a clearing request
+
+A `POST` request will add a new comment to a specific clearing request.
+
+===== Request Parameters
+
+include::{snippets}/should_document_add_comment_to_clearingrequest/request-parameters.adoc[]
+
+===== Request Example
+
+include::{snippets}/should_document_add_comment_to_clearingrequest/curl-request.adoc[]
+
+===== Response Structure
+
+include::{snippets}/should_document_add_comment_to_clearingrequest/response-fields.adoc[]
+
+===== Response Example
+
+include::{snippets}/should_document_add_comment_to_clearingrequest/http-response.adoc[]
+
+

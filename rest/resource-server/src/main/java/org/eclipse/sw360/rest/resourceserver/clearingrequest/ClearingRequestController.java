@@ -26,6 +26,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.apache.thrift.TException;
 import org.eclipse.sw360.datahandler.thrift.ClearingRequestState;
+import org.eclipse.sw360.datahandler.thrift.Comment;
 import org.eclipse.sw360.datahandler.thrift.projects.ClearingRequest;
 import org.eclipse.sw360.datahandler.thrift.projects.Project;
 import org.eclipse.sw360.datahandler.thrift.users.User;
@@ -41,6 +42,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelProcessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -163,6 +165,26 @@ public class ClearingRequestController implements RepresentationModelProcessor<R
         CollectionModel<EntityModel<ClearingRequest>> resources = CollectionModel.of(clearingRequestList);
         HttpStatus status = resources == null ? HttpStatus.NO_CONTENT : HttpStatus.OK;
         return new ResponseEntity<>(resources, status);
+    }
+
+    @Operation(
+            summary = "Add a new comment to a clearing request.",
+            description = "Create a new comment for the clearing request.",
+            tags = {"ClearingRequest"}
+    )
+    @PreAuthorize("hasAuthority('WRITE')")
+    @RequestMapping(value = CLEARING_REQUEST_URL + "/{id}/comments", method = RequestMethod.POST)
+    public ResponseEntity<?> addComment(
+            @Parameter(description = "ID of the clearing request")
+            @PathVariable("id") String crId,
+            @RequestBody Comment comment,
+            HttpServletRequest request
+    ) throws TException {
+        User sw360User = restControllerHelper.getSw360UserFromAuthentication();
+        ClearingRequest updatedClearingRequest = sw360ClearingRequestService.addComment(crId, comment, sw360User);
+        HalResource<ClearingRequest> halClearingRequest = createHalClearingRequestWithAllDetails(updatedClearingRequest, sw360User);
+        HttpStatus status = halClearingRequest == null ? HttpStatus.NO_CONTENT : HttpStatus.OK;
+        return new ResponseEntity<>(updatedClearingRequest.getComments(), status);
     }
 
     @Override

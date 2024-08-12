@@ -12,20 +12,15 @@ package org.eclipse.sw360.rest.resourceserver.restdocs;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
-import static org.springframework.restdocs.payload.PayloadDocumentation.subsectionWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.formParameters;
-import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.thrift.TException;
 import org.eclipse.sw360.datahandler.thrift.ClearingRequestPriority;
@@ -65,10 +60,9 @@ public class ClearingRequestSpecTest extends TestRestDocsSpecBase {
 
     @MockBean
     private Sw360ClearingRequestService clearingRequestServiceMock;
-
+    ClearingRequest clearingRequest = new ClearingRequest();
     @Before
     public void before() throws TException, IOException {
-        ClearingRequest clearingRequest = new ClearingRequest();
         clearingRequest.setId("CR-101");
         clearingRequest.setAgreedClearingDate("12-07-2020");
         clearingRequest.setClearingState(ClearingRequestState.ACCEPTED);
@@ -244,4 +238,29 @@ public class ClearingRequestSpecTest extends TestRestDocsSpecBase {
                         )));
     }
 
+    @Test
+    public void should_add_comment_to_clearing_request() throws Exception {
+        Map<String, Object> comment = new LinkedHashMap<>();
+        comment.put("text", "This is a test comment.");
+        comment.put("commentedBy", "admin@sw360.org");
+
+        String accessToken = TestHelper.getAccessToken(mockMvc, testUserId, testUserPassword);
+
+        this.mockMvc.perform(
+                        post("/resource/api/clearingrequest/" + clearingRequest.getId() + "/comments")
+                                .contentType(MediaTypes.HAL_JSON)
+                                .content(this.objectMapper.writeValueAsString(comment))
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andDo(this.documentationHandler.document(
+                        requestFields(
+                                fieldWithPath("text").description("The text of the comment"),
+                                fieldWithPath("commentedBy").description("The user who made the comment"),
+                        ),
+                        responseFields(
+                                fieldWithPath("[].text").description("The text of the comment"),
+                                fieldWithPath("[].commentedBy").description("The user who made the comment")
+                        )
+                ));
+    }
 }
