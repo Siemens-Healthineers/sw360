@@ -473,13 +473,13 @@ public class ProjectController implements RepresentationModelProcessor<Repositor
         Project sw360Proj = projectService.getProjectForUserById(id, sw360User);
         final Set<String> projectIdsInBranch = new HashSet<>();
         boolean isTransitive = Boolean.parseBoolean(transitive);
-
-        Map<String, ProjectProjectRelationship> linkedProjects = sw360Proj.getLinkedProjects();
-        List<String> keys = new ArrayList<>(linkedProjects.keySet());
-        List<Project> projects = keys.stream().map(projId -> wrapTException(() -> {
-            final Project sw360Project = projectService.getProjectForUserById(projId, sw360User);
-            return sw360Project;
-        })).collect(Collectors.toList());
+        
+		Map<String, ProjectProjectRelationship> linkedProjects = sw360Proj.getLinkedProjects();
+        List<String> keys = linkedProjects != null ? new ArrayList<>(linkedProjects.keySet()) : new ArrayList<>();
+		List<Project> projects = keys.stream().map(projId -> wrapTException(() -> {
+			final Project sw360Project = projectService.getProjectForUserById(projId, sw360User);
+			return sw360Project;
+		})).collect(Collectors.toList());
 
         PaginationResult<Project> paginationResult = restControllerHelper.createPaginationResult(request, pageable,
                 projects, SW360Constants.TYPE_PROJECT);
