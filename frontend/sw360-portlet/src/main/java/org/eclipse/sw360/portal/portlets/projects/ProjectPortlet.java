@@ -396,43 +396,47 @@ public class ProjectPortlet extends FossologyAwarePortlet {
         include("/html/components/ajax/departmentSearch.jsp", request, response, PortletRequest.RESOURCE_PHASE);
     }
 
-    private void putProjectPackagesIntoRequest(PortletRequest request, Project project, User user)
-            throws TException {
+    private void putProjectPackagesIntoRequest(PortletRequest request, Project project, User user) throws TException {
         ProjectService.Iface projectClient = thriftClients.makeProjectClient();
-        Map<Package,Set<String>> packageToProjects = new HashMap<>();
+        Map<Package, Set<String>> packageToProjects = new HashMap<>();
+        Set<String> visitedProjectIds = new HashSet<>();  // Keep track of visited projects to avoid cycles
 
-        createPackageProjectsMap(project, packageToProjects);
-
-        if (project.getLinkedProjects() != null) {
-            for (String projectId : project.getLinkedProjects().keySet()) {
-                Project linkedProject = projectClient.getProjectById(projectId, user);
-
-                createPackageProjectsMap(linkedProject, packageToProjects);
-            }
-        }
+        createPackageProjectsMap(project, packageToProjects, visitedProjectIds, user);  // Start with the root project
 
         request.setAttribute(PortalConstants.LINKED_PACKAGE_DATA, packageToProjects);
+    }
+
+    private void createPackageProjectsMap(Project project, Map<Package, Set<String>> packageToProjects, Set<String> visitedProjectIds, User user) throws TException {
+        // Prevent cyclic references
+        if (visitedProjectIds.contains(project.getId())) {
+            return;
         }
+        visitedProjectIds.add(project.getId());
 
-    private void createPackageProjectsMap(Project project, Map<Package, Set<String>> packageToProjects)
-            throws TException {
         PackageService.Iface client = thriftClients.makePackageClient();
-
         if (project.getPackageIds() != null) {
             for (String packageId : project.getPackageIds()) {
                 try {
                     Package pkg = client.getPackageById(packageId);
-
-                    if (packageToProjects.containsKey(pkg)) {
-                        Set<String> projectNames = packageToProjects.get(pkg);
-                        projectNames.add(printName(project));
-                    } else {
-                        Set<String> projectNames = new HashSet<>();
-                        projectNames.add(printName(project));
-                        packageToProjects.put(pkg, projectNames);
-                    }
+                    packageToProjects.computeIfAbsent(pkg, k -> new HashSet<>()).add(printName(project)); // Add project name
                 } catch (TException e) {
                     log.error("Error in getting the package from backend for packageId " + packageId, e);
+                }
+            }
+        }
+
+        if (project.getLinkedProjects() != null) {
+            ProjectService.Iface projectClient = thriftClients.makeProjectClient();
+            for (String linkedProjectId : project.getLinkedProjects().keySet()) {
+                try {
+                    Project linkedProject = projectClient.getProjectById(linkedProjectId, user);  // Fetch the linked project
+                    if (linkedProject != null) {
+                        createPackageProjectsMap(linkedProject, packageToProjects, visitedProjectIds, user);  // Recursive call
+                    } else {
+                        log.warn("Linked project with ID " + linkedProjectId + " not found.");
+                    }
+                } catch (TException e) {
+                    log.error("Error fetching linked project with ID " + linkedProjectId, e);
                 }
             }
         }
