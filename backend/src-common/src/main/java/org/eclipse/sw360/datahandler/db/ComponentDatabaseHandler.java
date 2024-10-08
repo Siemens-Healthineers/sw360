@@ -1150,12 +1150,14 @@ public class ComponentDatabaseHandler extends AttachmentAwareDatabaseHandler {
 
                 copyFields(actual, release, immutableFields);
 
-                autosetReleaseClearingState(release, actual);
                 if (hasChangesInEccFields) {
                     autosetEccUpdaterInfo(release, user);
                 }
+
+                //Set clearing state based on the retained attachments
                 release.setAttachments(
                         getAllAttachmentsToKeep(toSource(actual), actual.getAttachments(), release.getAttachments()));
+                autosetReleaseClearingState(release, actual);
 
                 List<ChangeLogs> referenceDocLogList = new LinkedList<>();
                 Set<Attachment> attachmentsAfter = release.getAttachments();
