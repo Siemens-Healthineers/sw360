@@ -14,7 +14,6 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.*;
@@ -76,6 +75,9 @@ import com.github.packageurl.PackageURL;
 import com.google.common.net.MediaType;
 import com.google.gson.Gson;
 
+import static org.eclipse.sw360.common.utils.RepositoryURL.sanitizeVCS;
+import static org.eclipse.sw360.common.utils.RepositoryURL.getComponentNameFromVCS;
+
 /**
  * CycloneDX BOM import implementation.
  * Supports both XML and JSON format of CycloneDX SBOM
@@ -118,16 +120,6 @@ public class CycloneDxBOMImporter {
     private final PackageDatabaseHandler packageDatabaseHandler;
     private final User user;
     private final AttachmentConnector attachmentConnector;
-
-    // Map of supported hosts and base URL formats
-    private static final Map<String, String> VCS_HOSTS = Map.of(
-            "github.com", "https://github.com/%s/%s",
-            "gitlab.com", "https://gitlab.com/%s/%s",
-            "bitbucket.org", "https://bitbucket.org/%s/%s",
-            "cs.opensource.google", "https://cs.opensource.google/%s/%s",
-            "go.googlesource.com", "https://go.googlesource.com/%s",
-            "pypi.org", "https://pypi.org/project/%s"
-    );
 
     public CycloneDxBOMImporter(ProjectDatabaseHandler projectDatabaseHandler, ComponentDatabaseHandler componentDatabaseHandler,
             PackageDatabaseHandler packageDatabaseHandler, AttachmentConnector attachmentConnector, User user) {
@@ -997,100 +989,6 @@ public class CycloneDxBOMImporter {
     public String getComponetNameById(String id, User user) throws SW360Exception {
         Component comp = componentDatabaseHandler.getComponent(id, user);
         return comp.getName();
-    }
-
-    private String getComponentNameFromVCS(String vcsUrl, boolean isGetVendorandName) {
-        String compName = vcsUrl.replaceAll(SCHEMA_PATTERN, "$1");
-        String[] parts = compName.split("/");
-
-        if (parts.length >= 2) {
-            if (isGetVendorandName) {
-                return String.join("/", Arrays.copyOfRange(parts, 1, parts.length));
-            } else {
-                return parts[parts.length - 1];
-            }
-        }
-        return compName;
-    }
-
-    /*
-     * Sanitize different repository URLS based on their defined schema
-     */
-    public String sanitizeVCS(String vcs) {
-        for (String host : VCS_HOSTS.keySet()) {
-            if (vcs.contains(host)) {
-                return sanitizeVCSByHost(vcs, host);
-            }
-        }
-        return vcs; // Return unchanged if no known host is found
-    }
-
-    private String sanitizeVCSByHost(String vcs, String host) {
-        vcs = "https://" + vcs.substring(vcs.indexOf(host)).trim();
-
-        try {
-            URI uri = URI.create(vcs);
-            String[] urlParts = uri.getPath().split("/");
-            String formattedUrl = formatVCSUrl(host, urlParts);
-
-            if (formattedUrl == null) {
-                log.error("Invalid {} repository URL: {}", host, vcs);
-                return vcs;
-            }
-            return formattedUrl.endsWith("/") ? formattedUrl.substring(0, formattedUrl.length() - 1) : formattedUrl;
-
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid URL format: {}", vcs, e);
-            return vcs;
-        }
-    }
-
-    private String formatVCSUrl(String host, String[] urlParts) {
-        String formattedUrl = null;
-
-        switch (host) {
-            case "github.com":
-            case "bitbucket.org":
-                if (urlParts.length >= 3) {
-                    formattedUrl = String.format(VCS_HOSTS.get(host),
-                            urlParts[1], urlParts[2].replaceAll("\\.git.*|#.*", ""));
-                }
-                break;
-
-            case "gitlab.com":
-                if (urlParts.length >= 2) {
-                    // Join everything after the main host to get the full nested path
-                    String repoPath = String.join("/", Arrays.copyOfRange(urlParts, 1, urlParts.length));
-
-                    // Remove everything from the first occurrence of .git or #
-                    repoPath = repoPath.replaceAll("\\.git.*|#.*", "");
-
-                    formattedUrl = String.format(VCS_HOSTS.get(host), repoPath);
-                }
-                break;
-
-            case "cs.opensource.google":
-                if (urlParts.length >= 3) {
-                    String thirdSegment = urlParts.length > 3 && !urlParts[3].isEmpty() && !urlParts[3].equals("+")
-                            ? urlParts[3] : "";
-                    formattedUrl = String.format(VCS_HOSTS.get(host), urlParts[1], urlParts[2], thirdSegment);
-                }
-                break;
-
-            case "go.googlesource.com":
-                if (urlParts.length >= 2) {
-                    formattedUrl = String.format(VCS_HOSTS.get(host), urlParts[1]);
-                }
-                break;
-
-            case "pypi.org":
-                if (urlParts.length >= 3) {
-                    formattedUrl = String.format(VCS_HOSTS.get(host), urlParts[2].replaceAll("\\.git.*|#.*", ""));
-                }
-                break;
-        }
-
-        return formattedUrl;
     }
 
     public static boolean containsComp(Map<String, List<org.cyclonedx.model.Component>> map, org.cyclonedx.model.Component element) {
