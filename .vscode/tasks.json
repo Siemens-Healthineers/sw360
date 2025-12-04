@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build WAR",
+      "type": "shell",
+      "command": "sudo mvn clean package -DskipTests -Dbase.deploy.dir=.",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Copy WAR to Tomcat",
+      "type": "shell",
+      "command": "sudo cp $(find . -name \"*.war\") /opt/tomcat/webapps/",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Start Tomcat",
+      "type": "shell",
+      "command": "cd /opt/tomcat/bin && sudo ./catalina.sh jpda start",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "View Tomcat Logs",
+      "type": "shell",
+      "command": "sudo tail -100f /opt/tomcat/logs/catalina.out",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Build, Deploy & Start Tomcat",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Build WAR",
+        "Copy WAR to Tomcat",
+        "Start Tomcat"
+      ],
+      "problemMatcher": []
+    },
+  ]
+}
